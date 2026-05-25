@@ -6,6 +6,7 @@ import { registerWorkflowValidateTools } from "./workflow-validate.js";
 import { registerQueueManagementTools } from "./queue-management.js";
 import { registerRegistrySearchTools } from "./registry-search.js";
 import { registerModelManagementTools } from "./model-management.js";
+import { registerModelExtrasTools } from "./model-extras.js";
 import { registerSkillGeneratorTools } from "./skill-generator.js";
 import { registerDiagnosticsTools } from "./diagnostics.js";
 import { registerWorkflowLibraryTools } from "./workflow-library.js";
@@ -44,5 +45,6 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   registerGenerateImageTool(server);
   registerConditionedGenerationTools(server);
   registerWorkflowDslTools(server);
+  registerModelExtrasTools(server);
   await registerAutoloadedWorkflows(server);
 }
