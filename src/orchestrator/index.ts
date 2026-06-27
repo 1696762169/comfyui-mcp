@@ -126,10 +126,21 @@ const injectedCrashes = new Set<string>();
  *  a fresh backlog) produces a new key and warns again. Process-scoped. */
 const injectedQueueNotes = new Set<string>();
 
+/** Live stall threshold (seconds) pushed from the panel setting via a `set_config`
+ *  frame — applies WITHOUT a reconnect. null = not set, fall back to env then the
+ *  built-in default. Process-global: one ComfyUI per orchestrator. */
+let liveStallSeconds: number | null = null;
+function setLiveStallSeconds(v: unknown): void {
+  const n = Number(v);
+  liveStallSeconds = Number.isFinite(n) && n > 0 ? Math.min(3600, Math.max(15, Math.round(n))) : null;
+}
+
 /** Stall threshold (ms): a running job with no node/progress advance for this long
- *  is treated as stalled. Video steps are legitimately slow, so default high (180s)
- *  and allow override via COMFYUI_MCP_STALL_S (seconds). */
+ *  is treated as stalled. Video steps are legitimately slow, so the DEFAULT is high
+ *  (180s). Precedence: live panel setting (set_config) → COMFYUI_MCP_STALL_S env
+ *  (spawn value) → 180s default. */
 function stallThresholdMs(): number {
+  if (liveStallSeconds != null) return liveStallSeconds * 1000;
   const s = Number(process.env.COMFYUI_MCP_STALL_S);
   return Number.isFinite(s) && s > 0 ? Math.round(s * 1000) : 180000;
 }
@@ -808,6 +819,20 @@ export async function runPanelOrchestrator(): Promise<void> {
         });
       return;
     }
+    // Live panel config (currently just the render-stall threshold). Applied
+    // immediately, no reconnect — the next turn's watchdog check uses the new
+    // value. Sent by the panel on connect and whenever the setting changes.
+    if (event.type === "set_config" && event.tab_id) {
+      if ("stall_seconds" in event) {
+        setLiveStallSeconds((event as { stall_seconds?: unknown }).stall_seconds);
+        logger.info(
+          `[panel-orchestrator] live stall threshold → ${liveStallSeconds ?? "default"}s`,
+        );
+      }
+      bridge.push({ type: "ack", ok: true, kind: "config" }, event.tab_id);
+      return;
+    }
+
     // Model / effort picker: apply and confirm. Model switches live; an effort
     // change restarts the session (resumed) so the conversation carries over.
     if (event.type === "set_options" && event.tab_id) {
