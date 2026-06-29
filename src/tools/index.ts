@@ -11,6 +11,7 @@ import { registerExtraPathsTools } from "./extra-paths.js";
 import { registerSkillGeneratorTools } from "./skill-generator.js";
 import { registerDiagnosticsTools } from "./diagnostics.js";
 import { registerWorkflowLibraryTools } from "./workflow-library.js";
+import { registerWorkflowUrlTools } from "./workflow-url.js";
 import { registerProcessControlTools } from "./process-control.js";
 import { registerImageManagementTools } from "./image-management.js";
 import { registerMemoryManagementTools } from "./memory-management.js";
@@ -59,6 +60,7 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   registerSkillGeneratorTools(server);
   registerDiagnosticsTools(server);
   registerWorkflowLibraryTools(server);
+  registerWorkflowUrlTools(server);
   registerProcessControlTools(server);
   registerImageManagementTools(server);
   registerMemoryManagementTools(server);
