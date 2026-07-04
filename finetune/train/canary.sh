@@ -19,9 +19,11 @@ pip install -q -U unsloth trl datasets pyyaml huggingface_hub hf_transfer
 export HF_HUB_ENABLE_HF_TRANSFER=1
 python -c "import os; from huggingface_hub import login; login(os.environ['HF_TOKEN'])"
 
-echo "═══ [canary] 3/6 · assemble dataset (domain + small Toucan/xLAM blend) ═══"
+echo "═══ [canary] 3/6 · assemble dataset (domain-only — isolates core pipeline) ═══"
+# Canary validates base-load/template/train/export; the external Toucan/xLAM
+# blend is orthogonal (and network-dependent), so keep it out of the canary.
 cd finetune/train
-python prepare_dataset.py --toucan 400 --xlam 400 --val-frac 0.05
+python prepare_dataset.py --val-frac 0.05
 
 echo "═══ [canary] 4/6 · DRY RUN (verify Gemma-4 template + response markers) ═══"
 # This is the make-or-break check: if the template markers are wrong the run

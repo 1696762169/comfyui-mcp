@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 from pathlib import Path
 
@@ -54,11 +55,15 @@ def load_domain(paths: list[Path]) -> list[dict]:
 def load_toucan(n: int, rng: random.Random) -> list[dict]:
     from datasets import load_dataset  # lazy: heavy import
 
-    ds = load_dataset("Agent-Ark/Toucan-1.5M", split="train", streaming=True)
+    # Toucan-1.5M is split into configs by the teacher that generated each
+    # trajectory: ['Kimi-K2', 'OSS', 'Qwen3', 'SFT']. 'SFT' is the ready
+    # supervised-fine-tuning-formatted mixture — the one we blend in.
+    config = os.environ.get("TOUCAN_CONFIG", "SFT")
+    ds = load_dataset("Agent-Ark/Toucan-1.5M", config, split="train", streaming=True)
     picked = []
     # Reservoir-free cheap sample: take every record with prob ~n/1.5M until n.
     for rec in ds.shuffle(seed=rng.randint(0, 2**31), buffer_size=10_000):
-        msgs = rec.get("messages")
+        msgs = rec.get("messages") or rec.get("conversations")
         if not msgs:
             continue
         picked.append({"messages": msgs, "tools": "inline", "id": f"toucan-{len(picked)}"})
