@@ -89,6 +89,12 @@ export function createMockGraph(seedNodes = []) {
     graph_canvas: ({ action }) => ({ canvas: { action } }),
     graph_run: ({ batch_count }) => ({ queued: true, batch_count: batch_count ?? 1 }),
     graph_get_errors: () => ({ last_execution_error: null, node_errors: null, note: "no errors" }),
+    graph_outline: () => ({
+      viewing: { scope: "root" },
+      node_count: nodes.size,
+      outline: [...nodes.values()].map((n) => ({ id: n.id, type: n.type, title: n.title })),
+    }),
+    graph_screenshot: () => ({ captured: true, note: "mock canvas — no pixels", node_count: nodes.size }),
     workflow_save: () => ({ saved: true, workflow: "mock" }),
     workflow_save_as: ({ name }) => ({ saved_as: `workflows/${name}.json` }),
     workflow_new: () => ({ created: true, active: "Untitled (new tab)" }),
