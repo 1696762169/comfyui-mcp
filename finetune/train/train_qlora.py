@@ -31,6 +31,7 @@ def main() -> None:
     ap.add_argument("--config", default=str(HERE / "config.yaml"))
     ap.add_argument("--size", default=None, help="size-ladder key (e2b/e4b/12b/31b); default: config 'size'")
     ap.add_argument("--dry-run", action="store_true", help="render 2 samples and exit (verify template + masking)")
+    ap.add_argument("--max-steps", type=int, default=0, help="cap training steps (canary run); 0 = full num_train_epochs")
     args = ap.parse_args()
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
 
@@ -103,7 +104,8 @@ def main() -> None:
             output_dir=cfg["output_dir"],
             dataset_text_field="text",
             max_seq_length=cfg["max_seq_length"],
-            num_train_epochs=tr["num_train_epochs"],
+            # --max-steps caps a canary run; otherwise train full epochs.
+            **({"max_steps": args.max_steps} if args.max_steps else {"num_train_epochs": tr["num_train_epochs"]}),
             per_device_train_batch_size=tr["per_device_train_batch_size"],
             gradient_accumulation_steps=tr["gradient_accumulation_steps"],
             learning_rate=tr["learning_rate"],
