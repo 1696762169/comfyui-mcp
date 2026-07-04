@@ -47,21 +47,28 @@ const DIFFICULTIES = [
   ["debugging", "something is wrong or will fail first (bad model name, broken node, stuck queue) — diagnose, explain, and recover"],
 ];
 
-async function complete(prompt) {
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(API_KEY ? { authorization: `Bearer ${API_KEY}` } : {}),
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.9,
-    }),
-  });
-  if (!res.ok) throw new Error(`${BASE_URL} http ${res.status}: ${await res.text()}`);
-  return (await res.json()).choices?.[0]?.message?.content ?? "";
+async function complete(prompt, attempt = 0) {
+  try {
+    const res = await fetch(`${BASE_URL}/chat/completions`, {
+      method: "POST",
+      // A hung upstream must not wedge the whole run — abort and retry once.
+      signal: AbortSignal.timeout(180_000),
+      headers: {
+        "content-type": "application/json",
+        ...(API_KEY ? { authorization: `Bearer ${API_KEY}` } : {}),
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.9,
+      }),
+    });
+    if (!res.ok) throw new Error(`${BASE_URL} http ${res.status}: ${await res.text()}`);
+    return (await res.json()).choices?.[0]?.message?.content ?? "";
+  } catch (err) {
+    if (attempt < 1) return complete(prompt, attempt + 1);
+    throw err;
+  }
 }
 
 /** Pull a JSON array out of a chatty completion. */

@@ -24,7 +24,12 @@ const outDir = join(repoRoot, "finetune", "data");
 async function main() {
   const { z } = await import("zod");
   const { collectToolCatalog } = await import("../../src/tools/index.js");
+  const { buildPanelToolDefs } = await import("../../src/orchestrator/panel-tools.js");
 
+  mkdirSync(outDir, { recursive: true });
+
+  // 1. Headless MCP surface (113 tools) — what the agent uses for generation,
+  //    queue, models, workflows.
   const catalog = await collectToolCatalog();
   const tools = [...catalog.tools.values()].map((t) => ({
     name: t.name,
@@ -32,18 +37,28 @@ async function main() {
     description: t.description,
     inputSchema: z.toJSONSchema(z.object(t.schema ?? {}), { reused: "inline" }),
   }));
+  const mcpPayload = JSON.stringify({ count: tools.length, tools }, null, 2);
+  writeFileSync(join(outDir, "tools-full.json"), mcpPayload);
 
-  const payload = JSON.stringify({ count: tools.length, tools }, null, 2);
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "tools-full.json"), payload);
+  // 2. Panel live-canvas surface (panel_* tools) — the second half of the panel
+  //    agent's deployed surface. Same JSON-schema shape as the MCP tools.
+  const panelTools = buildPanelToolDefs().map((t) => ({
+    name: t.name,
+    category: "panel",
+    description: t.description,
+    inputSchema: z.toJSONSchema(z.object(t.schema ?? {}), { reused: "inline" }),
+  }));
+  const panelPayload = JSON.stringify({ count: panelTools.length, tools: panelTools }, null, 2);
+  writeFileSync(join(outDir, "tools-panel.json"), panelPayload);
 
-  // ~4 chars/token is close enough to size the training context window.
-  const approxTokens = Math.round(payload.length / 4);
-  const byCat = new Map<string, number>();
-  for (const t of tools) byCat.set(t.category, (byCat.get(t.category) ?? 0) + 1);
-  console.log(`[ft:tools] wrote ${tools.length} tools → finetune/data/tools-full.json`);
-  console.log(`[ft:tools] payload ${payload.length} chars ≈ ${approxTokens} tokens`);
-  for (const [cat, n] of byCat) console.log(`  ${cat}: ${n}`);
+  // 3. Combined surface — what the panel agent deploys with in full mode.
+  const combined = [...tools, ...panelTools];
+  writeFileSync(join(outDir, "tools-combined.json"), JSON.stringify({ count: combined.length, tools: combined }, null, 2));
+
+  const tok = (s: string) => Math.round(s.length / 4);
+  console.log(`[ft:tools] MCP ${tools.length} tools (${mcpPayload.length} chars ≈ ${tok(mcpPayload)} tok) → tools-full.json`);
+  console.log(`[ft:tools] panel ${panelTools.length} tools (${panelPayload.length} chars ≈ ${tok(panelPayload)} tok) → tools-panel.json`);
+  console.log(`[ft:tools] combined ${combined.length} tools ≈ ${tok(mcpPayload) + tok(panelPayload)} tok → tools-combined.json`);
 }
 
 main().catch((err) => {

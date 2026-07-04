@@ -1,0 +1,915 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "generation-atomic-0048",
+  "verdict": "UNVERIFIED",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Generate a 1024x1024 photorealistic image of a golden retriever puppy playing in autumn leaves, with shallow depth of field. Use 30 steps and CFG 7.5. Save as 'golden_retriever_autumn.png'."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me generate this image using the generate_image tool with the specified parameters.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_cfc7cf18f58c47f1a29c3ee2",
+          "function": {
+            "name": "generate_image",
+            "arguments": "{\"prompt\": \"golden retriever puppy playing in autumn leaves, shallow depth of field, photorealistic, warm golden hour lighting, bokeh background, detailed fur, playful expression, scattered red and orange fallen leaves, professional pet photography\", \"width\": 1024, \"height\": 1024, \"steps\": 30, \"cfg\": 7.5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me generate this image using the generate_image tool with the specified parameters.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_cfc7cf18f58c47f1a29c3ee2",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The image generation has been enqueued! Let me monitor the progress and check the results.",
+      "refusal": null,
+      "reasoning": "The image generation has been enqueued. Now I need to wait for it to complete and then save it with the specified filename. Let me check the job status.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6cfed15ec30d455298781372",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image generation has been enqueued. Now I need to wait for it to complete and then save it with the specified filename. Let me check the job status.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6cfed15ec30d455298781372",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me wait a moment and check again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_845bc0002e444489b1ce3525",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me wait a moment and check again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_845bc0002e444489b1ce3525",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me wait a bit more.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_07f91e51e64e4b04b103ceac",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me wait a bit more.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_07f91e51e64e4b04b103ceac",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me wait more.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_033b81896b544f168a323a67",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me wait more.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_033b81896b544f168a323a67",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me wait a bit longer.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_7b8a96db1aa34580931d4f0f",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me wait a bit longer.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_7b8a96db1aa34580931d4f0f",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending, let me keep polling.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_0b7d3ac1bc7c43d8afcd3f04",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending, let me keep polling.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_0b7d3ac1bc7c43d8afcd3f04",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me wait a bit more and check again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_ca7603f4a937493b9f8792ec",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me wait a bit more and check again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ca7603f4a937493b9f8792ec",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me keep polling.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_0285368dd73643729902d614",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me keep polling.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_0285368dd73643729902d614",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me wait a bit longer.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_d4c7c93062a340ae91d2edca",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me wait a bit longer.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d4c7c93062a340ae91d2edca",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me wait a bit more.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_e6d281180b6f44f0b550b36c",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me wait a bit more.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e6d281180b6f44f0b550b36c",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me keep polling.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_d6cd3a08719a4102879ebb2e",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me keep polling.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d6cd3a08719a4102879ebb2e",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Still pending. Let me try a few more times with some spacing.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_69ce09fc952d444ba3fe403b",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still pending. Let me try a few more times with some spacing.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_69ce09fc952d444ba3fe403b",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me wait a bit more and try again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_fe0c8fe8fa2e40088274fba1",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me wait a bit more and try again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_fe0c8fe8fa2e40088274fba1",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me keep polling...",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_cc9c9f40b838444ca378bb53",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me keep polling...",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_cc9c9f40b838444ca378bb53",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me keep waiting and checking.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_09424d2fcc514487b94b6877",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me keep waiting and checking.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_09424d2fcc514487b94b6877",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me keep polling.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_cd2a5595e4c4444f8d93a23e",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me keep polling.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_cd2a5595e4c4444f8d93a23e",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me wait a bit more and check again. It might be waiting in the queue or there might be other jobs ahead of it.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_5a22dee9b8384e47aef1db2c",
+          "function": {
+            "name": "get_queue",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me wait a bit more and check again. It might be waiting in the queue or there might be other jobs ahead of it.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5a22dee9b8384e47aef1db2c",
+      "content": "{\n  \"running\": 1,\n  \"pending\": 1,\n  \"running_jobs\": [\n    {\n      \"number\": 4,\n      \"prompt_id\": \"ce2ae17e-7a99-4579-abd2-7146520cfe37\"\n    }\n  ],\n  \"pending_jobs\": [\n    {\n      \"number\": 5,\n      \"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "There's another job currently running. Our job is queued behind it (position 2 in the queue). Let me wait for it to clear.",
+      "refusal": null,
+      "reasoning": "There's a job currently running (a different one), and our job is pending. Let me wait for the running job to finish and ours to start.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6f7213a1be554a3c8ba02e5c",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "There's a job currently running (a different one), and our job is pending. Let me wait for the running job to finish and ours to start.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6f7213a1be554a3c8ba02e5c",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me wait a bit more and check the queue status again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6bf0b42921e9490095944a71",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me wait a bit more and check the queue status again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6bf0b42921e9490095944a71",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me wait a bit more.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_ba75b1a22a1b469ca7c46822",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me wait a bit more.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ba75b1a22a1b469ca7c46822",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me wait a bit longer and check again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_1e2aaa9e1b854a6b93b76da3",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me wait a bit longer and check again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1e2aaa9e1b854a6b93b76da3",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me try checking the queue again to see the state.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_9febd919597b460693637470",
+          "function": {
+            "name": "get_queue",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me try checking the queue again to see the state.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9febd919597b460693637470",
+      "content": "{\n  \"running\": 1,\n  \"pending\": 1,\n  \"running_jobs\": [\n    {\n      \"number\": 4,\n      \"prompt_id\": \"ce2ae17e-7a99-4579-abd2-7146520cfe37\"\n    }\n  ],\n  \"pending_jobs\": [\n    {\n      \"number\": 5,\n      \"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The previous job is still running. Let me keep waiting.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c5a06993911a4bae84d6cb5a",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The previous job is still running. Let me keep waiting.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c5a06993911a4bae84d6cb5a",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The job ahead of us is still running. Let me wait a bit longer for our job to start.",
+      "refusal": null,
+      "reasoning": "The job is still pending. There's another job running ahead of it. Let me wait a bit more.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_417f804b41a04dcba49dec58",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. There's another job running ahead of it. Let me wait a bit more.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_417f804b41a04dcba49dec58",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me keep waiting for the queue to process.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2514c680cb654d65b96ed2e2",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me keep waiting for the queue to process.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2514c680cb654d65b96ed2e2",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me check the queue again to see if the running job has changed.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_625b4abdb174484d89a1b9a5",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me check the queue again to see if the running job has changed.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_625b4abdb174484d89a1b9a5",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me keep polling. The other job seems to be taking a while.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b9983afb24184ce6a585d308",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me keep polling. The other job seems to be taking a while.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b9983afb24184ce6a585d308",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me check again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8ef8c07fdf2c464b95413bd2",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me check again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8ef8c07fdf2c464b95413bd2",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The job is still pending. Let me try a few more times with some spacing.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_d8b2f033ef6640dbb996bf35",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"61259643-944a-46b9-bec0-db43c4e44d0d\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job is still pending. Let me try a few more times with some spacing.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d8b2f033ef6640dbb996bf35",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    }
+  ]
+}

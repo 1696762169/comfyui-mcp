@@ -1,0 +1,1349 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "generation-multi-step-0051",
+  "verdict": "UNVERIFIED",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Generate a moody oil painting of a misty forest at dawn in the style of Caspar David Friedrich at 1024x1024, using settings that have worked well for oil paintings in your records. Then use that image as a starting point to create a 3-second video with gentle camera movement. Also produce a 10-second ambient soundtrack — ethereal and calming. Give me a summary of what's been generated so far, including counts by type."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll start by checking for good oil painting settings in our history, listing available audio packs, and checking system health — all in parallel since they're independent.",
+      "refusal": null,
+      "reasoning": "The user wants three things:\n1. Generate a moody oil painting image2. Create a 3-second video from that image\n3. Produce a 10-second ambient soundtrack\n4. Summary of what's been generated\n\nLet me start by:\n- Checking suggest_settings for oil painting style images\n- Getting system stats to check what we have available\n- Then generate the image\n- Then after image completes, use it for video\n- Generate audio in parallel with image since it doesn't depend on it\n\nLet me start with suggest_settings and check available packs for audio.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_71e6da18c73745b092f943c7",
+          "function": {
+            "name": "suggest_settings",
+            "arguments": "{\"search\": \"oil painting\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_97da8a502d7344d4b4f4f23e",
+          "function": {
+            "name": "suggest_settings",
+            "arguments": "{\"model_family\": \"sdxl\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_c8d69248450f464880a3c52f",
+          "function": {
+            "name": "list_packs",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 3,
+          "id": "call_953e9b12b18b4bb0b7608f44",
+          "function": {
+            "name": "get_system_stats",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants three things:\n1. Generate a moody oil painting image2. Create a 3-second video from that image\n3. Produce a 10-second ambient soundtrack\n4. Summary of what's been generated\n\nLet me start by:\n- Checking suggest_settings for oil painting style images\n- Getting system stats to check what we have available\n- Then generate the image\n- Then after image completes, use it for video\n- Generate audio in parallel with image since it doesn't depend on it\n\nLet me start with suggest_settings and check available packs for audio.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_71e6da18c73745b092f943c7",
+      "content": "No generation history found. Run some workflows first to build up settings data."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_97da8a502d7344d4b4f4f23e",
+      "content": "No generation history found. Run some workflows first to build up settings data."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c8d69248450f464880a3c52f",
+      "content": "{\n  \"count\": 54,\n  \"note\": \"All bundled installer packs are LOCAL-GPU / FREE (no API nodes, no paid credits). Loading or running a pack workflow runs entirely on the user's GPU.\",\n  \"packs\": [\n    {\n      \"name\": \"anima\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 (Anime Base)\",\n      \"description\": \"ANIMA 1.0 — a ~2B DiT anime/illustration text-to-image base model (built on NVIDIA Cosmos-Predict2-2B). Danbooru tags + natural language, runs and trains on <6GB VRAM. Includes an Anima-LLLite inpainting / ControlNet workflow.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-img2img\",\n      \"family\": \"anima\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ANIMA 1.0 — Image to Image (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) image-to-image with Anima-LLLite ControlNet guidance — depth/openpose preprocessing steer the redraw from a source image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-inpaint\",\n      \"family\": \"anima\",\n      \"kind\": \"inpaint\",\n      \"display_name\": \"ANIMA 1.0 — Inpainting (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) masked inpainting with the Anima-LLLite inpainting ControlNet — repaint a masked region while keeping the rest of the image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset and a latent upscaler built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-inpaint\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-txt2img\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 — Text to Image\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) text-to-image — Danbooru tags + natural language, runs on <6GB VRAM. Single-purpose txt2img graph sliced from the ANIMA monolith (one pipeline, no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing as built-in post-processing.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"artokun-flow\",\n      \"family\": \"wan\",\n      \"kind\": \"video\",\n      \"display_name\": \"Artokun Flow — Character Dance / Motion Transfer (WAN Animate 2.2)\",\n      \"description\": \"THE go-to / default pack for \\\"take this person and animate them\\\" — give it a character image (a photo or a generated still) plus a driving video and it makes that character dance, move, and mimic the clip's pose, face and motion, then outputs the animated video. Reach for THIS for any character-animation / motion-transfer / \\\"have/make <character> dance this video\\\" / video-to-video character drive or replace request. WAN Animate 2.2 + Uni3C controlnet (temporal stability) + ViTPose/YOLOv10 pose+face detection + SAM3 tracking/masking + a ReActor first-frame face-lock + color match. TWO MODES via the \\\"REPLACEMENT MODE\\\" subgraph node: it ships disabled = OFF (default — animate the whole character + background to the driving motion); set its Mode to Active = ON to replace the person in the real video (Mute or Bypass = OFF). Optional off-by-default \\\"Upscale4x-RIFE-1080p\\\" subgraph (RIFE + SeedVR2) for 1080p. Kijai WanVideo stack + lightx2v/relight/Pusa/Fun LoRAs.\",\n      \"vram\": \"24GB+\",\n      \"skill\": \"wan-t2v-video\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\artokun-flow\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image Ultra\",\n      \"description\": \"ERNIE-Image Ultra — Baidu's open-weight (~8B single-stream DiT, Apache-2.0) TEXT-TO-IMAGE model, repackaged for ComfyUI by Comfy-Org. Standout strength is precise multilingual TEXT RENDERING (including Chinese) — posters/signage/UI mockups, manga/anime multi-panel layouts — plus strong prompt/instruction following for complex multi-object scenes. This pack uses the distilled Turbo GGUF, which is high-fidelity in ~8 steps at cfg 1 and runs in <8GB VRAM. Not an instruction-based image editor (use qwen-image-edit / Flux Kontext for \\\"change X in this photo\\\").\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-combo\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE × Z-Image-Turbo Combo\",\n      \"description\": \"Combo pipeline chaining ERNIE-Image Ultra with Z-Image-Turbo — one model's output feeds/refines the other (\\\"ZIT → ERNIE\\\", \\\"ERNIE → ZIT\\\", two-times combos). ERNIE brings precise multilingual TEXT RENDERING; Z-Image-Turbo adds fast, sharp detail. Sliced + un-bypassed from the ERNIE monolith's combo groups into a standalone graph. Heavier than the single-model packs — loads both models, so expect higher VRAM and longer runs.\",\n      \"vram\": \"12GB+\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-img2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ERNIE-Image — Image to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) image-to-image, distilled Turbo GGUF. Feed a source image (LoadImage) and a prompt to restyle or refine it; ERNIE's strength is precise multilingual TEXT RENDERING and structured layouts. Single-purpose img2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). Optional 3B prompt-enhancer LLM.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-txt2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image — Text to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) text-to-image, distilled Turbo GGUF — high fidelity in ~8 steps at cfg 1, under 8GB VRAM. Standout strength is precise multilingual TEXT RENDERING (incl. Chinese) for posters/signage/UI mockups and structured multi-panel layouts. Single-purpose txt2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). An optional 3B prompt-enhancer LLM expands short prompts (toggle the ENHANCE PROMPT boolean). Not an instruction editor.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 (Ideogram Ultra)\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) — an open-weight text-to-image model with best-in-class text rendering (logos, posters, typography). Supports AREA PROMPTING and structured JSON prompts via the Ideogram4 Prompt Builder KJ node (ComfyUI-KJNodes), with a Gemma + Qwen3-VL text-encoder stack and the FLUX.2 VAE. Great for posters, flyers, brand kits, and text/logo-heavy art.\",\n      \"vram\": \"~16GB\",\n      \"skill\": \"ideogram-ultra\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-img2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"Ideogram 4 — Image to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) image-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Encodes an input image (LoadImage -> VAEEncode) and re-renders it under denoise control, guided by a Qwen3-VL text encoder and a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) with a dual conditional/unconditional UNet guider. Single-purpose img2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with KJ resize/sharpen post-processing and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-img2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-txt2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 — Text to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) text-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Pairs a Qwen3-VL text encoder with a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) and a dual conditional/unconditional UNet guider for strong prompt adherence and crisp TEXT RENDERING. Single-purpose txt2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with optional KJ image sharpening and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-combo\",\n      \"family\": \"krea2\",\n      \"kind\": \"combo\",\n      \"display_name\": \"KREA 2 — Combo (two-pass detail boost)\",\n      \"description\": \"KREA 2 (krea2_turbo) two-pass \\\"combo\\\" — a detail-boost pipeline from the KREA2 ULTRA V2 workflow. A first pass generates the image (8 steps, er_sde, denoise 1), then a low-denoise refine pass sharpens detail (4 steps, euler, denoise 0.3), with the krea2 turbo LoRA @0.2 on both passes and the Krea2T-Enhancer model detail-boost patch. Ideogram-4-style structured JSON / area prompting (Ideogram4PromptBuilderKJ) on the native krea2 stack (CLIPLoader type=krea2 + Qwen3-VL 4B + Qwen image VAE). Saves BOTH passes so you can compare. The optional IdeoKrea LoRA ships available for an Ideogram-style boost (see notes).\",\n      \"vram\": \"<24GB\",\n      \"skill\": \"krea2-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\krea2-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-txt2img-json\",\n      \"family\": \"krea2\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"KREA 2 — Text to Image (JSON Prompt Builder)\",\n      \"description\": \"KREA 2 (krea2_turbo) text-to-image driven by an Ideogram-4-style structured JSON prompt-builder (Ideogram4PromptBuilderKJ) — per-region descriptions"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_953e9b12b18b4bb0b7608f44",
+      "content": "{\n  \"system\": {\n    \"os\": \"win32\",\n    \"ram_total\": 137190801408,\n    \"ram_free\": 31199989760,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]\",\n    \"pytorch_version\": \"2.10.0+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-desktop2-standalone\",\n    \"argv\": [\n      \"ComfyUI\\\\main.py\",\n      \"--feature-flag\",\n      \"show_signin_button=true\",\n      \"--feature-flag\",\n      \"enable_telemetry=true\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--extra-model-paths-config\",\n      \"C:\\\\Users\\\\Artokun\\\\AppData\\\\Roaming\\\\Comfy Desktop\\\\shared_model_paths.yaml\",\n      \"--input-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\input\",\n      \"--output-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\output\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25756696576,\n      \"vram_free\": 23055454080,\n      \"torch_vram_total\": 21239955456,\n      \"torch_vram_free\": 20867972992\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Great — RTX 4090 with 23GB free VRAM, plenty of power. No history for oil paintings yet, so I'll use proven settings. Let me check available audio packs and LTX video details.",
+      "refusal": null,
+      "reasoning": "Let me analyze what we have:\n- RTX 4090 with ~24GB VRAM, 23GB free - great for any model\n- No generation history for oil painting settings\n- LTX video pack available for video generation\n- ACE Step 1.5 for audio generation\n\nLet me check for LTX video and ACE Step packs specifically, and also check what checkpoints are available.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_1725a28e5f524469bb27e55c",
+          "function": {
+            "name": "list_packs",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_5cdfabf51a5b4cc99e0d2f3e",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me analyze what we have:\n- RTX 4090 with ~24GB VRAM, 23GB free - great for any model\n- No generation history for oil painting settings\n- LTX video pack available for video generation\n- ACE Step 1.5 for audio generation\n\nLet me check for LTX video and ACE Step packs specifically, and also check what checkpoints are available.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1725a28e5f524469bb27e55c",
+      "content": "{\n  \"count\": 54,\n  \"note\": \"All bundled installer packs are LOCAL-GPU / FREE (no API nodes, no paid credits). Loading or running a pack workflow runs entirely on the user's GPU.\",\n  \"packs\": [\n    {\n      \"name\": \"anima\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 (Anime Base)\",\n      \"description\": \"ANIMA 1.0 — a ~2B DiT anime/illustration text-to-image base model (built on NVIDIA Cosmos-Predict2-2B). Danbooru tags + natural language, runs and trains on <6GB VRAM. Includes an Anima-LLLite inpainting / ControlNet workflow.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-img2img\",\n      \"family\": \"anima\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ANIMA 1.0 — Image to Image (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) image-to-image with Anima-LLLite ControlNet guidance — depth/openpose preprocessing steer the redraw from a source image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-inpaint\",\n      \"family\": \"anima\",\n      \"kind\": \"inpaint\",\n      \"display_name\": \"ANIMA 1.0 — Inpainting (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) masked inpainting with the Anima-LLLite inpainting ControlNet — repaint a masked region while keeping the rest of the image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset and a latent upscaler built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-inpaint\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-txt2img\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 — Text to Image\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) text-to-image — Danbooru tags + natural language, runs on <6GB VRAM. Single-purpose txt2img graph sliced from the ANIMA monolith (one pipeline, no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing as built-in post-processing.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"artokun-flow\",\n      \"family\": \"wan\",\n      \"kind\": \"video\",\n      \"display_name\": \"Artokun Flow — Character Dance / Motion Transfer (WAN Animate 2.2)\",\n      \"description\": \"THE go-to / default pack for \\\"take this person and animate them\\\" — give it a character image (a photo or a generated still) plus a driving video and it makes that character dance, move, and mimic the clip's pose, face and motion, then outputs the animated video. Reach for THIS for any character-animation / motion-transfer / \\\"have/make <character> dance this video\\\" / video-to-video character drive or replace request. WAN Animate 2.2 + Uni3C controlnet (temporal stability) + ViTPose/YOLOv10 pose+face detection + SAM3 tracking/masking + a ReActor first-frame face-lock + color match. TWO MODES via the \\\"REPLACEMENT MODE\\\" subgraph node: it ships disabled = OFF (default — animate the whole character + background to the driving motion); set its Mode to Active = ON to replace the person in the real video (Mute or Bypass = OFF). Optional off-by-default \\\"Upscale4x-RIFE-1080p\\\" subgraph (RIFE + SeedVR2) for 1080p. Kijai WanVideo stack + lightx2v/relight/Pusa/Fun LoRAs.\",\n      \"vram\": \"24GB+\",\n      \"skill\": \"wan-t2v-video\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\artokun-flow\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image Ultra\",\n      \"description\": \"ERNIE-Image Ultra — Baidu's open-weight (~8B single-stream DiT, Apache-2.0) TEXT-TO-IMAGE model, repackaged for ComfyUI by Comfy-Org. Standout strength is precise multilingual TEXT RENDERING (including Chinese) — posters/signage/UI mockups, manga/anime multi-panel layouts — plus strong prompt/instruction following for complex multi-object scenes. This pack uses the distilled Turbo GGUF, which is high-fidelity in ~8 steps at cfg 1 and runs in <8GB VRAM. Not an instruction-based image editor (use qwen-image-edit / Flux Kontext for \\\"change X in this photo\\\").\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-combo\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE × Z-Image-Turbo Combo\",\n      \"description\": \"Combo pipeline chaining ERNIE-Image Ultra with Z-Image-Turbo — one model's output feeds/refines the other (\\\"ZIT → ERNIE\\\", \\\"ERNIE → ZIT\\\", two-times combos). ERNIE brings precise multilingual TEXT RENDERING; Z-Image-Turbo adds fast, sharp detail. Sliced + un-bypassed from the ERNIE monolith's combo groups into a standalone graph. Heavier than the single-model packs — loads both models, so expect higher VRAM and longer runs.\",\n      \"vram\": \"12GB+\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-img2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ERNIE-Image — Image to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) image-to-image, distilled Turbo GGUF. Feed a source image (LoadImage) and a prompt to restyle or refine it; ERNIE's strength is precise multilingual TEXT RENDERING and structured layouts. Single-purpose img2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). Optional 3B prompt-enhancer LLM.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-txt2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image — Text to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) text-to-image, distilled Turbo GGUF — high fidelity in ~8 steps at cfg 1, under 8GB VRAM. Standout strength is precise multilingual TEXT RENDERING (incl. Chinese) for posters/signage/UI mockups and structured multi-panel layouts. Single-purpose txt2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). An optional 3B prompt-enhancer LLM expands short prompts (toggle the ENHANCE PROMPT boolean). Not an instruction editor.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 (Ideogram Ultra)\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) — an open-weight text-to-image model with best-in-class text rendering (logos, posters, typography). Supports AREA PROMPTING and structured JSON prompts via the Ideogram4 Prompt Builder KJ node (ComfyUI-KJNodes), with a Gemma + Qwen3-VL text-encoder stack and the FLUX.2 VAE. Great for posters, flyers, brand kits, and text/logo-heavy art.\",\n      \"vram\": \"~16GB\",\n      \"skill\": \"ideogram-ultra\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-img2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"Ideogram 4 — Image to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) image-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Encodes an input image (LoadImage -> VAEEncode) and re-renders it under denoise control, guided by a Qwen3-VL text encoder and a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) with a dual conditional/unconditional UNet guider. Single-purpose img2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with KJ resize/sharpen post-processing and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-img2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-txt2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 — Text to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) text-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Pairs a Qwen3-VL text encoder with a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) and a dual conditional/unconditional UNet guider for strong prompt adherence and crisp TEXT RENDERING. Single-purpose txt2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with optional KJ image sharpening and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-combo\",\n      \"family\": \"krea2\",\n      \"kind\": \"combo\",\n      \"display_name\": \"KREA 2 — Combo (two-pass detail boost)\",\n      \"description\": \"KREA 2 (krea2_turbo) two-pass \\\"combo\\\" — a detail-boost pipeline from the KREA2 ULTRA V2 workflow. A first pass generates the image (8 steps, er_sde, denoise 1), then a low-denoise refine pass sharpens detail (4 steps, euler, denoise 0.3), with the krea2 turbo LoRA @0.2 on both passes and the Krea2T-Enhancer model detail-boost patch. Ideogram-4-style structured JSON / area prompting (Ideogram4PromptBuilderKJ) on the native krea2 stack (CLIPLoader type=krea2 + Qwen3-VL 4B + Qwen image VAE). Saves BOTH passes so you can compare. The optional IdeoKrea LoRA ships available for an Ideogram-style boost (see notes).\",\n      \"vram\": \"<24GB\",\n      \"skill\": \"krea2-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\krea2-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-txt2img-json\",\n      \"family\": \"krea2\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"KREA 2 — Text to Image (JSON Prompt Builder)\",\n      \"description\": \"KREA 2 (krea2_turbo) text-to-image driven by an Ideogram-4-style structured JSON prompt-builder (Ideogram4PromptBuilderKJ) — per-region descriptions"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5cdfabf51a5b4cc99e0d2f3e",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "I have SD 1.5 and LTX 2.3 models available. Let me check for audio models and kick off the image generation and audio generation in parallel. The video will need to wait for the image to complete.",
+      "refusal": null,
+      "reasoning": "Let me think about the three tasks:\n\n1. **Oil painting image** - Generate a moody oil painting of a misty forest at dawn in the style of Caspar David Friedrich at 1024x1024. I have `v1-5-pruned-emaonly-fp16.safetensors` as a checkpoint which is SD 1.5. For oil painting style, SD 1.5 should work fine. I'll use generate_image with good settings for oil painting style (higher steps, good cfg, euler/karras).\n\n2. **3-second video from the image** - Use generate_video with the image as i2v. I have `ltx-2.3-22b-dev.safetensors` available. But wait, let me check the packs - there's an ltx-2.3 pack. I should use generate_video since it supports i2v.\n\n3. **10-second ambient soundtrack** - Use generate_audio with ace_step_1.5. Need to check if the model is available.\n\nLet me start all three. For the video, I need to wait for the image first. For audio, I can start it in parallel.\n\nActually, the video needs the image as a starting point. So I need to:\n1. Generate the image first\n2. Use stage_output_as_input to make it available as an input\n3. Then generate the video\n\nThe audio can run in parallel with step 1.\n\nLet me also check if ACE Step models are available.\n\nLet me generate the image and audio in parallel first.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8a74adaceb344cce8e8d4c04",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"diffusion_models\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_1754322b9849425aaeae9ff4",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"text_encoders\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_ff43fe2cd957411f8ca2d51c",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"vae\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 3,
+          "id": "call_3212620134dc49a18252d1a9",
+          "function": {
+            "name": "generate_image",
+            "arguments": "{\"prompt\": \"A moody, atmospheric oil painting of a misty primordial forest at dawn. Tall ancient oak and birch trees emerge from dense swirling fog. Soft golden-pink light filters through the canopy, casting long ethereal rays. A lone figure in a dark cloak stands on a rocky overlook gazing into the infinite mist. In the style of Caspar David Friedrich — Romanticism, sublime nature, contemplative solitude, rich impasto brushwork, deep greens and muted earth tones with touches of warm dawn light breaking through. Oil on canvas texture, visible brushstrokes, museum-quality classical landscape painting.\", \"negative_prompt\": \"cartoon, anime, digital art, photorealistic, 3d render, blurry, low quality, deformed, text, watermark\", \"width\": 1024, \"height\": 1024, \"steps\": 30, \"cfg\": 7.5, \"sampler\": \"euler\", \"scheduler\": \"karras\", \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 4,
+          "id": "call_2120d7e989e44ae19740b91a",
+          "function": {
+            "name": "generate_audio",
+            "arguments": "{\"model_family\": \"ace_step_1.5\", \"prompt\": \"Ethereal ambient soundtrack, calming forest atmosphere at dawn. Soft ethereal pads, distant wind chimes, gentle reverb-drenched synthesizer swells, nature-inspired textures. Meditative, peaceful, misty and dreamlike. Minimal rhythmic elements, floating tones, slow evolving harmonics.\", \"duration\": 10, \"filename_prefix\": \"audio/friedrich_forest_ambient\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me think about the three tasks:\n\n1. **Oil painting image** - Generate a moody oil painting of a misty forest at dawn in the style of Caspar David Friedrich at 1024x1024. I have `v1-5-pruned-emaonly-fp16.safetensors` as a checkpoint which is SD 1.5. For oil painting style, SD 1.5 should work fine. I'll use generate_image with good settings for oil painting style (higher steps, good cfg, euler/karras).\n\n2. **3-second video from the image** - Use generate_video with the image as i2v. I have `ltx-2.3-22b-dev.safetensors` available. But wait, let me check the packs - there's an ltx-2.3 pack. I should use generate_video since it supports i2v.\n\n3. **10-second ambient soundtrack** - Use generate_audio with ace_step_1.5. Need to check if the model is available.\n\nLet me start all three. For the video, I need to wait for the image first. For audio, I can start it in parallel.\n\nActually, the video needs the image as a starting point. So I need to:\n1. Generate the image first\n2. Use stage_output_as_input to make it available as an input\n3. Then generate the video\n\nThe audio can run in parallel with step 1.\n\nLet me also check if ACE Step models are available.\n\nLet me generate the image and audio in parallel first.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8a74adaceb344cce8e8d4c04",
+      "content": "## diffusion_models (7)\n- Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors\n- anima-base-v1.0.safetensors\n- ideogram4_fp8_scaled.safetensors\n- ideogram4_unconditional_fp8_scaled.safetensors\n- krea2_turbo_fp8.safetensors\n- wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors\n- wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1754322b9849425aaeae9ff4",
+      "content": "## text_encoders (11)\n- ernie-image-prompt-enhancer.safetensors\n- gemma4_e4b_it_fp8_scaled.safetensors\n- gemma_3_12B_it_fp4_mixed.safetensors\n- gemma_3_12B_it_fp8_scaled.safetensors\n- ltx-2.3_text_projection_bf16.safetensors\n- ministral-3-3b.safetensors\n- qwen3vl_4b_fp8_scaled.safetensors\n- qwen3vl_8b_fp8_scaled.safetensors\n- qwen_3_06b_base.safetensors\n- umt5-xxl-enc-bf16.safetensors\n- umt5_xxl_fp8_e4m3fn_scaled.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ff43fe2cd957411f8ca2d51c",
+      "content": "## vae (7)\n- LTX23_audio_vae_bf16.safetensors\n- LTX23_video_vae_bf16.safetensors\n- Wan2_1_VAE_bf16.safetensors\n- flux2-vae.safetensors\n- qwen_image_vae.safetensors\n- wan_2.1_vae.safetensors\n- z-image-ae.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3212620134dc49a18252d1a9",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2120d7e989e44ae19740b91a",
+      "content": "Endpoint Bad Request (400 Bad Request): http://127.0.0.1:8188/prompt?clientId=comfyui-mcp"
+    },
+    {
+      "role": "assistant",
+      "content": "Image is enqueued. The audio generation failed — let me check the error and try a different approach.",
+      "refusal": null,
+      "reasoning": "The image generation is enqueued. The audio generation failed with a 400 error. Let me check what went wrong with the audio. Let me also check if there are ACE Step models available. Looking at the text_encoders, I see LTX23_audio_vae_bf16.safetensors. Let me check if there are specific ACE step models.\n\nLet me check the logs for the audio error and also look at what models are available for ACE Step.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c8cc5b466a774802b4cf6b60",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"max_lines\": 30, \"keyword\": \"error\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_29141e514ed241729c2c645e",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"unet\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image generation is enqueued. The audio generation failed with a 400 error. Let me check what went wrong with the audio. Let me also check if there are ACE Step models available. Looking at the text_encoders, I see LTX23_audio_vae_bf16.safetensors. Let me check if there are specific ACE step models.\n\nLet me check the logs for the audio error and also look at what models are available for ACE Step.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c8cc5b466a774802b4cf6b60",
+      "content": "2026-07-04T12:14:32.064439 - [ERROR]   - Required input is missing: top_p\n2026-07-04T12:14:32.064460 - [ERROR]   - Required input is missing: min_p\n2026-07-04T12:14:32.064484 - [ERROR]   - Required input is missing: top_k\n2026-07-04T12:14:32.064508 - [ERROR]   - Required input is missing: tags\n2026-07-04T12:14:32.064534 - [ERROR] * UNETLoader 1:\n2026-07-04T12:14:32.064556 - [ERROR]   - Required input is missing: unet_name\n2026-07-04T12:14:32.064579 - [ERROR] * SaveAudioMP3 10:\n2026-07-04T12:14:32.064601 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:14:32.064623 - [ERROR] Output will be ignored\n2026-07-04T12:18:08.766976 - [ERROR] Failed to validate prompt for output 10:\n2026-07-04T12:18:08.767062 - [ERROR] * (prompt):\n2026-07-04T12:18:08.767100 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:08.767131 - [ERROR] * DualCLIPLoader 2:\n2026-07-04T12:18:08.767163 - [ERROR]   - Value not in list: clip_name2: 'qwen_4b_ace15.safetensors' not in ['ernie-image-prompt-enhancer.safetensors', 'gemma4_e4b_it_fp8_scaled.safetensors', 'gemma_3_12B_it_fp4_mixed.safetensors', 'gemma_3_12B_it_fp8_scaled.safetensors', 'ltx-2.3_text_projection_bf16.safetensors', 'ministral-3-3b.safetensors', 'qwen3vl_4b_fp8_scaled.safetensors', 'qwen3vl_8b_fp8_scaled.safetensors', 'qwen_3_06b_base.safetensors', 'umt5-xxl-enc-bf16.safetensors', 'umt5_xxl_fp8_e4m3fn_scaled.safetensors']\n2026-07-04T12:18:08.767194 - [ERROR] * TextEncodeAceStepAudio1.5 6:\n2026-07-04T12:18:08.767226 - [ERROR]   - Required input is missing: generate_audio_codes\n2026-07-04T12:18:08.767259 - [ERROR]   - Required input is missing: timesignature\n2026-07-04T12:18:08.767285 - [ERROR]   - Required input is missing: keyscale\n2026-07-04T12:18:08.767309 - [ERROR]   - Required input is missing: cfg_scale\n2026-07-04T12:18:08.767332 - [ERROR]   - Required input is missing: temperature\n2026-07-04T12:18:08.767356 - [ERROR]   - Required input is missing: bpm\n2026-07-04T12:18:08.767379 - [ERROR]   - Required input is missing: top_p\n2026-07-04T12:18:08.767405 - [ERROR]   - Required input is missing: min_p\n2026-07-04T12:18:08.767429 - [ERROR]   - Required input is missing: top_k\n2026-07-04T12:18:08.767452 - [ERROR]   - Required input is missing: tags\n2026-07-04T12:18:08.767478 - [ERROR] * UNETLoader 1:\n2026-07-04T12:18:08.767503 - [ERROR]   - Required input is missing: unet_name\n2026-07-04T12:18:08.767528 - [ERROR] * SaveAudioMP3 10:\n2026-07-04T12:18:08.767564 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:08.767599 - [ERROR] Output will be ignored"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_29141e514ed241729c2c645e",
+      "content": "No unet models found."
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step audio pack is missing some required model files (`qwen_4b_ace15.safetensors`, a UNet). Let me try Stable Audio 3 instead, and check on the image progress.",
+      "refusal": null,
+      "reasoning": "The ACE Step audio failed because it's missing required models — specifically `qwen_4b_ace15.safetensors` text encoder and the UNet model (`unet_name` missing). Let me try using Stable Audio 3 instead, which uses a checkpoint model. I have `ltx-2.3-22b-dev.safetensors` but that's for video. Let me check if there are any stable audio models. Actually, I see there's no dedicated audio checkpoint model. \n\nLet me try the `stable_audio_3` model family instead, which uses a standard checkpoint loader.\n\nMeanwhile, the image is generating. Let me poll for its status and also try the stable audio 3 approach.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_591f374863624e71bd7e4580",
+          "function": {
+            "name": "generate_audio",
+            "arguments": "{\"cfg\": 7, \"duration\": 10, \"filename_prefix\": \"audio/friedrich_forest_ambient\", \"model_family\": \"stable_audio_3\", \"prompt\": \"Ethereal ambient soundtrack, calming forest atmosphere at dawn. Soft ethereal pads, distant wind chimes, gentle reverb-drenched synthesizer swells, nature-inspired textures. Meditative, peaceful, misty and dreamlike. Minimal rhythmic elements, floating tones, slow evolving harmonics.\", \"sampler\": \"euler\", \"scheduler\": \"normal\", \"steps\": 8}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_76b6637fdd244b7c86beae80",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step audio failed because it's missing required models — specifically `qwen_4b_ace15.safetensors` text encoder and the UNet model (`unet_name` missing). Let me try using Stable Audio 3 instead, which uses a checkpoint model. I have `ltx-2.3-22b-dev.safetensors` but that's for video. Let me check if there are any stable audio models. Actually, I see there's no dedicated audio checkpoint model. \n\nLet me try the `stable_audio_3` model family instead, which uses a standard checkpoint loader.\n\nMeanwhile, the image is generating. Let me poll for its status and also try the stable audio 3 approach.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_591f374863624e71bd7e4580",
+      "content": "Endpoint Bad Request (400 Bad Request): http://127.0.0.1:8188/prompt?clientId=comfyui-mcp"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_76b6637fdd244b7c86beae80",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Stable Audio 3 also failed. Let me check the logs and see what's happening.",
+      "refusal": null,
+      "reasoning": "Stable Audio 3 also failed. Let me check the logs again and also check what's available for stable audio.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b2463018a8b04c9c8eec7b89",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"keyword\": \"stable_audio\", \"max_lines\": 30}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_1e4b87192dd74b03b7998a9a",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"keyword\": \"400\", \"max_lines\": 20}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Stable Audio 3 also failed. Let me check the logs again and also check what's available for stable audio.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b2463018a8b04c9c8eec7b89",
+      "content": "No log lines found matching \"stable_audio\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1e4b87192dd74b03b7998a9a",
+      "content": "2026-07-04T11:56:35.374002 - [INFO] [Impact Pack/Subpack] Loaded 0 model(s) from whitelist: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\user\\default\\ComfyUI-Impact-Subpack\\model-whitelist.txt"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me check the ACE Step node requirements and try building the workflow manually.",
+      "refusal": null,
+      "reasoning": "Stable Audio 3 probably also requires specific models that aren't installed. Let me check the node info for the ACE step nodes and check what's needed. Actually, let me look at what models are needed more carefully. Let me also check if there are any audio-related custom nodes.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_194eb443a826401f8ca5731b",
+          "function": {
+            "name": "get_node_info",
+            "arguments": "{\"node_type\": \"ace\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Stable Audio 3 probably also requires specific models that aren't installed. Let me check the node info for the ACE step nodes and check what's needed. Actually, let me look at what models are needed more carefully. Let me also check if there are any audio-related custom nodes.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_194eb443a826401f8ca5731b",
+      "content": "{\n  \"count\": 52,\n  \"nodes\": [\n    {\n      \"name\": \"ReplaceVideoLatentFrames\",\n      \"display_name\": \"Replace Video Latent Frames\",\n      \"category\": \"model/latent/batch\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"LaplaceScheduler\",\n      \"display_name\": null,\n      \"category\": \"model/sampling/schedulers\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReplaceText\",\n      \"display_name\": \"Replace Text (DEPRECATED)\",\n      \"category\": \"text\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"StripWhitespace\",\n      \"display_name\": \"Strip Whitespace (DEPRECATED)\",\n      \"category\": \"text\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"LTXVImgToVideoInplace\",\n      \"display_name\": null,\n      \"category\": \"model/conditioning/ltxv\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"WanVaceToVideo\",\n      \"display_name\": null,\n      \"category\": \"model/conditioning/wan/vace\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"TextEncodeAceStepAudio\",\n      \"display_name\": null,\n      \"category\": \"model/conditioning/ace\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"EmptyAceStepLatentAudio\",\n      \"display_name\": \"Empty Ace Step 1.0 Latent Audio\",\n      \"category\": \"model/latent/ace\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"TextEncodeAceStepAudio1.5\",\n      \"display_name\": null,\n      \"category\": \"model/conditioning/ace\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"EmptyAceStep1.5LatentAudio\",\n      \"display_name\": \"Empty Ace Step 1.5 Latent Audio\",\n      \"category\": \"model/latent/ace\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"StringReplace\",\n      \"display_name\": \"Replace Text\",\n      \"category\": \"text\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"RegexReplace\",\n      \"display_name\": \"Replace Text (Regex)\",\n      \"category\": \"text\",\n      \"description\": \"Find and replace text using regex patterns.\"\n    },\n    {\n      \"name\": \"SDPoseFaceBBoxes\",\n      \"display_name\": \"SDPose Face Bounding Boxes\",\n      \"category\": \"image/detection\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"LoadMediaPipeFaceLandmarker\",\n      \"display_name\": \"Load Face Detection Model (MediaPipe)\",\n      \"category\": \"model/loaders\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"MediaPipeFaceLandmarker\",\n      \"display_name\": \"Detect Face Landmarks (MediaPipe)\",\n      \"category\": \"image/detection\",\n      \"description\": \"Detects facial landmarks using MediaPipe model.\"\n    },\n    {\n      \"name\": \"MediaPipeFaceMeshVisualize\",\n      \"display_name\": \"Visualize Face Landmarks (MediaPipe)\",\n      \"category\": \"image/detection\",\n      \"description\": \"Draws face landmarks mesh on the input image.\"\n    },\n    {\n      \"name\": \"MediaPipeFaceMask\",\n      \"display_name\": \"Draw Face Mask (MediaPipe)\",\n      \"category\": \"image/detection\",\n      \"description\": \"Draws a mask from face landmarks.\"\n    },\n    {\n      \"name\": \"BriaVideoReplaceBackground\",\n      \"display_name\": \"Bria Video Replace Background\",\n      \"category\": \"partner/video/Bria\",\n      \"description\": \"Replace a video's background with a supplied image or video using Bria. The output keeps the foreground's resolution and frame rate; a background with a different aspect ratio is stretched to fit, so match it for undistorted results.\"\n    },\n    {\n      \"name\": \"RecraftReplaceBackgroundNode\",\n      \"display_name\": \"Recraft Replace Background\",\n      \"category\": \"partner/image/Recraft\",\n      \"description\": \"Replace background on image, based on provided prompt.\"\n    },\n    {\n      \"name\": \"easy promptReplace\",\n      \"display_name\": null,\n      \"category\": \"EasyUse/Prompt\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"easy ipadapterApplyFaceIDKolors\",\n      \"display_name\": \"Easy Apply IPAdapter (FaceID Kolors)\",\n      \"category\": \"EasyUse/Adapter\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"FaceDetailer\",\n      \"display_name\": \"FaceDetailer\",\n      \"category\": \"ImpactPack/Simple\",\n      \"description\": \"This node enhances details by automatically detecting specific objects in the input image using detection models (bbox, segm, sam) and regenerating the image by enlarging the detected area based on the guide size.\\nAlthough this node is specialized to simplify the commonly used facial detail enhancement workflow, it can also be used for various automatic inpainting purposes depending on the detection model.\"\n    },\n    {\n      \"name\": \"FaceDetailerPipe\",\n      \"display_name\": \"FaceDetailer (pipe)\",\n      \"category\": \"ImpactPack/Simple\",\n      \"description\": \"This node enhances details by automatically detecting specific objects in the input image using detection models (bbox, segm, sam) and regenerating the image by enlarging the detected area based on the guide size.\\nAlthough this node is specialized to simplify the commonly used facial detail enhancement workflow, it can also be used for various automatic inpainting purposes depending on the detection model.\"\n    },\n    {\n      \"name\": \"MediaPipeFaceMeshToSEGS\",\n      \"display_name\": \"MediaPipe FaceMesh to SEGS\",\n      \"category\": \"ImpactPack/Operation\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ImpactNegativeConditioningPlaceholder\",\n      \"display_name\": \"Negative Cond Placeholder\",\n      \"category\": \"ImpactPack/sampling\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReplaceImagesInBatch\",\n      \"display_name\": \"Replace Images In Batch\",\n      \"category\": \"KJNodes/image\",\n      \"description\": \"\\nReplaces the images in a batch, starting from the specified start index,  \\nwith the replacement images.\\n\"\n    },\n    {\n      \"name\": \"LTXVImgToVideoInplaceKJ\",\n      \"display_name\": null,\n      \"category\": \"KJNodes/ltxv\",\n      \"description\": \"Replaces video latent frames with the encoded input images, uses DynamicCombo which requires ComfyUI 0.8.1 and frontend 1.33.4 or later.\"\n    },\n    {\n      \"name\": \"ReActorFaceSwap\",\n      \"display_name\": \"ReActor 🌌 Fast Face Swap\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorFaceSwapOpt\",\n      \"display_name\": \"ReActor 🌌 Fast Face Swap [OPTIONS]\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorFaceBoost\",\n      \"display_name\": \"ReActor 🌌 Face Booster\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorSaveFaceModel\",\n      \"display_name\": \"Save Face Model 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorLoadFaceModel\",\n      \"display_name\": \"Load Face Model 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorBuildFaceModel\",\n      \"display_name\": \"Build Blended Face Model 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorMakeFaceModelBatch\",\n      \"display_name\": \"Make Face Model Batch 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorRestoreFace\",\n      \"display_name\": \"Restore Face 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorRestoreFaceAdvanced\",\n      \"display_name\": \"Restore Face Advanced 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"ReActorFaceSimilarity\",\n      \"display_name\": \"Face Similarity 🌌 ReActor\",\n      \"category\": \"🌌 ReActor\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"FaceSegment\",\n      \"display_name\": \"Face Segment (RMBG)\",\n      \"category\": \"🧪AILab/🧽RMBG\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"PoseAndFaceDetection\",\n      \"display_name\": \"Pose and Face Detection\",\n      \"category\": \"WanAnimatePreprocess\",\n      \"description\": \"Detects human poses and face images from input images. Optionally retargets poses based on a reference image.\"\n    },\n    {\n      \"name\": \"WanVideoVACEEncode\",\n      \"display_name\": \"WanVideo VACE Encode\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"WanVideoVACEModelSelect\",\n      \"display_name\": \"WanVideo VACE Module Select\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"VACE model to use when not using model that has it included, loaded from 'ComfyUI/models/diffusion_models'\"\n    },\n    {\n      \"name\": \"WanVideoVACEStartToEndFrame\",\n      \"display_name\": \"WanVideo VACE Start To End Frame\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"Helper node to create start/end frame batch and masks for VACE\"\n    },\n    {\n      \"name\": \"FaceMaskFromPoseKeypoints\",\n      \"display_name\": \"Face Mask From Pose Keypoints\",\n      \"category\": \"ControlNet Preprocessors/Pose Keypoint Postprocess\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"FantasyPortraitFaceDetector\",\n      \"display_name\": \"FantasyPortrait Face Detector\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"LynxEncodeFaceIP\",\n      \"display_name\": \"Lynx Encode Face IP\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"DrawArcFaceLandmarks\",\n      \"display_name\": \"Draw ArcFace Landmarks\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"Draw face landmarks on an image for visualization/debugging\"\n    },\n    {\n      \"name\": \"LynxInsightFaceCrop\",\n      \"display_name\": \"Lynx InsightFace Crop\",\n      \"category\": \"WanVideoWrapper\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"AnimeFace_SemSegPreprocessor\",\n      \"display_name\": \"Anime Face Segmentor\",\n      \"category\": \"ControlNet Preprocessors/Semantic Segmentation\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"MediaPipe-FaceMeshPreprocessor\",\n      \"display_name\": \"MediaPipe Face Mesh\",\n      \"category\": \"ControlNet Preprocessors/Faces and Poses Estimators\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"CrossAttn_EraseReplace_HiDream\",\n      \"display_name\": \"CrossAttn_EraseReplace_HiDream\",\n      \"category\": \"advanced/conditioning\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"Latent Replace State Info\",\n      \"display_name\": \"Latent Replace State Info\",\n      \"category\": \"RES4LYF/latents\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"Simple Pattern Replace (WLSH)\",\n      \"display_name\": \"Simple Pattern Replace (WLSH)\",\n      \"category\": \"WLSH Nodes/text\",\n      \"description\": \"\"\n    }\n  ],\n  \"hint\": \"Use a more specific node_type filter to see full definitions with inputs/outputs\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step nodes exist but need model files that aren't installed. Let me check the pack manifest for model downloads and look at what's available.",
+      "refusal": null,
+      "reasoning": "The ACE Step audio nodes exist (TextEncodeAceStepAudio1.5, EmptyAceStep1.5LatentAudio) but the required model files are missing (qwen_4b_ace15.safetensors, etc.). Let me check if we can download those, or alternatively look for a different approach to audio generation. \n\nActually, looking more carefully at the errors: the pack workflow references models that aren't installed. The ACE Step 1.5 pack needs specific text encoder files that aren't on the server. \n\nLet me check if there's a manifest for the ACE step pack that I can apply to download the missing models, or if I should try a different approach entirely.\n\nLet me also check the pack listing more carefully - the list was cut off. Let me search for audio-specific packs.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_1bdebffef7b749eb82b460a0",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"ace step audio\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_04423d2b0e5845578fef3d92",
+          "function": {
+            "name": "get_node_info",
+            "arguments": "{\"node_type\": \"EmptyAceStep1.5LatentAudio\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_a424411b3eb34dad80c56c31",
+          "function": {
+            "name": "get_node_info",
+            "arguments": "{\"node_type\": \"TextEncodeAceStepAudio1.5\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step audio nodes exist (TextEncodeAceStepAudio1.5, EmptyAceStep1.5LatentAudio) but the required model files are missing (qwen_4b_ace15.safetensors, etc.). Let me check if we can download those, or alternatively look for a different approach to audio generation. \n\nActually, looking more carefully at the errors: the pack workflow references models that aren't installed. The ACE Step 1.5 pack needs specific text encoder files that aren't on the server. \n\nLet me check if there's a manifest for the ACE step pack that I can apply to download the missing models, or if I should try a different approach entirely.\n\nLet me also check the pack listing more carefully - the list was cut off. Let me search for audio-specific packs.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1bdebffef7b749eb82b460a0",
+      "content": "No custom nodes found for \"ace step audio\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_04423d2b0e5845578fef3d92",
+      "content": "{\n  \"EmptyAceStep1.5LatentAudio\": {\n    \"input\": {\n      \"required\": {\n        \"seconds\": [\n          \"FLOAT\",\n          {\n            \"default\": 120,\n            \"min\": 1,\n            \"max\": 1000,\n            \"step\": 0.01\n          }\n        ],\n        \"batch_size\": [\n          \"INT\",\n          {\n            \"tooltip\": \"The number of latent images in the batch.\",\n            \"default\": 1,\n            \"min\": 1,\n            \"max\": 4096\n          }\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"seconds\",\n        \"batch_size\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"LATENT\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"LATENT\"\n    ],\n    \"output_tooltips\": [\n      null\n    ],\n    \"output_matchtypes\": null,\n    \"name\": \"EmptyAceStep1.5LatentAudio\",\n    \"display_name\": \"Empty Ace Step 1.5 Latent Audio\",\n    \"description\": \"\",\n    \"python_module\": \"comfy_extras.nodes_ace\",\n    \"category\": \"model/latent/ace\",\n    \"output_node\": false,\n    \"deprecated\": false,\n    \"experimental\": false,\n    \"dev_only\": false,\n    \"api_node\": false,\n    \"price_badge\": null,\n    \"search_aliases\": null,\n    \"essentials_category\": null,\n    \"has_intermediate_output\": false\n  }\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a424411b3eb34dad80c56c31",
+      "content": "{\n  \"TextEncodeAceStepAudio1.5\": {\n    \"input\": {\n      \"required\": {\n        \"clip\": [\n          \"CLIP\",\n          {}\n        ],\n        \"tags\": [\n          \"STRING\",\n          {\n            \"multiline\": true,\n            \"dynamicPrompts\": true\n          }\n        ],\n        \"lyrics\": [\n          \"STRING\",\n          {\n            \"multiline\": true,\n            \"dynamicPrompts\": true\n          }\n        ],\n        \"seed\": [\n          \"INT\",\n          {\n            \"default\": 0,\n            \"min\": 0,\n            \"max\": 18446744073709552000,\n            \"control_after_generate\": true\n          }\n        ],\n        \"bpm\": [\n          \"INT\",\n          {\n            \"default\": 120,\n            \"min\": 10,\n            \"max\": 300\n          }\n        ],\n        \"duration\": [\n          \"FLOAT\",\n          {\n            \"default\": 120,\n            \"min\": 0,\n            \"max\": 2000,\n            \"step\": 0.1\n          }\n        ],\n        \"timesignature\": [\n          \"COMBO\",\n          {\n            \"multiselect\": false,\n            \"options\": [\n              \"2\",\n              \"3\",\n              \"4\",\n              \"6\"\n            ]\n          }\n        ],\n        \"language\": [\n          \"COMBO\",\n          {\n            \"default\": \"en\",\n            \"multiselect\": false,\n            \"options\": [\n              \"ar\",\n              \"az\",\n              \"bg\",\n              \"bn\",\n              \"ca\",\n              \"cs\",\n              \"da\",\n              \"de\",\n              \"el\",\n              \"en\",\n              \"es\",\n              \"fa\",\n              \"fi\",\n              \"fr\",\n              \"he\",\n              \"hi\",\n              \"hr\",\n              \"ht\",\n              \"hu\",\n              \"id\",\n              \"is\",\n              \"it\",\n              \"ja\",\n              \"ko\",\n              \"la\",\n              \"lt\",\n              \"ms\",\n              \"ne\",\n              \"nl\",\n              \"no\",\n              \"pa\",\n              \"pl\",\n              \"pt\",\n              \"ro\",\n              \"ru\",\n              \"sa\",\n              \"sk\",\n              \"sr\",\n              \"sv\",\n              \"sw\",\n              \"ta\",\n              \"te\",\n              \"th\",\n              \"tl\",\n              \"tr\",\n              \"uk\",\n              \"ur\",\n              \"vi\",\n              \"yue\",\n              \"zh\",\n              \"unknown\"\n            ]\n          }\n        ],\n        \"keyscale\": [\n          \"COMBO\",\n          {\n            \"multiselect\": false,\n            \"options\": [\n              \"C major\",\n              \"C# major\",\n              \"Db major\",\n              \"D major\",\n              \"D# major\",\n              \"Eb major\",\n              \"E major\",\n              \"F major\",\n              \"F# major\",\n              \"Gb major\",\n              \"G major\",\n              \"G# major\",\n              \"Ab major\",\n              \"A major\",\n              \"A# major\",\n              \"Bb major\",\n              \"B major\",\n              \"C minor\",\n              \"C# minor\",\n              \"Db minor\",\n              \"D minor\",\n              \"D# minor\",\n              \"Eb minor\",\n              \"E minor\",\n              \"F minor\",\n              \"F# minor\",\n              \"Gb minor\",\n              \"G minor\",\n              \"G# minor\",\n              \"Ab minor\",\n              \"A minor\",\n              \"A# minor\",\n              \"Bb minor\",\n              \"B minor\"\n            ]\n          }\n        ],\n        \"generate_audio_codes\": [\n          \"BOOLEAN\",\n          {\n            \"tooltip\": \"Enable the LLM that generates audio codes. This can be slow but will increase the quality of the generated audio. Turn this off if you are giving the model an audio reference.\",\n            \"advanced\": true,\n            \"default\": true\n          }\n        ],\n        \"cfg_scale\": [\n          \"FLOAT\",\n          {\n            \"advanced\": true,\n            \"default\": 2,\n            \"min\": 0,\n            \"max\": 100,\n            \"step\": 0.1\n          }\n        ],\n        \"temperature\": [\n          \"FLOAT\",\n          {\n            \"advanced\": true,\n            \"default\": 0.85,\n            \"min\": 0,\n            \"max\": 2,\n            \"step\": 0.01\n          }\n        ],\n        \"top_p\": [\n          \"FLOAT\",\n          {\n            \"advanced\": true,\n            \"default\": 0.9,\n            \"min\": 0,\n            \"max\": 2000,\n            \"step\": 0.01\n          }\n        ],\n        \"top_k\": [\n          \"INT\",\n          {\n            \"advanced\": true,\n            \"default\": 0,\n            \"min\": 0,\n            \"max\": 100\n          }\n        ],\n        \"min_p\": [\n          \"FLOAT\",\n          {\n            \"advanced\": true,\n            \"default\": 0,\n            \"min\": 0,\n            \"max\": 1,\n            \"step\": 0.001\n          }\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"clip\",\n        \"tags\",\n        \"lyrics\",\n        \"seed\",\n        \"bpm\",\n        \"duration\",\n        \"timesignature\",\n        \"language\",\n        \"keyscale\",\n        \"generate_audio_codes\",\n        \"cfg_scale\",\n        \"temperature\",\n        \"top_p\",\n        \"top_k\",\n        \"min_p\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"CONDITIONING\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"CONDITIONING\"\n    ],\n    \"output_tooltips\": [\n      null\n    ],\n    \"output_matchtypes\": null,\n    \"name\": \"TextEncodeAceStepAudio1.5\",\n    \"display_name\": null,\n    \"description\": \"\",\n    \"python_module\": \"comfy_extras.nodes_ace\",\n    \"category\": \"model/conditioning/ace\",\n    \"output_node\": false,\n    \"deprecated\": false,\n    \"experimental\": false,\n    \"dev_only\": false,\n    \"api_node\": false,\n    \"price_badge\": null,\n    \"search_aliases\": null,\n    \"essentials_category\": null,\n    \"has_intermediate_output\": false\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step nodes are built into ComfyUI but the required model files are missing (the text encoder `qwen_4b_ace15.safetensors` and the UNet). Let me search for and download the needed models.",
+      "refusal": null,
+      "reasoning": "The ACE Step audio nodes exist in ComfyUI but the required model files (specifically the text encoder `qwen_4b_ace15.safetensors` and the UNet model) are missing. The `generate_audio` tool tried to build the workflow but the models aren't installed.\n\nLet me check if the ACE Step models can be found/downloaded. But that would take a long time. Let me instead try to build the workflow with the correct parameters and see what happens. Or better yet, let me try to download the required ACE Step models.\n\nActually, let me check if there's a manifest for the ACE Step pack that I can apply.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c0948cf96c624ba2bc6529ac",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE Step 1.5 audio model\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_d57f79e4259d4e799db32f38",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_step unet audio safetensors\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_8cc5811d09d140da8b722617",
+          "function": {
+            "name": "read_pack_workflow",
+            "arguments": "{\"name\": \"ace_step_1.5\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step audio nodes exist in ComfyUI but the required model files (specifically the text encoder `qwen_4b_ace15.safetensors` and the UNet model) are missing. The `generate_audio` tool tried to build the workflow but the models aren't installed.\n\nLet me check if the ACE Step models can be found/downloaded. But that would take a long time. Let me instead try to build the workflow with the correct parameters and see what happens. Or better yet, let me try to download the required ACE Step models.\n\nActually, let me check if there's a manifest for the ACE Step pack that I can apply.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c0948cf96c624ba2bc6529ac",
+      "content": "No models found for \"ACE Step 1.5 audio model\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d57f79e4259d4e799db32f38",
+      "content": "No models found for \"ace_step unet audio safetensors\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8cc5811d09d140da8b722617",
+      "content": "No pack named \"ace_step_1.5\". Available packs: anima, anima-img2img, anima-inpaint, anima-txt2img, artokun-flow, ernie, ernie-combo, ernie-img2img, ernie-txt2img, ideogram, ideogram-img2img, ideogram-txt2img, krea2-combo, krea2-txt2img-json, krea2-txt2img-manual, ltx-2.3, ltx-2.3-extender, ltx-2.3-extender-no-audio, ltx-2.3-flf, ltx-2.3-img2vid, ltx-2.3-txt2vid, ltx-2.3-xy-plot, qwen-image, qwen-image-edit, qwen-image-edit-edit, wan-animate, wan-animate-character, wan-animate-ofm, wan-longer-videos, wan-longer-videos-i2v, wan-longer-videos-i2v-96gb, wan-longer-videos-t2v, wan-longer-videos-t2v-96gb, wan-longer-videos-v2v, wan-longer-videos-v2v-96gb, wan-multitalk, wan-pusa-extend, wan-transparent, wan-transparent-img2vid, wan-transparent-img2vid-96gb, z-image-base, z-image-base-combo, z-image-base-controlnet, z-image-base-img2img, z-image-base-inpaint, z-image-base-txt2img, z-image-turbo, z-image-turbo-combo, z-image-turbo-controlnet, z-image-turbo-detail-daemon, z-image-turbo-img2img, z-image-turbo-inpainting, z-image-turbo-txt2img, z-image-xy-plot."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me search for ACE Step models on HuggingFace to download the required files.",
+      "refusal": null,
+      "reasoning": "There's no ACE Step pack available in the bundled packs. The ACE Step audio nodes exist in ComfyUI's built-in nodes, but the required models aren't installed. Let me look for the models on HuggingFace or check what's needed.\n\nLet me look at the get_node_info more carefully - the DualCLIPLoader needs clip_name1 and clip_name2, and the UNETLoader needs unet_name. For ACE Step 1.5, these would be specific model files.\n\nLet me try searching HuggingFace for ACE Step models.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6da2cd63505d494fbcb96cfc",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace-step audio diffusion\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_da71a174948745d8b4af970a",
+          "function": {
+            "name": "get_node_info",
+            "arguments": "{\"node_type\": \"DualCLIPLoader\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_cb10da3ac5a34823b1bb0354",
+          "function": {
+            "name": "get_node_info",
+            "arguments": "{\"node_type\": \"UNETLoader\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "There's no ACE Step pack available in the bundled packs. The ACE Step audio nodes exist in ComfyUI's built-in nodes, but the required models aren't installed. Let me look for the models on HuggingFace or check what's needed.\n\nLet me look at the get_node_info more carefully - the DualCLIPLoader needs clip_name1 and clip_name2, and the UNETLoader needs unet_name. For ACE Step 1.5, these would be specific model files.\n\nLet me try searching HuggingFace for ACE Step models.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6da2cd63505d494fbcb96cfc",
+      "content": "No models found for \"ace-step audio diffusion\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_da71a174948745d8b4af970a",
+      "content": "{\n  \"DualCLIPLoader\": {\n    \"input\": {\n      \"required\": {\n        \"clip_name1\": [\n          [\n            \"ernie-image-prompt-enhancer.safetensors\",\n            \"gemma4_e4b_it_fp8_scaled.safetensors\",\n            \"gemma_3_12B_it_fp4_mixed.safetensors\",\n            \"gemma_3_12B_it_fp8_scaled.safetensors\",\n            \"ltx-2.3_text_projection_bf16.safetensors\",\n            \"ministral-3-3b.safetensors\",\n            \"qwen3vl_4b_fp8_scaled.safetensors\",\n            \"qwen3vl_8b_fp8_scaled.safetensors\",\n            \"qwen_3_06b_base.safetensors\",\n            \"umt5-xxl-enc-bf16.safetensors\",\n            \"umt5_xxl_fp8_e4m3fn_scaled.safetensors\"\n          ]\n        ],\n        \"clip_name2\": [\n          [\n            \"ernie-image-prompt-enhancer.safetensors\",\n            \"gemma4_e4b_it_fp8_scaled.safetensors\",\n            \"gemma_3_12B_it_fp4_mixed.safetensors\",\n            \"gemma_3_12B_it_fp8_scaled.safetensors\",\n            \"ltx-2.3_text_projection_bf16.safetensors\",\n            \"ministral-3-3b.safetensors\",\n            \"qwen3vl_4b_fp8_scaled.safetensors\",\n            \"qwen3vl_8b_fp8_scaled.safetensors\",\n            \"qwen_3_06b_base.safetensors\",\n            \"umt5-xxl-enc-bf16.safetensors\",\n            \"umt5_xxl_fp8_e4m3fn_scaled.safetensors\"\n          ]\n        ],\n        \"type\": [\n          [\n            \"sdxl\",\n            \"sd3\",\n            \"flux\",\n            \"hunyuan_video\",\n            \"hidream\",\n            \"hunyuan_image\",\n            \"hunyuan_video_15\",\n            \"kandinsky5\",\n            \"kandinsky5_image\",\n            \"ltxv\",\n            \"newbie\",\n            \"ace\"\n          ]\n        ]\n      },\n      \"optional\": {\n        \"device\": [\n          [\n            \"default\",\n            \"cpu\"\n          ],\n          {\n            \"advanced\": true\n          }\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"clip_name1\",\n        \"clip_name2\",\n        \"type\"\n      ],\n      \"optional\": [\n        \"device\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"CLIP\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"CLIP\"\n    ],\n    \"name\": \"DualCLIPLoader\",\n    \"display_name\": \"Load CLIP (Dual)\",\n    \"description\": \"Recipes:\\nsdxl: clip-l, clip-g\\nsd3: clip-l, clip-g / clip-l, t5 / clip-g, t5\\nflux: clip-l, t5\\nhidream: at least one of t5 or llama, recommended t5 and llama\\nhunyuan_image: qwen2.5vl 7b and byt5 small\\nnewbie: gemma-3-4b-it, jina clip v2\",\n    \"python_module\": \"nodes\",\n    \"category\": \"model/loaders\",\n    \"output_node\": false,\n    \"has_intermediate_output\": false,\n    \"search_aliases\": []\n  },\n  \"DualCLIPLoaderGGUF\": {\n    \"input\": {\n      \"required\": {\n        \"clip_name1\": [\n          [\n            \"Qwen2.5-VL-7B-Instruct-UD-Q8_0.gguf\",\n            \"Qwen2.5-VL-7B-Instruct-mmproj-BF16.gguf\",\n            \"Qwen3-4B-UD-Q6_K_XL.gguf\",\n            \"ernie-image-prompt-enhancer.safetensors\",\n            \"gemma4_e4b_it_fp8_scaled.safetensors\",\n            \"gemma_3_12B_it_fp4_mixed.safetensors\",\n            \"gemma_3_12B_it_fp8_scaled.safetensors\",\n            \"ltx-2.3_text_projection_bf16.safetensors\",\n            \"ministral-3-3b.safetensors\",\n            \"qwen3vl_4b_fp8_scaled.safetensors\",\n            \"qwen3vl_8b_fp8_scaled.safetensors\",\n            \"qwen_3_06b_base.safetensors\",\n            \"umt5-xxl-enc-bf16.safetensors\",\n            \"umt5-xxl-encoder-Q5_K_S.gguf\",\n            \"umt5_xxl_fp8_e4m3fn_scaled.safetensors\"\n          ]\n        ],\n        \"clip_name2\": [\n          [\n            \"Qwen2.5-VL-7B-Instruct-UD-Q8_0.gguf\",\n            \"Qwen2.5-VL-7B-Instruct-mmproj-BF16.gguf\",\n            \"Qwen3-4B-UD-Q6_K_XL.gguf\",\n            \"ernie-image-prompt-enhancer.safetensors\",\n            \"gemma4_e4b_it_fp8_scaled.safetensors\",\n            \"gemma_3_12B_it_fp4_mixed.safetensors\",\n            \"gemma_3_12B_it_fp8_scaled.safetensors\",\n            \"ltx-2.3_text_projection_bf16.safetensors\",\n            \"ministral-3-3b.safetensors\",\n            \"qwen3vl_4b_fp8_scaled.safetensors\",\n            \"qwen3vl_8b_fp8_scaled.safetensors\",\n            \"qwen_3_06b_base.safetensors\",\n            \"umt5-xxl-enc-bf16.safetensors\",\n            \"umt5-xxl-encoder-Q5_K_S.gguf\",\n            \"umt5_xxl_fp8_e4m3fn_scaled.safetensors\"\n          ]\n        ],\n        \"type\": [\n          [\n            \"sdxl\",\n            \"sd3\",\n            \"flux\",\n            \"hunyuan_video\",\n            \"hidream\",\n            \"hunyuan_image\",\n            \"hunyuan_video_15\",\n            \"kandinsky5\",\n            \"kandinsky5_image\",\n            \"ltxv\",\n            \"newbie\",\n            \"ace\"\n          ]\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"clip_name1\",\n        \"clip_name2\",\n        \"type\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"CLIP\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"CLIP\"\n    ],\n    \"name\": \"DualCLIPLoaderGGUF\",\n    \"display_name\": \"DualCLIPLoader (GGUF)\",\n    \"description\": \"\",\n    \"python_module\": \"custom_nodes.ComfyUI-GGUF\",\n    \"category\": \"bootleg\",\n    \"output_node\": false,\n    \"has_intermediate_output\": false,\n    \"search_aliases\": []\n  }\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_cb10da3ac5a34823b1bb0354",
+      "content": "{\n  \"UNETLoader\": {\n    \"input\": {\n      \"required\": {\n        \"unet_name\": [\n          [\n            \"Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors\",\n            \"anima-base-v1.0.safetensors\",\n            \"ideogram4_fp8_scaled.safetensors\",\n            \"ideogram4_unconditional_fp8_scaled.safetensors\",\n            \"krea2_turbo_fp8.safetensors\",\n            \"wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors\",\n            \"wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors\"\n          ]\n        ],\n        \"weight_dtype\": [\n          [\n            \"default\",\n            \"fp8_e4m3fn\",\n            \"fp8_e4m3fn_fast\",\n            \"fp8_e5m2\"\n          ],\n          {\n            \"advanced\": true\n          }\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"unet_name\",\n        \"weight_dtype\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"MODEL\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"MODEL\"\n    ],\n    \"name\": \"UNETLoader\",\n    \"display_name\": \"Load Diffusion Model\",\n    \"description\": \"\",\n    \"python_module\": \"nodes\",\n    \"category\": \"model/loaders\",\n    \"output_node\": false,\n    \"has_intermediate_output\": false,\n    \"search_aliases\": []\n  },\n  \"UnetLoaderGGUF\": {\n    \"input\": {\n      \"required\": {\n        \"unet_name\": [\n          [\n            \"Qwen_Image_Edit-Q8_0.gguf\",\n            \"Wan2.2-I2V-A14B-HighNoise-Q4_K_S.gguf\",\n            \"Wan2.2-I2V-A14B-HighNoise-Q8_0.gguf\",\n            \"Wan2.2-I2V-A14B-LowNoise-Q4_K_S.gguf\",\n            \"Wan2.2-I2V-A14B-LowNoise-Q8_0.gguf\",\n            \"Wan2.2-T2V-A14B-HighNoise-Q4_K_S.gguf\",\n            \"Wan2.2-T2V-A14B-HighNoise-Q8_0.gguf\",\n            \"Wan2.2-T2V-A14B-LowNoise-Q4_K_S.gguf\",\n            \"Wan2.2-T2V-A14B-LowNoise-Q8_0.gguf\",\n            \"ernie-image-turbo-Q8_0.gguf\",\n            \"ltx-2.3-22b-dev-Q8_0.gguf\",\n            \"z_image-Q8_0.gguf\",\n            \"z_image_turbo-Q8_0.gguf\"\n          ]\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"unet_name\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"MODEL\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"MODEL\"\n    ],\n    \"name\": \"UnetLoaderGGUF\",\n    \"display_name\": \"Unet Loader (GGUF)\",\n    \"description\": \"\",\n    \"python_module\": \"custom_nodes.ComfyUI-GGUF\",\n    \"category\": \"bootleg\",\n    \"output_node\": false,\n    \"has_intermediate_output\": false,\n    \"search_aliases\": []\n  },\n  \"UnetLoaderGGUFAdvanced\": {\n    \"input\": {\n      \"required\": {\n        \"unet_name\": [\n          [\n            \"Qwen_Image_Edit-Q8_0.gguf\",\n            \"Wan2.2-I2V-A14B-HighNoise-Q4_K_S.gguf\",\n            \"Wan2.2-I2V-A14B-HighNoise-Q8_0.gguf\",\n            \"Wan2.2-I2V-A14B-LowNoise-Q4_K_S.gguf\",\n            \"Wan2.2-I2V-A14B-LowNoise-Q8_0.gguf\",\n            \"Wan2.2-T2V-A14B-HighNoise-Q4_K_S.gguf\",\n            \"Wan2.2-T2V-A14B-HighNoise-Q8_0.gguf\",\n            \"Wan2.2-T2V-A14B-LowNoise-Q4_K_S.gguf\",\n            \"Wan2.2-T2V-A14B-LowNoise-Q8_0.gguf\",\n            \"ernie-image-turbo-Q8_0.gguf\",\n            \"ltx-2.3-22b-dev-Q8_0.gguf\",\n            \"z_image-Q8_0.gguf\",\n            \"z_image_turbo-Q8_0.gguf\"\n          ]\n        ],\n        \"dequant_dtype\": [\n          [\n            \"default\",\n            \"target\",\n            \"float32\",\n            \"float16\",\n            \"bfloat16\"\n          ],\n          {\n            \"default\": \"default\"\n          }\n        ],\n        \"patch_dtype\": [\n          [\n            \"default\",\n            \"target\",\n            \"float32\",\n            \"float16\",\n            \"bfloat16\"\n          ],\n          {\n            \"default\": \"default\"\n          }\n        ],\n        \"patch_on_device\": [\n          \"BOOLEAN\",\n          {\n            \"default\": false\n          }\n        ]\n      }\n    },\n    \"input_order\": {\n      \"required\": [\n        \"unet_name\",\n        \"dequant_dtype\",\n        \"patch_dtype\",\n        \"patch_on_device\"\n      ]\n    },\n    \"is_input_list\": false,\n    \"output\": [\n      \"MODEL\"\n    ],\n    \"output_is_list\": [\n      false\n    ],\n    \"output_name\": [\n      \"MODEL\"\n    ],\n    \"name\": \"UnetLoaderGGUFAdvanced\",\n    \"display_name\": \"Unet Loader (GGUF/Advanced)\",\n    \"description\": \"\",\n    \"python_module\": \"custom_nodes.ComfyUI-GGUF\",\n    \"category\": \"bootleg\",\n    \"output_node\": false,\n    \"has_intermediate_output\": false,\n    \"search_aliases\": []\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The DualCLIPLoader does support `type: \"ace\"` but the required text encoder models aren't on this server. Let me search for the ACE Step models specifically.",
+      "refusal": null,
+      "reasoning": "The ACE Step 1.5 nodes are built into ComfyUI but the required models (qwen_4b_ace15.safetensors for text encoder, and the ACE Step UNet model) aren't installed. Let me look for the ACE Step models on HuggingFace. The ACE Step models are from the ACE Step project.\n\nLet me search for them more specifically.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_86826a4f150947f297d2e7d4",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step-1.5 qwen text encoder\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_9548da2c75bf4525812a207b",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step diffusion model music\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step 1.5 nodes are built into ComfyUI but the required models (qwen_4b_ace15.safetensors for text encoder, and the ACE Step UNet model) aren't installed. Let me look for the ACE Step models on HuggingFace. The ACE Step models are from the ACE Step project.\n\nLet me search for them more specifically.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_86826a4f150947f297d2e7d4",
+      "content": "No models found for \"ACE-Step-1.5 qwen text encoder\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9548da2c75bf4525812a207b",
+      "content": "No models found for \"ACE-Step diffusion model music\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The ACE Step audio models aren't available through HuggingFace search. Let me try looking for them on HuggingFace directly with different queries. Actually, let me try searching for the specific repo.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8368be5bc36f4983b1554f95",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step music generation\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_74c3c2ab05d547c99447bddc",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_step safetensors\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step audio models aren't available through HuggingFace search. Let me try looking for them on HuggingFace directly with different queries. Actually, let me try searching for the specific repo.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8368be5bc36f4983b1554f95",
+      "content": "No models found for \"ACE-Step music generation\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_74c3c2ab05d547c99447bddc",
+      "content": "1. **tg570766/ace_step_v1_3.5b.safetensors** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: region:us"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me search more specifically for the ACE Step 1.5 models needed.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_9ce1f89d6cf1476c8725f539",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace-step-1.5 qwen4b\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_af3389bef7624eb6b55d4e5d",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_step_1.5 diffusion model safetensors\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me search more specifically for the ACE Step 1.5 models needed.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9ce1f89d6cf1476c8725f539",
+      "content": "No models found for \"ace-step-1.5 qwen4b\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_af3389bef7624eb6b55d4e5d",
+      "content": "No models found for \"ace_step_1.5 diffusion model safetensors\"."
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step 1.5 audio models aren't installed on this server and can't be found through standard model search. Let me focus on what's working — the image is generating and I'll proceed with the video once it's done. Let me check on the image.",
+      "refusal": null,
+      "reasoning": "The ACE Step 1.5 audio models aren't readily available through the HuggingFace search. The DualCLIPLoader for ACE type expects two text encoders and the UNETLoader expects an ACE UNet model, none of which are installed. \n\nLet me check if there's an ACE Step pack manifest that I missed or try to find the actual model names needed. The error mentioned `qwen_4b_ace15.safetensors` as clip_name2. Let me look for this specifically.\n\nActually, I should just move on and inform the user that ACE Step audio is missing required models. Let me focus on what I can do:\n1. Image - already enqueued ✓\n2. Video - need to wait for image, then generate3. Audio - models not available\n\nLet me check on the image progress and focus on the video. For audio, I'll have to report the missing model limitation.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_e9c949236c3343f3abccea2f",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step 1.5 audio models aren't readily available through the HuggingFace search. The DualCLIPLoader for ACE type expects two text encoders and the UNETLoader expects an ACE UNet model, none of which are installed. \n\nLet me check if there's an ACE Step pack manifest that I missed or try to find the actual model names needed. The error mentioned `qwen_4b_ace15.safetensors` as clip_name2. Let me look for this specifically.\n\nActually, I should just move on and inform the user that ACE Step audio is missing required models. Let me focus on what I can do:\n1. Image - already enqueued ✓\n2. Video - need to wait for image, then generate3. Audio - models not available\n\nLet me check on the image progress and focus on the video. For audio, I'll have to report the missing model limitation.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e9c949236c3343f3abccea2f",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 3644,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Image is done! Let me get the output details and stage it for video generation.",
+      "refusal": null,
+      "reasoning": "The image is done. Let me get the history to find the output filename, then stage it as input for the video generation.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_203dae49f1e341ac92b74b70",
+          "function": {
+            "name": "get_history",
+            "arguments": "{\"prompt_id\": \"fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image is done. Let me get the history to find the output filename, then stage it as input for the video generation.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_203dae49f1e341ac92b74b70",
+      "content": "## Execution: fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\n**Status**: success | Completed: true\n**Duration**: 3.64s\n**Cached nodes**: 1, 4\n\n### Outputs (1 nodes)\n- Node 7: images → **ComfyUI_01166_.png**"
+    },
+    {
+      "role": "assistant",
+      "content": "Image generated successfully. Now let me stage it as input for video and clear VRAM for the LTX model.",
+      "refusal": null,
+      "reasoning": "The image is done - `ComfyUI_01166_.png`. Now I need to:\n1. Stage it as input for the video\n2. Generate the video using LTX 2.3 i2v\n\nLet me stage the output and generate the video. For audio, the ACE Step models aren't available. Let me check if there's any other audio generation option, or I'll just need to report it.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_9febd027d4e64c3a8f45b182",
+          "function": {
+            "name": "stage_output_as_input",
+            "arguments": "{\"filename\": \"ComfyUI_01166_.png\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_48f49cef05fb4772bac834c0",
+          "function": {
+            "name": "clear_vram",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image is done - `ComfyUI_01166_.png`. Now I need to:\n1. Stage it as input for the video\n2. Generate the video using LTX 2.3 i2v\n\nLet me stage the output and generate the video. For audio, the ACE Step models aren't available. Let me check if there's any other audio generation option, or I'll just need to report it.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9febd027d4e64c3a8f45b182",
+      "content": "Staged image output as input via the server API.\n\nInput filename: ComfyUI_01166_.png\nsubfolder: (none)\ntype: input\n\nUse \"ComfyUI_01166_.png\" as the `image` input in LoadImage."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_48f49cef05fb4772bac834c0",
+      "content": "VRAM cleared successfully (models unloaded, memory freed).\n\nCurrent VRAM: 20990/24564 MB free | Torch: 14/32 MB free"
+    },
+    {
+      "role": "assistant",
+      "content": "Image staged. Now generating the 3-second video using the painting as the start frame with LTX 2.3.",
+      "refusal": null,
+      "reasoning": "Good, the image is staged as input and VRAM is cleared. Now let me generate the video. The LTX 2.3 checkpoint is `ltx-2.3-22b-dev.safetensors`. Let me use the generate_video function with the image as i2v.\n\nFor a 3-second video at 25fps, that's about 75 frames (8*n+1 pattern for LTX). Let me calculate: 3 seconds * 25fps = 75 frames. The generate_video function takes seconds and converts to frame count (8n+1).\n\nLet me also try to look for the ACE Step audio models one more time from a different angle - maybe through CivitAI or direct HuggingFace URLs.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b200e4a45fc94d8da9ded1b8",
+          "function": {
+            "name": "generate_video",
+            "arguments": "{\"prompt\": \"A misty forest at dawn with gentle fog drifting between ancient trees. Slow, dreamy camera gently panning forward through the misty woodland. Soft golden light filtering through the canopy. Ethereal and contemplative atmosphere, oil painting aesthetic.\", \"image\": \"ComfyUI_01166_.png\", \"seconds\": 3, \"resolution\": \"768x768\", \"fps\": 25, \"steps\": 8, \"cfg\": 1, \"strength\": 0.5, \"checkpoint\": \"ltx-2.3-22b-dev.safetensors\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Good, the image is staged as input and VRAM is cleared. Now let me generate the video. The LTX 2.3 checkpoint is `ltx-2.3-22b-dev.safetensors`. Let me use the generate_video function with the image as i2v.\n\nFor a 3-second video at 25fps, that's about 75 frames (8*n+1 pattern for LTX). Let me calculate: 3 seconds * 25fps = 75 frames. The generate_video function takes seconds and converts to frame count (8n+1).\n\nLet me also try to look for the ACE Step audio models one more time from a different angle - maybe through CivitAI or direct HuggingFace URLs.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b200e4a45fc94d8da9ded1b8",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"tool\": \"generate_video\",\n  \"mode\": \"i2v\",\n  \"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\",\n  \"checkpoint\": \"ltx-2.3-22b-dev.safetensors\",\n  \"width\": 768,\n  \"height\": 768,\n  \"length_frames\": 73,\n  \"fps\": 25,\n  \"note\": \"Video is written under output/video/. VHS/SaveVideo outputs may not show in /history — use list_output_images to find it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Video is generating (73 frames at 25fps = ~3 seconds). While that renders, let me try one more approach for the audio — searching CivitAI for ACE Step models.",
+      "refusal": null,
+      "reasoning": "Video is enqueued. Now let me try to search for ACE Step audio models one more time through CivitAI as a last resort for the audio. Let me also poll on the video while that search runs.\n\nActually, let me try a completely different approach for audio. Let me search for the ACE Step models through the ComfyUI registry.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b9a75c8fdb354ea085815f20",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE Step music audio generation model\", \"limit\": 5, \"filter\": \"text-to-audio\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_0974eea4fd4b4447a486d0c4",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Video is enqueued. Now let me try to search for ACE Step audio models one more time through CivitAI as a last resort for the audio. Let me also poll on the video while that search runs.\n\nActually, let me try a completely different approach for audio. Let me search for the ACE Step models through the ComfyUI registry.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b9a75c8fdb354ea085815f20",
+      "content": "No models found for \"ACE Step music audio generation model\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_0974eea4fd4b4447a486d0c4",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Video is rendering. Let me try to find the ACE Step models through different search terms.",
+      "refusal": null,
+      "reasoning": "Video is still running. Let me wait a bit and check again. Also, the ACE Step models simply aren't available through the search. Let me try to check if maybe there's a different approach - perhaps I can download the required ACE Step models from a known URL.\n\nLet me check for the ACE Step models more specifically. The ComfyUI built-in nodes for ACE Step 1.5 would need:\n1. Two text encoders for DualCLIPLoader (type=ace) - one is probably a T5 variant and the other the Qwen model\n2. A UNet for UNETLoader\n\nLet me search with different terms.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_9b6ba6d7a6f343ee9773f3da",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"qwen_4b_ace15\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_145795c112ee4473ace970c3",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_step_text_projection\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_00aa8b6968804224ab4ba532",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace-step-1.5 1.5B diffusion music\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Video is still running. Let me wait a bit and check again. Also, the ACE Step models simply aren't available through the search. Let me try to check if maybe there's a different approach - perhaps I can download the required ACE Step models from a known URL.\n\nLet me check for the ACE Step models more specifically. The ComfyUI built-in nodes for ACE Step 1.5 would need:\n1. Two text encoders for DualCLIPLoader (type=ace) - one is probably a T5 variant and the other the Qwen model\n2. A UNet for UNETLoader\n\nLet me search with different terms.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9b6ba6d7a6f343ee9773f3da",
+      "content": "1. **kakkkarotto/qwen_4b_ace15_fp8** by unknown\n   Downloads: 0 | Likes: 3\n   Tags: region:us"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_145795c112ee4473ace970c3",
+      "content": "No models found for \"ace_step_text_projection\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_00aa8b6968804224ab4ba532",
+      "content": "No models found for \"ace-step-1.5 1.5B diffusion music\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Found the text encoder! Let me find the UNet too and download both.",
+      "refusal": null,
+      "reasoning": "Found the text encoder! Let me also find the UNet model for ACE Step. Let me search for it.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_038801dc07f84dc786f8dc3a",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_step unet 1.5B safetensors\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_ee9cad90020d456d9f373ef6",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace-step 1.5 music diffusion_model\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Found the text encoder! Let me also find the UNet model for ACE Step. Let me search for it.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_038801dc07f84dc786f8dc3a",
+      "content": "No models found for \"ace_step unet 1.5B safetensors\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ee9cad90020d456d9f373ef6",
+      "content": "No models found for \"ace-step 1.5 music diffusion_model\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me try to find the ACE Step UNet model more specifically.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_5904a25562f941c3ab9e8edf",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step-1.5-1.5B\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_2dc2db12e59542f3b677d32b",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me try to find the ACE Step UNet model more specifically.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5904a25562f941c3ab9e8edf",
+      "content": "1. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-410-step** by unknown\n   Downloads: 3 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n2. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6new-580-step** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n3. **VerlTool/acecoder-qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-5-turns-force-reflect-410-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n4. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-69k-350-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n5. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-wdcoder-150-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n6. **VerlTool/acecoder-fsdp-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-69k-no-tool-350-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n7. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-122k-300-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n8. **VerlTool/acecoder-fsdp-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-69k-no-tool-1070-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n9. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-with-wdcoder-400-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us\n\n10. **VerlTool/acecoder-fsdp_agent-qwen_qwen2.5-coder-1.5b-grpo-n16-b128-t1.0-lr1e-6-69k-600-step** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, qwen2, region:us"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2dc2db12e59542f3b677d32b",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step UNet model is difficult to find through search. Let me try downloading directly from the known ACE-Step repository on HuggingFace. Meanwhile, the video is still rendering.",
+      "refusal": null,
+      "reasoning": "The ACE Step models are hard to find via search. Let me try to find the correct HuggingFace repo directly - ACE-Step/ACE-Step. Let me try to download from a direct URL.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_e9cd1732f7034de68fb773c3",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/kakkkarotto/qwen_4b_ace15_fp8/resolve/main/qwen_4b_ace15.safetensors\", \"target_subfolder\": \"clip\", \"filename\": \"qwen_4b_ace15.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_ea829e4817264730bd9be832",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step models are hard to find via search. Let me try to find the correct HuggingFace repo directly - ACE-Step/ACE-Step. Let me try to download from a direct URL.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e9cd1732f7034de68fb773c3",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ea829e4817264730bd9be832",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The download failed because COMFYUI_PATH is not configured. This is a remote ComfyUI setup. Let me try a different approach - maybe the models can be downloaded via ComfyUI-Manager.\n\nActually, looking at the system stats again, the ComfyUI path is set via the extra-model-paths config, but COMFYUI_PATH is not set as an env var. Let me check the workspace to see if I can figure out the path.\n\nAlso the video is still running. Let me check the workspace info and try to download via a different method.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_68b6df1fb41e4d399b92c851",
+          "function": {
+            "name": "get_workspace",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_6e6263f243b843b196cffd22",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The download failed because COMFYUI_PATH is not configured. This is a remote ComfyUI setup. Let me try a different approach - maybe the models can be downloaded via ComfyUI-Manager.\n\nActually, looking at the system stats again, the ComfyUI path is set via the extra-model-paths config, but COMFYUI_PATH is not set as an env var. Let me check the workspace to see if I can figure out the path.\n\nAlso the video is still running. Let me check the workspace info and try to download via a different method.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_68b6df1fb41e4d399b92c851",
+      "content": "{\n  \"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"workspace_source\": \"default-config\",\n  \"default_workspace\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"api_target\": \"http://127.0.0.1:8188\"\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6e6263f243b843b196cffd22",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The workspace path is set but COMFYUI_PATH isn't in the env. The download_model tool needs COMFYUI_PATH. Let me try using a different approach for the audio.Actually, looking at the error more carefully - the COMFYUI_PATH env var isn't set, but the workspace is known. The download_model tool specifically needs COMFYUI_PATH. Let me see if I can work around this.\n\nFor the audio, I need:\n1. `qwen_4b_ace15.safetensors` (text encoder - goes in clip/)\n2. An ACE Step UNet model (goes in diffusion_models/)\n3. A text_projection model for ACE Step 1.5\n\nThe DualCLIPLoader with type=ace expects two specific text encoder files. Looking at the ACE Step 1.5 workflow, it needs:\n- clip_name1: some text encoder \n- clip_name2: `qwen_4b_ace15.safetensors`\n- type: ace\n\nAnd UNETLoader needs the ACE step UNet model.\n\nSince the download_model tool needs COMFYUI_PATH, and it's not set, let me see if there's another way. Actually, I realize the workspace is known - let me try to use it or set the path.\n\nActually, let me just move on. The video is generating. For the audio, I'll need to inform the user that the ACE Step models need to be installed first. Let me wait for the video to complete.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_964f2077c9ae4418a38982fc",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The workspace path is set but COMFYUI_PATH isn't in the env. The download_model tool needs COMFYUI_PATH. Let me try using a different approach for the audio.Actually, looking at the error more carefully - the COMFYUI_PATH env var isn't set, but the workspace is known. The download_model tool specifically needs COMFYUI_PATH. Let me see if I can work around this.\n\nFor the audio, I need:\n1. `qwen_4b_ace15.safetensors` (text encoder - goes in clip/)\n2. An ACE Step UNet model (goes in diffusion_models/)\n3. A text_projection model for ACE Step 1.5\n\nThe DualCLIPLoader with type=ace expects two specific text encoder files. Looking at the ACE Step 1.5 workflow, it needs:\n- clip_name1: some text encoder \n- clip_name2: `qwen_4b_ace15.safetensors`\n- type: ace\n\nAnd UNETLoader needs the ACE step UNet model.\n\nSince the download_model tool needs COMFYUI_PATH, and it's not set, let me see if there's another way. Actually, I realize the workspace is known - let me try to use it or set the path.\n\nActually, let me just move on. The video is generating. For the audio, I'll need to inform the user that the ACE Step models need to be installed first. Let me wait for the video to complete.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_964f2077c9ae4418a38982fc",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Video still rendering. Let me wait a bit and check again.",
+      "refusal": null,
+      "reasoning": "Still running. Let me wait and check again. The LTX video generation with the 22B model will take a while.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_64e253dc44c44ae699f1e778",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still running. Let me wait and check again. The LTX video generation with the 22B model will take a while.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_64e253dc44c44ae699f1e778",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "While waiting for the video, let me try to download the ACE Step models from the known HuggingFace repos to set up audio generation.",
+      "refusal": null,
+      "reasoning": "Still running. Let me try to download the audio models while waiting for the video. The workspace path is known. Let me try using apply_manifest or download_model with the correct path. Actually, the download_model function failed because COMFYUI_PATH wasn't set. Let me try to find the correct ACE Step model URLs first.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_d148f10b38c84590896cfa23",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"filename\": \"qwen_4b_ace15.safetensors\", \"target_subfolder\": \"clip\", \"url\": \"https://huggingface.co/ACE-Step/ACE-Step-1.5-1.5B/resolve/main/models/qwen_4b_ace15.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_a75991d5fcf242948f8ff786",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Still running. Let me try to download the audio models while waiting for the video. The workspace path is known. Let me try using apply_manifest or download_model with the correct path. Actually, the download_model function failed because COMFYUI_PATH wasn't set. Let me try to find the correct ACE Step model URLs first.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d148f10b38c84590896cfa23",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a75991d5fcf242948f8ff786",
+      "content": "{\n  \"running\": true,\n  \"pending\": false,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me try a different approach for audio — checking what Stable Audio 3 needs and if it's available.",
+      "refusal": null,
+      "reasoning": "COMFYUI_PATH is not configured as an environment variable. Let me try a different approach for the audio. Maybe I can look for the ACE Step models elsewhere or use a different audio generation method.\n\nActually, looking at the error logs more carefully, the `generate_audio` tool builds a workflow that requires ACE Step 1.5 models that aren't installed. The key missing models are:\n1. `qwen_4b_ace15.safetensors` - a text encoder for ACE Step 1.5\n2. The ACE Step UNet model\n\nAnd the COMFYUI_PATH isn't set so I can't download them. Let me check the workspace path and see if I can use that.\n\nActually wait - the `get_workspace` tool returned `\"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\"`. Maybe I need to set COMFYUI_PATH or use an alternative approach. Let me try downloading directly via a different method.\n\nActually, the `download_model` tool requires COMFYUI_PATH to be set in the environment. Since it's not set, I can't download models. Let me try another approach - maybe I can generate audio using Stable Audio 3 instead, which uses a different model architecture.\n\nWait, I already tried stable_audio_3 and it also failed with a 400 error. Let me check what models that needs.\n\nActually, let me re-examine the first error. The generate_audio for stable_audio_3 also failed. Let me check what's needed for that.\n\nLet me check the system stats again and try different approaches.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b6c1d7ff77344b06a2635f93",
+          "function": {
+            "name": "create_workflow",
+            "arguments": "{\"template\": \"stable_audio_3\", \"params\": {\"duration\": 10}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "COMFYUI_PATH is not configured as an environment variable. Let me try a different approach for the audio. Maybe I can look for the ACE Step models elsewhere or use a different audio generation method.\n\nActually, looking at the error logs more carefully, the `generate_audio` tool builds a workflow that requires ACE Step 1.5 models that aren't installed. The key missing models are:\n1. `qwen_4b_ace15.safetensors` - a text encoder for ACE Step 1.5\n2. The ACE Step UNet model\n\nAnd the COMFYUI_PATH isn't set so I can't download them. Let me check the workspace path and see if I can use that.\n\nActually wait - the `get_workspace` tool returned `\"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\"`. Maybe I need to set COMFYUI_PATH or use an alternative approach. Let me try downloading directly via a different method.\n\nActually, the `download_model` tool requires COMFYUI_PATH to be set in the environment. Since it's not set, I can't download models. Let me try another approach - maybe I can generate audio using Stable Audio 3 instead, which uses a different model architecture.\n\nWait, I already tried stable_audio_3 and it also failed with a 400 error. Let me check what models that needs.\n\nActually, let me re-examine the first error. The generate_audio for stable_audio_3 also failed. Let me check what's needed for that.\n\nLet me check the system stats again and try different approaches.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b6c1d7ff77344b06a2635f93",
+      "content": "{\n  \"1\": {\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"inputs\": {\n      \"ckpt_name\": \"stable_audio_3_medium_base.safetensors\"\n    }\n  },\n  \"2\": {\n    \"class_type\": \"CLIPLoader\",\n    \"inputs\": {\n      \"clip_name\": \"t5gemma_b_b_ul2.safetensors\",\n      \"type\": \"stable_audio\"\n    }\n  },\n  \"3\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"clip\": [\n        \"2\",\n        0\n      ],\n      \"text\": \"\"\n    },\n    \"_meta\": {\n      \"title\": \"Positive Prompt\"\n    }\n  },\n  \"4\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"clip\": [\n        \"2\",\n        0\n      ],\n      \"text\": \"\"\n    },\n    \"_meta\": {\n      \"title\": \"Negative Prompt\"\n    }\n  },\n  \"5\": {\n    \"class_type\": \"EmptyLatentAudio\",\n    \"inputs\": {\n      \"seconds\": 10,\n      \"batch_size\": 1\n    }\n  },\n  \"6\": {\n    \"class_type\": \"KSampler\",\n    \"inputs\": {\n      \"model\": [\n        \"1\",\n        0\n      ],\n      \"positive\": [\n        \"3\",\n        0\n      ],\n      \"negative\": [\n        \"4\",\n        0\n      ],\n      \"latent_image\": [\n        \"5\",\n        0\n      ],\n      \"seed\": 27249683302719,\n      \"steps\": 50,\n      \"cfg\": 7,\n      \"sampler_name\": \"lcm\",\n      \"scheduler\": \"simple\",\n      \"denoise\": 1\n    }\n  },\n  \"7\": {\n    \"class_type\": \"VAEDecodeAudio\",\n    \"inputs\": {\n      \"samples\": [\n        \"6\",\n        0\n      ],\n      \"vae\": [\n        \"1\",\n        2\n      ]\n    }\n  },\n  \"8\": {\n    \"class_type\": \"SaveAudioMP3\",\n    \"inputs\": {\n      \"audio\": [\n        \"7\",\n        0\n      ],\n      \"filename_prefix\": \"audio/stable_audio_3\"\n    }\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Stable Audio 3 also needs models not installed. Let me check if LTX 2.3's extender pack has audio capabilities (it was listed with an audio extender workflow).",
+      "refusal": null,
+      "reasoning": "The Stable Audio 3 workflow needs:\n1. `stable_audio_3_medium_base.safetensors` checkpoint\n2. `t5gemma_b_b_ul2.safetensors` text encoder\n\nNeither of these are on the server. Let me check if there are any ACE Step models available, or try downloading the ACE Step models via a different approach. Actually, the `download_model` tool requires `COMFYUI_PATH` which isn't set. \n\nLet me try the apply_manifest approach or see if the models can be downloaded via a different method. Actually, let me just validate this and try to run it - it'll fail but I can see what's needed.\n\nActually, I can see from the dualcliploader error that it says `qwen_4b_ace15.safetensors` is not available. And the UNetLoader says it needs a `unet_name`. The ACE Step 1.5 models aren't installed.\n\nLet me just focus on what I can deliver. The video is still running. Let me check on it and see if there are any other audio options.\n\nActually, let me check the ltx-2.3 pack which has audio support. The LTX 2.3 extender pack has audio! Let me look at that.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_3a560e78d6bd4b68b2eccdc6",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_3a1cb1eebdca4ca0a688900e",
+          "function": {
+            "name": "read_pack_workflow",
+            "arguments": "{\"name\": \"ltx-2.3-extender\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The Stable Audio 3 workflow needs:\n1. `stable_audio_3_medium_base.safetensors` checkpoint\n2. `t5gemma_b_b_ul2.safetensors` text encoder\n\nNeither of these are on the server. Let me check if there are any ACE Step models available, or try downloading the ACE Step models via a different approach. Actually, the `download_model` tool requires `COMFYUI_PATH` which isn't set. \n\nLet me try the apply_manifest approach or see if the models can be downloaded via a different method. Actually, let me just validate this and try to run it - it'll fail but I can see what's needed.\n\nActually, I can see from the dualcliploader error that it says `qwen_4b_ace15.safetensors` is not available. And the UNetLoader says it needs a `unet_name`. The ACE Step 1.5 models aren't installed.\n\nLet me just focus on what I can deliver. The video is still running. Let me check on it and see if there are any other audio options.\n\nActually, let me check the ltx-2.3 pack which has audio support. The LTX 2.3 extender pack has audio! Let me look at that.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3a560e78d6bd4b68b2eccdc6",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 55278,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3a1cb1eebdca4ca0a688900e",
+      "content": "{\r\n  \"id\": \"f2d3b9a4-0f99-4775-abc4-44dc59dfcef9\",\r\n  \"revision\": 0,\r\n  \"last_node_id\": 1544,\r\n  \"last_link_id\": 2633,\r\n  \"nodes\": [\r\n    {\r\n      \"id\": 1430,\r\n      \"type\": \"VHS_VideoCombine\",\r\n      \"pos\": [\r\n        2778.1921111566953,\r\n        5768.508127856989\r\n      ],\r\n      \"size\": [\r\n        2722.2306084863676,\r\n        334\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 107,\r\n      \"mode\": 0,\r\n      \"inputs\": [\r\n        {\r\n          \"name\": \"images\",\r\n          \"type\": \"IMAGE\",\r\n          \"link\": 2622\r\n        },\r\n        {\r\n          \"name\": \"audio\",\r\n          \"shape\": 7,\r\n          \"type\": \"AUDIO\",\r\n          \"link\": 2621\r\n        },\r\n        {\r\n          \"name\": \"meta_batch\",\r\n          \"shape\": 7,\r\n          \"type\": \"VHS_BatchManager\",\r\n          \"link\": null\r\n        },\r\n        {\r\n          \"name\": \"vae\",\r\n          \"shape\": 7,\r\n          \"type\": \"VAE\",\r\n          \"link\": null\r\n        },\r\n        {\r\n          \"name\": \"frame_rate\",\r\n          \"type\": \"FLOAT\",\r\n          \"widget\": {\r\n            \"name\": \"frame_rate\"\r\n          },\r\n          \"link\": 2624\r\n        }\r\n      ],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"Filenames\",\r\n          \"type\": \"VHS_FILENAMES\",\r\n          \"links\": null\r\n        }\r\n      ],\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-videohelpersuite\",\r\n        \"ver\": \"8923bd836bdab8b7bbdf4ed104b7d045e70c66e2\",\r\n        \"Node name for S&R\": \"VHS_VideoCombine\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {\r\n            \"frame_rate\": true\r\n          },\r\n          \"version\": \"7.7\",\r\n          \"input_ue_unconnectable\": {}\r\n        }\r\n      },\r\n      \"widgets_values\": {\r\n        \"frame_rate\": 24,\r\n        \"loop_count\": 0,\r\n        \"filename_prefix\": \"LTX-2\",\r\n        \"format\": \"video/h264-mp4\",\r\n        \"pix_fmt\": \"yuv420p\",\r\n        \"crf\": 19,\r\n        \"save_metadata\": true,\r\n        \"trim_to_audio\": false,\r\n        \"pingpong\": false,\r\n        \"save_output\": true,\r\n        \"videopreview\": {\r\n          \"hidden\": false,\r\n          \"paused\": true,\r\n          \"params\": {\r\n            \"filename\": \"LTX-2_00175-audio.mp4\",\r\n            \"subfolder\": \"\",\r\n            \"type\": \"output\",\r\n            \"format\": \"video/h264-mp4\",\r\n            \"frame_rate\": 24,\r\n            \"workflow\": \"LTX-2_00175.png\",\r\n            \"fullpath\": \"D:\\\\AI\\\\TESTVID\\\\NEWES\\\\ComfyUI_windows_portable_nvidia\\\\ComfyUI_windows_portable\\\\ComfyUI\\\\output\\\\LTX-2_00175-audio.mp4\"\r\n          }\r\n        }\r\n      }\r\n    },\r\n    {\r\n      \"id\": 1537,\r\n      \"type\": \"8a523b6d-86b1-4332-8a56-2c625798825d\",\r\n      \"pos\": [\r\n        2550.8454223588287,\r\n        6211.538046374782\r\n      ],\r\n      \"size\": [\r\n        210,\r\n        542.3348437079476\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 108,\r\n      \"mode\": 0,\r\n      \"inputs\": [\r\n        {\r\n          \"name\": \"vae\",\r\n          \"type\": \"VAE\",\r\n          \"link\": 2606\r\n        },\r\n        {\r\n          \"label\": \"Audio VAE\",\r\n          \"name\": \"audio_vae\",\r\n          \"type\": \"VAE\",\r\n          \"link\": 2607\r\n        },\r\n        {\r\n          \"name\": \"sampler\",\r\n          \"type\": \"SAMPLER\",\r\n          \"link\": 2608\r\n        },\r\n        {\r\n          \"name\": \"a\",\r\n          \"type\": \"INT\",\r\n          \"widget\": {\r\n            \"name\": \"a\"\r\n          },\r\n          \"link\": 2609\r\n        },\r\n        {\r\n          \"name\": \"model\",\r\n          \"type\": \"MODEL\",\r\n          \"link\": 2610\r\n        },\r\n        {\r\n          \"name\": \"noise\",\r\n          \"type\": \"NOISE\",\r\n          \"link\": 2611\r\n        },\r\n        {\r\n          \"name\": \"positive\",\r\n          \"type\": \"CONDITIONING\",\r\n          \"link\": 2612\r\n        },\r\n        {\r\n          \"name\": \"clip\",\r\n          \"type\": \"CLIP\",\r\n          \"link\": 2613\r\n        },\r\n        {\r\n          \"name\": \"audio\",\r\n          \"type\": \"AUDIO\",\r\n          \"link\": 2614\r\n        },\r\n        {\r\n          \"name\": \"image\",\r\n          \"type\": \"IMAGE\",\r\n          \"link\": 2615\r\n        },\r\n        {\r\n          \"name\": \"width\",\r\n          \"type\": \"INT\",\r\n          \"widget\": {\r\n            \"name\": \"width\"\r\n          },\r\n          \"link\": 2616\r\n        },\r\n        {\r\n          \"name\": \"height\",\r\n          \"type\": \"INT\",\r\n          \"widget\": {\r\n            \"name\": \"height\"\r\n          },\r\n          \"link\": 2617\r\n        },\r\n        {\r\n          \"name\": \"video_info\",\r\n          \"type\": \"VHS_VIDEOINFO\",\r\n          \"link\": 2618\r\n        },\r\n        {\r\n          \"label\": \"a\",\r\n          \"name\": \"variables.a\",\r\n          \"type\": \"INT,FLOAT,BOOLEAN\",\r\n          \"link\": 2619\r\n        },\r\n        {\r\n          \"label\": \"b\",\r\n          \"name\": \"variables.b\",\r\n          \"type\": \"INT,FLOAT,BOOLEAN\",\r\n          \"widget\": {\r\n            \"name\": \"variables.b\"\r\n          },\r\n          \"link\": 2620\r\n        }\r\n      ],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"AUDIO\",\r\n          \"type\": \"AUDIO\",\r\n          \"links\": [\r\n            2621\r\n          ]\r\n        },\r\n        {\r\n          \"name\": \"IMAGE\",\r\n          \"type\": \"IMAGE\",\r\n          \"links\": [\r\n            2622\r\n          ]\r\n        },\r\n        {\r\n          \"name\": \"FLOAT\",\r\n          \"type\": \"FLOAT\",\r\n          \"links\": [\r\n            2623,\r\n            2624\r\n          ]\r\n        }\r\n      ],\r\n      \"properties\": {\r\n        \"proxyWidgets\": [\r\n          [\r\n            \"1503\",\r\n            \"a\"\r\n          ],\r\n          [\r\n            \"1531\",\r\n            \"width\"\r\n          ],\r\n          [\r\n            \"1531\",\r\n            \"height\"\r\n          ],\r\n          [\r\n            \"1536\",\r\n            \"a\"\r\n          ],\r\n          [\r\n            \"1523\",\r\n            \"text\"\r\n          ]\r\n        ],\r\n        \"cnr_id\": \"comfy-core\",\r\n        \"ver\": \"0.17.0\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {\r\n            \"width\": true,\r\n            \"height\": true\r\n          },\r\n          \"input_ue_unconnectable\": {},\r\n          \"version\": \"7.7\"\r\n        }\r\n      },\r\n      \"widgets_values\": []\r\n    },\r\n    {\r\n      \"id\": 1535,\r\n      \"type\": \"INTConstant\",\r\n      \"pos\": [\r\n        2304.467670197537,\r\n        6603.829792106297\r\n      ],\r\n      \"size\": [\r\n        210,\r\n        58\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 44,\r\n      \"mode\": 0,\r\n      \"inputs\": [],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"value\",\r\n          \"type\": \"INT\",\r\n          \"links\": [\r\n            2620\r\n          ]\r\n        }\r\n      ],\r\n      \"title\": \"Framerate\",\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-kjnodes\",\r\n        \"ver\": \"c6ce76d00bb8177d1b0286cad891df08eff5226e\",\r\n        \"Node name for S&R\": \"INTConstant\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {},\r\n          \"input_ue_unconnectable\": {},\r\n          \"version\": \"7.5.2\"\r\n        }\r\n      },\r\n      \"widgets_values\": [\r\n        24\r\n      ],\r\n      \"color\": \"#233\",\r\n      \"bgcolor\": \"#355\"\r\n    },\r\n    {\r\n      \"id\": 1486,\r\n      \"type\": \"INTConstant\",\r\n      \"pos\": [\r\n        2203.385981968464,\r\n        6829.647758056388\r\n      ],\r\n      \"size\": [\r\n        310.2610386997858,\r\n        58\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 42,\r\n      \"mode\": 0,\r\n      \"inputs\": [],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"value\",\r\n          \"type\": \"INT\",\r\n          \"links\": [\r\n            2619\r\n          ]\r\n        }\r\n      ],\r\n      \"title\": \"Reference (in seconds) leave it at 3\",\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-kjnodes\",\r\n        \"ver\": \"93a4fba44c1635a716dc262f157a7ded7d716f3a\",\r\n        \"Node name for S&R\": \"INTConstant\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {},\r\n          \"version\": \"7.7\",\r\n          \"input_ue_unconnectable\": {}\r\n        }\r\n      },\r\n      \"widgets_values\": [\r\n        3\r\n      ],\r\n      \"color\": \"#332922\",\r\n      \"bgcolor\": \"#593930\"\r\n    },\r\n    {\r\n      \"id\": 1453,\r\n      \"type\": \"INTConstant\",\r\n      \"pos\": [\r\n        2080.9029196184365,\r\n        6603.178518691089\r\n      ],\r\n      \"size\": [\r\n        210,\r\n        58\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 39,\r\n      \"mode\": 0,\r\n      \"inputs\": [],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"value\",\r\n          \"type\": \"INT\",\r\n          \"links\": [\r\n            2617\r\n          ]\r\n        }\r\n      ],\r\n      \"title\": \"HEIGHT\",\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-kjnodes\",\r\n        \"ver\": \"93a4fba44c1635a716dc262f157a7ded7d716f3a\",\r\n        \"Node name for S&R\": \"INTConstant\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {},\r\n          \"version\": \"7.7\",\r\n          \"input_ue_unconnectable\": {}\r\n        }\r\n      },\r\n      \"widgets_values\": [\r\n        1080\r\n      ],\r\n      \"color\": \"#233\",\r\n      \"bgcolor\": \"#355\"\r\n    },\r\n    {\r\n      \"id\": 1454,\r\n      \"type\": \"INTConstant\",\r\n      \"pos\": [\r\n        1861.554722273625,\r\n        6605.643869174226\r\n      ],\r\n      \"size\": [\r\n        210,\r\n        58\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 38,\r\n      \"mode\": 0,\r\n      \"inputs\": [],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"value\",\r\n          \"type\": \"INT\",\r\n          \"links\": [\r\n            2616\r\n          ]\r\n        }\r\n      ],\r\n      \"title\": \"WIDTH\",\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-kjnodes\",\r\n        \"ver\": \"93a4fba44c1635a716dc262f157a7ded7d716f3a\",\r\n        \"Node name for S&R\": \"INTConstant\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {},\r\n          \"version\": \"7.7\",\r\n          \"input_ue_unconnectable\": {}\r\n        }\r\n      },\r\n      \"widgets_values\": [\r\n        1920\r\n      ],\r\n      \"color\": \"#233\",\r\n      \"bgcolor\": \"#355\"\r\n    },\r\n    {\r\n      \"id\": 1418,\r\n      \"type\": \"VHS_LoadVideo\",\r\n      \"pos\": [\r\n        1855.3832563226379,\r\n        6932.093815029319\r\n      ],\r\n      \"size\": [\r\n        660.6374596178821,\r\n        310\r\n      ],\r\n      \"flags\": {},\r\n      \"order\": 106,\r\n      \"mode\": 0,\r\n      \"inputs\": [\r\n        {\r\n          \"name\": \"meta_batch\",\r\n          \"shape\": 7,\r\n          \"type\": \"VHS_BatchManager\",\r\n          \"link\": null\r\n        },\r\n        {\r\n          \"name\": \"vae\",\r\n          \"shape\": 7,\r\n          \"type\": \"VAE\",\r\n          \"link\": null\r\n        },\r\n        {\r\n          \"name\": \"force_rate\",\r\n          \"type\": \"FLOAT\",\r\n          \"widget\": {\r\n            \"name\": \"force_rate\"\r\n          },\r\n          \"link\": 2623\r\n        }\r\n      ],\r\n      \"outputs\": [\r\n        {\r\n          \"name\": \"IMAGE\",\r\n          \"type\": \"IMAGE\",\r\n          \"links\": [\r\n            2615\r\n          ]\r\n        },\r\n        {\r\n          \"name\": \"frame_count\",\r\n          \"type\": \"INT\",\r\n          \"links\": []\r\n        },\r\n        {\r\n          \"name\": \"audio\",\r\n          \"type\": \"AUDIO\",\r\n          \"links\": [\r\n            2614\r\n          ]\r\n        },\r\n        {\r\n          \"name\": \"video_info\",\r\n          \"type\": \"VHS_VIDEOINFO\",\r\n          \"links\": [\r\n            2618\r\n          ]\r\n        }\r\n      ],\r\n      \"properties\": {\r\n        \"cnr_id\": \"comfyui-videohelpersuite\",\r\n        \"ver\": \"993082e4f2473bf4acaf06f51e33877a7eb38960\",\r\n        \"Node name for S&R\": \"VHS_LoadVideo\",\r\n        \"ue_properties\": {\r\n          \"widget_ue_connectable\": {\r\n            \"force_rate\": true\r\n          },\r\n          \"version\": \"7.7\",\r\n          \"input_ue_unconnectable\": {}\r\n        }\r\n      },\r\n      \"widgets_values\": {\r\n        \"video\": \"2026-03-20 15-40-15.mkv\",\r\n        \"force_rate\": 24,\r\n        \"custom_width\": 0,\r\n        \"custom_height\": 0,\r\n        \"frame_load_cap\": 0,\r\n        \"skip_first_frames\": 0,\r\n        \"select_every_nth\": 1,\r\n        \"format\": \"LTXV\",\r\n        \"videopreview\": {\r\n          \"hidden\": false,\r\n          \"paused\": false,\r\n          \"params\": {\r\n            \"filename\": \"2026-03-20 15-40-15.mkv\",\r\n            \"type\": \"input\",\r\n            \"format\": \"video/mkv\",\r\n            \"force_rate\": 24,\r\n            \"custom_width\": 0,\r\n            \"custom_height\": 0,\r\n            \"frame_load_cap\": 0,\r\n            \"skip_first_frames\": 0,\r\n            \"select_every_nth\": 1\r\n          }\r\n        }\r\n      },\r\n      \"color\": \"#009933\"\r\n    },\r\n    {\r\n      \"id\": 1474,\r\n      \"type\": \"GetNode\",\r\n      \"pos\":"
+    },
+    {
+      "role": "assistant",
+      "content": "The video is done! Let me check the output and also look at the video output.",
+      "refusal": null,
+      "reasoning": "The video is done! Let me check on its output.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8867713e72874ab88de6f404",
+          "function": {
+            "name": "get_history",
+            "arguments": "{\"prompt_id\": \"06ab2dcc-06cb-420f-9c5f-51f517e5f886\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_9f7a279b3329454292451559",
+          "function": {
+            "name": "list_output_images",
+            "arguments": "{\"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The video is done! Let me check on its output.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8867713e72874ab88de6f404",
+      "content": "## Execution: 06ab2dcc-06cb-420f-9c5f-51f517e5f886\n**Status**: success | Completed: true\n**Duration**: 55.28s\n\n### Outputs (1 nodes)\n- Node 27: images → **video/ltx-2.3_00001_.mp4**"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9f7a279b3329454292451559",
+      "content": "Found 9 media file(s) (2 video):\n\n1. **video/ltx-2.3_00001_.mp4** [video] _(subfolder: video)_\n2. **ComfyUI_01166_.png** [image]\n3. **ComfyUI_01165_.png** [image]\n4. **ComfyUI_01164_.png** [image]\n5. **upscaled_output_00001.mp4** [video]\n6. **ComfyUI_01163_.png** [image]\n7. **ComfyUI_01162_.png** [image]\n8. **ComfyUI_01161_.png** [image]\n9. **ComfyUI_01160_.png** [image]"
+    },
+    {
+      "role": "assistant",
+      "content": "Both the image and video completed successfully. Now let me view the results and give you the summary.",
+      "refusal": null,
+      "reasoning": "Both the image and video are done. Now for the audio - the ACE Step 1.5 models aren't installed and Stable Audio 3 models aren't installed either. Let me check if there's a way to get the audio models. \n\nThe key issue is that COMFYUI_PATH isn't set in the environment, so I can't download models directly. Let me see if I can find the models through search and then figure out an approach.\n\nActually, looking at the generate_audio tool, it builds the workflow automatically. The issue was:\n1. ACE Step 1.5 needs `qwen_4b_ace15.safetensors` (text encoder) and an ACE Step UNet - neither installed\n2. Stable Audio 3 needs `stable_audio_3_medium_base.safetensors` and `t5gemma_b_b_ul2.safetensors` - neither installed\n\nSince I can't download models (COMFYUI_PATH not set), I should report this to the user. Let me also get the image and video to show them.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_f2856c6526924d04b1963e09",
+          "function": {
+            "name": "view_image",
+            "arguments": "{\"asset_id\": \"ComfyUI_01166_.png\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Both the image and video are done. Now for the audio - the ACE Step 1.5 models aren't installed and Stable Audio 3 models aren't installed either. Let me check if there's a way to get the audio models. \n\nThe key issue is that COMFYUI_PATH isn't set in the environment, so I can't download models directly. Let me see if I can find the models through search and then figure out an approach.\n\nActually, looking at the generate_audio tool, it builds the workflow automatically. The issue was:\n1. ACE Step 1.5 needs `qwen_4b_ace15.safetensors` (text encoder) and an ACE Step UNet - neither installed\n2. Stable Audio 3 needs `stable_audio_3_medium_base.safetensors` and `t5gemma_b_b_ul2.safetensors` - neither installed\n\nSince I can't download models (COMFYUI_PATH not set), I should report this to the user. Let me also get the image and video to show them.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_f2856c6526924d04b1963e09",
+      "content": "No asset found for id \"ComfyUI_01166_.png\". It may have expired or never been registered."
+    }
+  ]
+}

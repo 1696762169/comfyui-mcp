@@ -1,0 +1,59 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "custom-nodes-atomic-0013",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Check which custom nodes are currently installed on the server."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants to see which custom nodes are currently installed. I should use the list_installed_nodes tool for this.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b1dd564f875244098f7b078e",
+          "function": {
+            "name": "list_installed_nodes",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to see which custom nodes are currently installed. I should use the list_installed_nodes tool for this.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b1dd564f875244098f7b078e",
+      "content": "1. comfyui-mcp-panel [git:artokun/comfyui-mcp-panel]\n   version: 44e48989e81db4cb4e3603ec69cc93037772a624 | enabled"
+    },
+    {
+      "role": "assistant",
+      "content": "The server currently has **1 custom node pack** installed:\n\n| # | Pack | Source | Version | Status |\n|---|------|--------|---------|--------|\n| 1 | **comfyui-mcp-panel** | Git: artokun/comfyui-mcp-panel | `44e4898` (commit hash) | ✅ Enabled |\n\nThis is the sidebar panel extension. The server appears to have a minimal custom node setup — just the MCP panel itself is installed. If you need additional capabilities (like Impact Pack, ControlNet preprocessors, IP-Adapter, etc.), I can help you install them!",
+      "refusal": null,
+      "reasoning": "The user wants to check which custom nodes are installed on the server. I've already called the list_installed_nodes function and got the result. There's only one custom node installed: comfyui-mcp-panel. I should present this information clearly to the user.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to check which custom nodes are installed on the server. I've already called the list_installed_nodes function and got the result. There's only one custom node installed: comfyui-mcp-panel. I should present this information clearly to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

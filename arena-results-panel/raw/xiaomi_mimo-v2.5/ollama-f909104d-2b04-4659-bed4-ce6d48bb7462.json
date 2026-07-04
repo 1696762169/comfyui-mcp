@@ -1,0 +1,170 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Connect my VAE Decode node to the Save Image node."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_3ccad5dbd4794149a24b9e5c",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"connect\"}"
+          }
+        },
+        {
+          "id": "call_b1a74efdd33c4d119fc38139",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"node\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_3ccad5dbd4794149a24b9e5c",
+      "content": "Live-canvas panel tools — 16 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_get_subgraph: Read INSIDE a subgraph node on the user's open graph: ids, types, widget values, and connections of its inner nodes.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_remove_node: Remove a node (and its connections) from the user's open graph by id.\n- panel_strip_workflow: Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections…\n- panel_connect: Connect an output slot of one node to an input slot of another in the user's open graph.\n- panel_disconnect: Disconnect an input slot of a node in the user's open graph.\n- panel_list_mcp: List the MCP servers available to you.\n- panel_add_mcp: Connect a new MCP server by writing it to the user's Claude config (~/.claude.json) — it then loads into THIS session after you call panel_reload, and also bec…\n- panel_paste_nodes: Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/co…\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_move_rail: Reposition a subgraph's input or output RAIL (the boundary I/O node that the inner wires connect to).\n- panel_expose_subgraph_output: Wire an interior node's OUTPUT to the subgraph's OUTPUT RAIL — i.e.\n- panel_expose_subgraph_input: Wire an interior node's INPUT to the subgraph's INPUT RAIL — i.e.\n- panel_unpack_subgraph: EXPAND / DISSOLVE a subgraph node on the user's open graph — inline its interior nodes back into the PARENT graph, rewire all external links to those now-inlin…\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes."
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_b1a74efdd33c4d119fc38139",
+      "content": "Live-canvas panel tools — 44 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_graph_outline: Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template)…\n- panel_get_subgraph: Read INSIDE a subgraph node on the user's open graph: ids, types, widget values, and connections of its inner nodes.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_add_node: Add a node to the user's OPEN ComfyUI graph by class_type (e.g.\n- panel_remove_node: Remove a node (and its connections) from the user's open graph by id.\n- panel_clear: Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'.\n- panel_strip_workflow: Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections…\n- panel_slice_workflow: Slice ONE pipeline out of a toggle-template workflow (built with rgthree 'Fast Groups Bypasser/Muter' — one graph holding many pipelines, only one active at a…\n- panel_load_workflow: Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph).\n- panel_connect: Connect an output slot of one node to an input slot of another in the user's open graph.\n- panel_disconnect: Disconnect an input slot of a node in the user's open graph.\n- panel_set_widget: Set a widget value on a node in the user's open graph (steps, cfg, seed, ckpt_name, text prompts, …).\n- panel_move_node: Move a node to a new canvas position [x, y] in the user's open graph.\n- panel_canvas: Control the user's canvas view: 'fit' frames the whole graph, 'center_on_node' jumps to a node (give node_id), 'pan' shifts by dx/dy, 'zoom' sets an absolute s…\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_reload: Soft-reload yourself to pick up code changes WITHOUT restarting ComfyUI — your chat session resumes automatically and you'll be nudged to continue.\n- panel_select_nodes: Select nodes on the user's canvas by id (highlights them, sets the multi-selection).\n- panel_create_subgraph: Group the given nodes into a SUBGRAPH (ComfyUI 'Convert to Subgraph') on the user's canvas — collapses them into one subgraph node.\n- panel_subgraph_group: Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units.\n- panel_copy_nodes: Copy nodes from the user's open graph to the clipboard.\n- panel_paste_nodes: Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/co…\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_add_subgraph: Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type).\n- panel_create_group: Create a labeled GROUP box (the colored rectangle that visually frames a region) on the user's open graph.\n- panel_move_group: Move a group box to a new top-left [x, y] on the user's open graph.\n- panel_remove_group: Remove a group box from the user's open graph.\n- panel_set_node_title: Rename a node's TITLE (the label on its header) — e.g.\n- panel_set_node_collapsed: Collapse (minimize) or expand a node on the user's open graph.\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_set_node_color: Set a node's title-bar and/or body color on the user's open graph.\n- panel_screenshot: Render the workflow the user is currently viewing (root graph, or the open subgraph) to a PNG and return it as an IMAGE so you can SEE the layout.\n- panel_enter_subgraph: Navigate INTO a subgraph node so you can read and EDIT its inner nodes — after this, panel_get_graph and all panel_* edit tools target the subgraph's inner gra…\n- panel_move_rail: Reposition a subgraph's input or output RAIL (the boundary I/O node that the inner wires connect to).\n- panel_promote_widget: Expose (promote) an INNER subgraph widget on the PARENT subgraph node, so it can be set from outside without opening the subgraph — e.g.\n- panel_expose_subgraph_output: Wire an interior node's OUTPUT to the subgraph's OUTPUT RAIL — i.e.\n- panel_expose_subgraph_input: Wire an interior node's INPUT to the subgraph's INPUT RAIL — i.e.\n- panel_unpack_subgraph: EXPAND / DISSOLVE a subgraph node on the user's open graph — inline its interior nodes back into the PARENT graph, rewire all external links to those now-inlin…\n- panel_search_nodes: Search installable custom-node packs via the user's BUILT-IN ComfyUI Manager (the same source the Manager UI uses).\n- panel_list_nodes: List the custom-node packs currently installed in the user's ComfyUI (via the built-in Manager).\n- panel_install_node: Install a custom-node pack into the user's ComfyUI via the BUILT-IN Manager (queues the install).\n- panel_update_node: Update an ALREADY-INSTALLED custom-node pack to its latest (or nightly) code via the BUILT-IN Manager — the first thing to try when a node is broken or CRASHED…\n- panel_node_queue_status: Check the built-in Manager's install/update queue status (to see if a queued install finished).\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me find the exact nodes in your graph and describe the connect tool.<tool_call>\n<function=panel_find_nodes>\n<parameter={\"type\": \"VAEDecode\"}</parameter>\n</function>\n</tool_call><tool_call>\n<function=panel_find_nodes>\n<parameter={\"type\": \"SaveImage\"}</parameter>\n</function>\n</tool_call>",
+      "tool_calls": [
+        {
+          "id": "call_798257c605704902ba40ff7e",
+          "function": {
+            "name": "panel_find_nodes",
+            "arguments": "{\"name\": \"panel_connect\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_find_nodes",
+      "tool_call_id": "call_798257c605704902ba40ff7e",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_b67e4b7b4af7448b889e94b3",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\"}"
+          }
+        },
+        {
+          "id": "call_c8bebd1f5caa4a51bfdd0f22",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_connect\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_b67e4b7b4af7448b889e94b3",
+      "content": "# panel_find_nodes\n\nSEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a LARGE graph instead of dumping the whole thing with panel_get_graph and scanning it. This searches the LIVE graph ON THE CANVAS — NOT the installable node registry (that's panel_search_nodes). Unlike panel_get_graph it scans EVERY node (no truncation). Give a free-text `query` (matched case-insensitively across node type, title, description, widget NAMES, widget VALUES, and input/output port names+types — a node hits if ANY of those contain it) and/or targeted filters: type, title, input, output, widget (name), widget_value (contents), is_output, is_subgraph, mode. Targeted filters are ANDed together; the free `query` ORs across fields. Each match is the SAME rich summary as panel_get_graph (id, type, title, widgets, inputs WITH their connected_from sources, outputs, mode, is_output, …) PLUS the node's description and a `matched_on` list saying WHY it matched. Read-only. Examples — the video loader: {query:'tiktok'} or {type:'LoadVideo'} or {input:'video'}; every output node: {is_output:true}; the node whose widget holds a file: {widget_value:'.png'}; a bypassed switch: {type:'Switch', mode:'bypass'}.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"query\": {\n   \"description\": \"Free text matched (case-insensitive substring) across type, title, description, widget names, widget values, and port names/types. A node matches if ANY field contains it.\",\n   \"type\": \"string\"\n  },\n  \"type\": {\n   \"description\": \"Node class_type contains this (e.g. 'KSampler', 'LoadImage').\",\n   \"type\": \"string\"\n  },\n  \"title\": {\n   \"description\": \"Node title contains this.\",\n   \"type\": \"string\"\n  },\n  \"input\": {\n   \"description\": \"Has an INPUT port whose name or type contains this (e.g. 'image', 'LATENT').\",\n   \"type\": \"string\"\n  },\n  \"output\": {\n   \"description\": \"Has an OUTPUT port whose name or type contains this.\",\n   \"type\": \"string\"\n  },\n  \"widget\": {\n   \"description\": \"Has a widget whose NAME contains this (e.g. 'seed', 'ckpt_name').\",\n   \"type\": \"string\"\n  },\n  \"widget_value\": {\n   \"description\": \"Has a widget whose VALUE contains this (e.g. a filename or prompt fragment).\",\n   \"type\": \"string\"\n  },\n  \"is_output\": {\n   \"description\": \"true = only output nodes (SaveImage/PreviewImage/…); false = exclude them.\",\n   \"type\": \"boolean\"\n  },\n  \"is_subgraph\": {\n   \"description\": \"true = only subgraph nodes.\",\n   \"type\": \"boolean\"\n  },\n  \"mode\": {\n   \"description\": \"Only nodes in this execution mode.\",\n   \"type\": \"string\",\n   \"enum\": [\n    \"active\",\n    \"bypass\",\n    \"mute\"\n   ]\n  },\n  \"limit\": {\n   \"description\": \"Max matches to return (default 40).\",\n   \"type\": \"integer\",\n   \"minimum\": 1,\n   \"maximum\": 200\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_find_nodes\", \"args\": {...}}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_c8bebd1f5caa4a51bfdd0f22",
+      "content": "# panel_connect\n\nConnect an output slot of one node to an input slot of another in the user's open graph. Slots accept a name ('MODEL', 'samples') or numeric index. On a name mismatch the error lists available slots — re-check with panel_get_graph. Undoable.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"from_node_id\": {\n   \"type\": \"integer\",\n   \"minimum\": -9007199254740991,\n   \"maximum\": 9007199254740991,\n   \"description\": \"Source node id.\"\n  },\n  \"from_output\": {\n   \"description\": \"Source output slot name or index (default 0).\",\n   \"anyOf\": [\n    {\n     \"type\": \"string\"\n    },\n    {\n     \"type\": \"integer\",\n     \"minimum\": 0,\n     \"maximum\": 9007199254740991\n    }\n   ]\n  },\n  \"to_node_id\": {\n   \"type\": \"integer\",\n   \"minimum\": -9007199254740991,\n   \"maximum\": 9007199254740991,\n   \"description\": \"Target node id.\"\n  },\n  \"to_input\": {\n   \"description\": \"Target input slot name or index (default 0).\",\n   \"anyOf\": [\n    {\n     \"type\": \"string\"\n    },\n    {\n     \"type\": \"integer\",\n     \"minimum\": 0,\n     \"maximum\": 9007199254740991\n    }\n   ]\n  }\n },\n \"required\": [\n  \"from_node_id\",\n  \"to_node_id\"\n ],\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_connect\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "Now let me find both nodes in your graph.",
+      "tool_calls": [
+        {
+          "id": "call_0f95bd3ad4cf440db5d421e6",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\", \"args\": \"{\\\"type\\\": \\\"VAEDecode\\\"}\"}"
+          }
+        },
+        {
+          "id": "call_9cc016f42d5146c0877418cd",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\", \"args\": \"{\\\"type\\\": \\\"SaveImage\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_0f95bd3ad4cf440db5d421e6",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_9cc016f42d5146c0877418cd",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me try reading the full graph to find the nodes.",
+      "tool_calls": [
+        {
+          "id": "call_fdf7adbf1f26401f97a122b0",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_get_graph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_fdf7adbf1f26401f97a122b0",
+      "content": "{\n  \"viewing\": {\n    \"scope\": \"root\"\n  },\n  \"node_count\": 7,\n  \"truncated\": false,\n  \"nodes\": [\n    {\n      \"id\": 1,\n      \"type\": \"CheckpointLoaderSimple\",\n      \"title\": \"Load Checkpoint\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 2,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"a scenic mountain lake\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 3,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Negative Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"blurry, low quality\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 4,\n      \"type\": \"EmptyLatentImage\",\n      \"title\": \"Empty Latent\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"width\": 512,\n        \"height\": 512,\n        \"batch_size\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 5,\n      \"type\": \"KSampler\",\n      \"title\": \"KSampler\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"seed\": 42,\n        \"steps\": 20,\n        \"cfg\": 7,\n        \"sampler_name\": \"euler\",\n        \"denoise\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 6,\n      \"type\": \"VAEDecode\",\n      \"title\": \"VAE Decode\",\n      \"is_subgraph\": false,\n      \"widgets\": {},\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 7,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Image\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"filename_prefix\": \"ComfyUI\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Found both nodes:\n- **VAE Decode** (node **6**) — outputs the decoded image\n- **Save Image** (node **7**) — receives the image to save\n\nConnecting them now — output of VAE Decode → input of Save Image:",
+      "tool_calls": [
+        {
+          "id": "call_ea4eed6abd2c4ac586e6d711",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_connect\", \"args\": \"{\\\"from_node_id\\\": 6, \\\"from_output\\\": \\\"out0\\\", \\\"to_node_id\\\": 7, \\\"to_input\\\": \\\"in0\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_ea4eed6abd2c4ac586e6d711",
+      "content": "{\n  \"connected\": {\n    \"from\": {\n      \"node_id\": 6\n    },\n    \"to\": {\n      \"node_id\": 7\n    }\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Done! ✅ The **VAE Decode** node (id 6) is now connected to the **Save Image** node (id 7). The decoded image output (`out0`) from VAE Decode flows into the image input (`in0`) of Save Image.\n\nYour workflow is ready to go — just make sure the upstream nodes (KSampler → VAE Decode) and the VAE input are also wired up, then you can queue the prompt to generate and save an image."
+    }
+  ]
+}

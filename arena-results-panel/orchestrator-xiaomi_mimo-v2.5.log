@@ -1,0 +1,142 @@
+[comfyui-mcp] Found ComfyUI on port 8188
+[2026-07-04T19:33:52.816Z] [INFO] [ui-bridge] listening on ws://127.0.0.1:9380
+[2026-07-04T19:33:53.455Z] [INFO] [panel-orchestrator] inheriting user MCP servers: context7, civitai, mempalace
+[2026-07-04T19:33:53.483Z] [INFO] [ui-bridge] panel tab connected: parena-3 (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:33:53.530Z] [INFO] [panel-orchestrator] env: OS=Windows 11 GPU=NVIDIA GeForce RTX 4090 24GB torch=2.10.0 cuda=13.0 py=3.13 comfyui=0.27.0 (LOCAL) triton=not-installed sage=not-installed backend=Claude
+[2026-07-04T19:33:53.531Z] [INFO] [panel-mcp-http] panel_* MCP listening on http://127.0.0.1:9381/<tabId> (loopback, Codex)
+[2026-07-04T19:33:53.531Z] [INFO] [panel-orchestrator] single-port multi-provider: default backend=ollama; codex/gemini panel_* live-graph tools via loopback HTTP MCP on :9381 + headless comfyui MCP
+[2026-07-04T19:33:53.532Z] [INFO] [panel-orchestrator] ready — bridge on ws://127.0.0.1:9380; an agent spawns per ComfyUI tab on its first message (model=claude-opus-4-8, comfyui=http://127.0.0.1:8188 — no COMFYUI_PATH, local install/pack tools limited)
+[2026-07-04T19:33:55.484Z] [INFO] [ui-bridge] panel tab connected: parena-3 (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:33:55.598Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 0 comfyui meta-tools, 0 panel tools behind the router)
+[2026-07-04T19:33:55.998Z] [INFO] [panel-orchestrator] tab parena-3 connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:33:55.999Z] [INFO] [panel-orchestrator] tab parena-3 → agent: What nodes are on my canvas right now? Give me a short list.
+[2026-07-04T19:33:55.999Z] [INFO] [panel-orchestrator] spawning agent for tab parena-3 (1 active)
+[2026-07-04T19:33:56.441Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:33:56.443Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:33:56.443Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:33:56.444Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:33:56.481Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:33:56.483Z] [INFO] [panel-agent parena-3] init model=xiaomi/mimo-v2.5 session=ollama-1 effort=default
+[2026-07-04T19:34:05.146Z] [WARN] [ollama-backend] panel tool 'panel_graph_outline' returned isError: Error: unknown cmd graph_outline
+[2026-07-04T19:34:13.918Z] [INFO] [panel-agent parena-3] turn done (subtype=undefined)
+[2026-07-04T19:34:14.334Z] [INFO] [ui-bridge] panel tab disconnected: parena-3 — 0 tab(s) remain
+[2026-07-04T19:34:14.335Z] [INFO] [ui-bridge] panel tab connected: parena-c (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:34:14.345Z] [INFO] [panel-orchestrator] tab parena-c connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:34:14.346Z] [INFO] [panel-orchestrator] tab parena-c → agent: Change the steps on my KSampler to 12.
+[2026-07-04T19:34:14.346Z] [INFO] [panel-orchestrator] spawning agent for tab parena-c (2 active)
+[2026-07-04T19:34:14.769Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:34:14.771Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:34:14.771Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:34:14.772Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:34:14.794Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:34:14.797Z] [INFO] [panel-agent parena-c] init model=xiaomi/mimo-v2.5 session=ollama-c effort=default
+[2026-07-04T19:34:26.458Z] [INFO] [panel-agent parena-c] turn done (subtype=undefined)
+[2026-07-04T19:34:26.872Z] [INFO] [ui-bridge] panel tab disconnected: parena-c — 0 tab(s) remain
+[2026-07-04T19:34:26.872Z] [INFO] [ui-bridge] panel tab connected: parena-c (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:34:26.884Z] [INFO] [panel-orchestrator] tab parena-c connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:34:26.884Z] [INFO] [panel-orchestrator] tab parena-c → agent: Add an image upscale node to my workflow.
+[2026-07-04T19:34:26.885Z] [INFO] [panel-orchestrator] spawning agent for tab parena-c (3 active)
+[2026-07-04T19:34:27.297Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:34:27.299Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:34:27.299Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:34:27.300Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:34:27.317Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:34:27.319Z] [INFO] [panel-agent parena-c] init model=xiaomi/mimo-v2.5 session=ollama-0 effort=default
+[2026-07-04T19:34:56.307Z] [WARN] [ollama-backend] panel tool 'panel_screenshot' returned isError: Error: unknown cmd graph_screenshot
+[2026-07-04T19:35:00.832Z] [WARN] [ollama-backend] panel tool 'panel_graph_outline' returned isError: Error: unknown cmd graph_outline
+[2026-07-04T19:35:09.963Z] [INFO] [panel-agent parena-c] turn done (subtype=undefined)
+[2026-07-04T19:35:10.376Z] [INFO] [ui-bridge] panel tab disconnected: parena-c — 0 tab(s) remain
+[2026-07-04T19:35:10.376Z] [INFO] [ui-bridge] panel tab connected: parena-w (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:35:10.389Z] [INFO] [panel-orchestrator] tab parena-w connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:35:10.389Z] [INFO] [panel-orchestrator] tab parena-w → agent: Connect my VAE Decode node to the Save Image node.
+[2026-07-04T19:35:10.389Z] [INFO] [panel-orchestrator] spawning agent for tab parena-w (4 active)
+[2026-07-04T19:35:10.806Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:35:10.808Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:35:10.808Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:35:10.809Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:35:10.826Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:35:10.830Z] [INFO] [panel-agent parena-w] init model=xiaomi/mimo-v2.5 session=ollama-3 effort=default
+[2026-07-04T19:35:19.810Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:35:19.814Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:35:24.880Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:35:24.883Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:35:40.967Z] [INFO] [panel-agent parena-w] turn done (subtype=undefined)
+[2026-07-04T19:35:41.386Z] [INFO] [ui-bridge] panel tab disconnected: parena-w — 0 tab(s) remain
+[2026-07-04T19:35:41.387Z] [INFO] [ui-bridge] panel tab connected: parena-2 (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:35:41.398Z] [INFO] [panel-orchestrator] tab parena-2 connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:35:41.398Z] [INFO] [panel-orchestrator] tab parena-2 → agent: Duplicate my KSampler node so I can compare two sampler settings.
+[2026-07-04T19:35:41.399Z] [INFO] [panel-orchestrator] spawning agent for tab parena-2 (5 active)
+[2026-07-04T19:35:41.797Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:35:41.799Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:35:41.799Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:35:41.800Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:35:41.816Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:35:41.819Z] [INFO] [panel-agent parena-2] init model=xiaomi/mimo-v2.5 session=ollama-5 effort=default
+[2026-07-04T19:35:53.769Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:35:55.700Z] [WARN] [ollama-backend] panel tool 'panel_find_nodes' returned isError: Error: unknown cmd graph_find_nodes
+[2026-07-04T19:36:16.495Z] [WARN] [ollama-backend] panel tool 'panel_set_node_title' returned isError: Error: unknown cmd graph_set_title
+[2026-07-04T19:36:16.498Z] [WARN] [ollama-backend] panel tool 'panel_set_node_title' returned isError: Error: unknown cmd graph_set_title
+[2026-07-04T19:36:20.936Z] [WARN] [ollama-backend] panel tool 'panel_screenshot' returned isError: Error: unknown cmd graph_screenshot
+[2026-07-04T19:36:26.766Z] [INFO] [panel-agent parena-2] turn done (subtype=undefined)
+[2026-07-04T19:36:27.188Z] [INFO] [ui-bridge] panel tab disconnected: parena-2 — 0 tab(s) remain
+[2026-07-04T19:36:27.188Z] [INFO] [ui-bridge] panel tab connected: parena-g (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:36:27.200Z] [INFO] [panel-orchestrator] tab parena-g connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:36:27.200Z] [INFO] [panel-orchestrator] tab parena-g → agent: Start a new workflow for me.
+[2026-07-04T19:36:27.200Z] [INFO] [panel-orchestrator] spawning agent for tab parena-g (6 active)
+[2026-07-04T19:36:27.620Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:36:27.622Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:36:27.622Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:36:27.623Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:36:27.640Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:36:27.643Z] [INFO] [panel-agent parena-g] init model=xiaomi/mimo-v2.5 session=ollama-2 effort=default
+[2026-07-04T19:36:38.262Z] [INFO] [panel-agent parena-g] turn done (subtype=undefined)
+[2026-07-04T19:36:38.677Z] [INFO] [ui-bridge] panel tab disconnected: parena-g — 0 tab(s) remain
+[2026-07-04T19:36:38.677Z] [INFO] [ui-bridge] panel tab connected: parena-v (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:36:38.688Z] [INFO] [panel-orchestrator] tab parena-v connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:36:38.689Z] [INFO] [panel-orchestrator] tab parena-v → agent: Select my two prompt nodes and collapse them into a subgraph, then save it as a 
+[2026-07-04T19:36:38.689Z] [INFO] [panel-orchestrator] spawning agent for tab parena-v (7 active)
+[2026-07-04T19:36:39.103Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:36:39.105Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:36:39.105Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:36:39.106Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:36:39.123Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:36:39.125Z] [INFO] [panel-agent parena-v] init model=xiaomi/mimo-v2.5 session=ollama-2 effort=default
+[2026-07-04T19:36:59.047Z] [WARN] [ollama-backend] panel tool 'panel_screenshot' returned isError: Error: unknown cmd graph_screenshot
+[2026-07-04T19:37:03.370Z] [INFO] [panel-agent parena-v] turn done (subtype=undefined)
+[2026-07-04T19:37:03.789Z] [INFO] [ui-bridge] panel tab disconnected: parena-v — 0 tab(s) remain
+[2026-07-04T19:37:03.789Z] [INFO] [ui-bridge] panel tab connected: parena-n (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:37:03.800Z] [INFO] [panel-orchestrator] tab parena-n connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:37:03.800Z] [INFO] [panel-orchestrator] tab parena-n → agent: Run my current graph.
+[2026-07-04T19:37:03.800Z] [INFO] [panel-orchestrator] spawning agent for tab parena-n (8 active)
+[2026-07-04T19:37:04.253Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:37:04.255Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:37:04.255Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:37:04.256Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:37:04.275Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:37:04.278Z] [INFO] [panel-agent parena-n] init model=xiaomi/mimo-v2.5 session=ollama-7 effort=default
+[2026-07-04T19:37:16.067Z] [INFO] [panel-agent parena-n] turn done (subtype=undefined)
+[2026-07-04T19:37:16.480Z] [INFO] [ui-bridge] panel tab disconnected: parena-n — 0 tab(s) remain
+[2026-07-04T19:37:16.480Z] [INFO] [ui-bridge] panel tab connected: parena-i (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:37:16.491Z] [INFO] [panel-orchestrator] tab parena-i connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:37:16.491Z] [INFO] [panel-orchestrator] tab parena-i → agent: Did my last run hit any errors? Check and tell me.
+[2026-07-04T19:37:16.491Z] [INFO] [panel-orchestrator] spawning agent for tab parena-i (9 active)
+[2026-07-04T19:37:16.979Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:37:16.981Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:37:16.981Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:37:16.982Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:37:16.998Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:37:17.000Z] [INFO] [panel-agent parena-i] init model=xiaomi/mimo-v2.5 session=ollama-d effort=default
+[2026-07-04T19:37:25.642Z] [INFO] ComfyUI client created {"host":"127.0.0.1:8188"}
+[2026-07-04T19:37:28.537Z] [INFO] [panel-agent parena-i] turn done (subtype=undefined)
+[2026-07-04T19:37:28.948Z] [INFO] [ui-bridge] panel tab disconnected: parena-i — 0 tab(s) remain
+[2026-07-04T19:37:28.948Z] [INFO] [ui-bridge] panel tab connected: parena-1 (“panel-arena”) — 1 tab(s) total
+[2026-07-04T19:37:28.959Z] [INFO] [panel-orchestrator] tab parena-1 connected (ollama) — agent healthy, ready ack
+[2026-07-04T19:37:28.959Z] [INFO] [panel-orchestrator] tab parena-1 → agent: Save this workflow as 'portrait-pipeline'.
+[2026-07-04T19:37:28.960Z] [INFO] [panel-orchestrator] spawning agent for tab parena-1 (10 active)
+[2026-07-04T19:37:29.327Z] [INFO] No autoloaded workflows discovered {"dir":"C:\\Users\\Artokun\\.comfyui-mcp\\workflows"}
+[2026-07-04T19:37:29.329Z] [INFO] Compact tool mode: 113 tools available via list_tools/describe_tool/call_tool
+[2026-07-04T19:37:29.329Z] [INFO] ComfyUI MCP server running on stdio
+[2026-07-04T19:37:29.330Z] [INFO] Self-update: skipped — dev install (npm link / checkout). {"action":"skipped-dev","mode":"linked","from":"0.24.0","note":"Dev install (npm link / checkout) — self-update is disabled; update via git."}
+[2026-07-04T19:37:29.350Z] [INFO] [ollama-backend] ready (openai-compatible @ https://openrouter.ai/api/v1, model xiaomi/mimo-v2.5, 3 comfyui meta-tools, 65 panel tools behind the router)
+[2026-07-04T19:37:29.354Z] [INFO] [panel-agent parena-1] init model=xiaomi/mimo-v2.5 session=ollama-c effort=default
+[2026-07-04T19:37:38.669Z] [INFO] [panel-agent parena-1] turn done (subtype=undefined)

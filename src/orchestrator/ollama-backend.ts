@@ -13,6 +13,8 @@
 //   panel_list_tools / panel_describe_tool / panel_call_tool — synthesized
 //     here over the orchestrator's loopback panel HTTP MCP (live-graph tools)
 import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { logger } from "../utils/logger.js";
 import type {
   AgentBackend,
@@ -663,6 +665,10 @@ export class OllamaBackend implements AgentBackend {
         }
 
         if (!toolCalls.length) {
+          // Record the final answer in history too — without this, the NEXT
+          // turn's context is missing the model's own previous replies (and
+          // the transcript dump ends mid-conversation on a tool message).
+          this.history.push({ role: "assistant", content });
           yield { type: "assistant", text: content, id: streamId ?? undefined, usage };
           yield { type: "result", ok: true, usage };
           resultEmitted = true;
@@ -709,6 +715,27 @@ export class OllamaBackend implements AgentBackend {
       }
     } finally {
       if (this.turnAbort === abort) this.turnAbort = null;
+      this.dumpTranscript();
+    }
+  }
+
+  /**
+   * Fine-tune datagen hook: when COMFYUI_MCP_TRANSCRIPT_DIR is set, snapshot
+   * the session's OpenAI-shaped message history after every turn (overwrite —
+   * the last write holds the whole conversation). Off in normal operation;
+   * consumed by scripts/panel-arena.mjs to harvest training trajectories.
+   */
+  private dumpTranscript(): void {
+    const dir = process.env.COMFYUI_MCP_TRANSCRIPT_DIR;
+    if (!dir) return;
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, `${this.sessionId ?? "session"}.json`),
+        JSON.stringify({ model: this.model, messages: this.history }, null, 2),
+      );
+    } catch (err) {
+      logger.warn(`[ollama-backend] transcript dump failed: ${msgOf(err)}`);
     }
   }
 

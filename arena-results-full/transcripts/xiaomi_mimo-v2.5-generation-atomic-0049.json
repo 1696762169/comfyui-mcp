@@ -1,0 +1,719 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "generation-atomic-0049",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Generate a 15-second audio clip of ambient rain sounds with distant thunder, using ACE Step 1.5 model. Save as 'rain_ambience.mp3'."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants to generate a 15-second audio clip of ambient rain sounds with distant thunder using the ACE Step 1.5 model. They want it saved as 'rain_ambience.mp3'.\n\nI should use the `generate_audio` function with:\n- model_family: \"ace_step_1.5\"\n- prompt: A description of ambient rain sounds with distant thunder\n- duration: 15 seconds\n- filename_prefix: \"rain_ambience\" (though I need to check if this supports .mp3 extension or just a prefix)\n\nLet me call the function with these parameters.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_5ca8d826dbc54b9c8ed95f80",
+          "function": {
+            "name": "generate_audio",
+            "arguments": "{\"model_family\": \"ace_step_1.5\", \"prompt\": \"ambient rain sounds, gentle rainfall on leaves and surfaces, distant rolling thunder, peaceful nature atmosphere, continuous rain ambience, soft rumbles of thunder far away\", \"duration\": 15, \"filename_prefix\": \"rain_ambience\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to generate a 15-second audio clip of ambient rain sounds with distant thunder using the ACE Step 1.5 model. They want it saved as 'rain_ambience.mp3'.\n\nI should use the `generate_audio` function with:\n- model_family: \"ace_step_1.5\"\n- prompt: A description of ambient rain sounds with distant thunder\n- duration: 15 seconds\n- filename_prefix: \"rain_ambience\" (though I need to check if this supports .mp3 extension or just a prefix)\n\nLet me call the function with these parameters.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5ca8d826dbc54b9c8ed95f80",
+      "content": "Endpoint Bad Request (400 Bad Request): http://127.0.0.1:8188/prompt?clientId=comfyui-mcp"
+    },
+    {
+      "role": "assistant",
+      "content": "The initial attempt failed. Let me check what's available on the server and diagnose the issue.",
+      "refusal": null,
+      "reasoning": "The request failed. Let me check the logs or try to understand what went wrong. Maybe the model isn't installed or there's an issue with the workflow. Let me check the system stats and available models first.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_f380a7756b4d45de967a24bc",
+          "function": {
+            "name": "get_system_stats",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_9d440e0ae2b241e0a4dab8e6",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"diffusion_models\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_e17f174fa5a542be98ac91c3",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"text_encoders\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The request failed. Let me check the logs or try to understand what went wrong. Maybe the model isn't installed or there's an issue with the workflow. Let me check the system stats and available models first.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_f380a7756b4d45de967a24bc",
+      "content": "{\n  \"system\": {\n    \"os\": \"win32\",\n    \"ram_total\": 137190801408,\n    \"ram_free\": 62393683968,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]\",\n    \"pytorch_version\": \"2.10.0+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-desktop2-standalone\",\n    \"argv\": [\n      \"ComfyUI\\\\main.py\",\n      \"--feature-flag\",\n      \"show_signin_button=true\",\n      \"--feature-flag\",\n      \"enable_telemetry=true\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--extra-model-paths-config\",\n      \"C:\\\\Users\\\\Artokun\\\\AppData\\\\Roaming\\\\Comfy Desktop\\\\shared_model_paths.yaml\",\n      \"--input-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\input\",\n      \"--output-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\output\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25756696576,\n      \"vram_free\": 23145638522,\n      \"torch_vram_total\": 21239955456,\n      \"torch_vram_free\": 20834577018\n    }\n  ]\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9d440e0ae2b241e0a4dab8e6",
+      "content": "## diffusion_models (7)\n- Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors\n- anima-base-v1.0.safetensors\n- ideogram4_fp8_scaled.safetensors\n- ideogram4_unconditional_fp8_scaled.safetensors\n- krea2_turbo_fp8.safetensors\n- wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors\n- wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e17f174fa5a542be98ac91c3",
+      "content": "## text_encoders (11)\n- ernie-image-prompt-enhancer.safetensors\n- gemma4_e4b_it_fp8_scaled.safetensors\n- gemma_3_12B_it_fp4_mixed.safetensors\n- gemma_3_12B_it_fp8_scaled.safetensors\n- ltx-2.3_text_projection_bf16.safetensors\n- ministral-3-3b.safetensors\n- qwen3vl_4b_fp8_scaled.safetensors\n- qwen3vl_8b_fp8_scaled.safetensors\n- qwen_3_06b_base.safetensors\n- umt5-xxl-enc-bf16.safetensors\n- umt5_xxl_fp8_e4m3fn_scaled.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "I see there's no ACE Step diffusion model installed. Let me check checkpoints and see if we can find or download the needed ACE Step 1.5 models.",
+      "refusal": null,
+      "reasoning": "The system has an RTX 4090 with 24GB VRAM. Looking at the diffusion_models, I don't see an ACE Step model. Let me check if there's a specific ACE model in the checkpoints folder instead.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_610b0e2500fc4fe083e98bd4",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_cca91045fc314b5f80e91e23",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"vae\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_b1d01574251a4f1783604a86",
+          "function": {
+            "name": "read_skill",
+            "arguments": "{\"name\": \"ace_step_15\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The system has an RTX 4090 with 24GB VRAM. Looking at the diffusion_models, I don't see an ACE Step model. Let me check if there's a specific ACE model in the checkpoints folder instead.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_610b0e2500fc4fe083e98bd4",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_cca91045fc314b5f80e91e23",
+      "content": "## vae (7)\n- LTX23_audio_vae_bf16.safetensors\n- LTX23_video_vae_bf16.safetensors\n- Wan2_1_VAE_bf16.safetensors\n- flux2-vae.safetensors\n- qwen_image_vae.safetensors\n- wan_2.1_vae.safetensors\n- z-image-ae.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b1d01574251a4f1783604a86",
+      "content": "No skill named \"ace_step_15\". Available skills: ai-toolkit-trainer, anima-base, anima-lora-trainer, civitai, color-correction, comfyui-core, comfyui-frontend-extensions, comfyui-node-registry, debug-render, director, ernie-image, flux-txt2img, ideogram-ultra, installer-packs, krea2-txt2img, ltxv2-video, model-compatibility, model-registry, prompt-engineering, qwen-image-edit, qwen-txt2img, report-bug, triton-sageattention, troubleshooting, video-extend, video-upscale, wan-flf-video, wan-multitalk, wan-t2v-video, workflow-layout, z-image-txt2img."
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step 1.5 models aren't installed yet. Let me search for them and check if there's an installer pack available.",
+      "refusal": null,
+      "reasoning": "The ACE Step 1.5 model isn't installed, and there's no bundled skill for it either. Let me check if there's a pack for it or search for the model on HuggingFace.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_39463e2fbc244322947d0052",
+          "function": {
+            "name": "list_packs",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_994a37ceb6a8409d9858f281",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE Step 1.5 audio music\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step 1.5 model isn't installed, and there's no bundled skill for it either. Let me check if there's a pack for it or search for the model on HuggingFace.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_39463e2fbc244322947d0052",
+      "content": "{\n  \"count\": 54,\n  \"note\": \"All bundled installer packs are LOCAL-GPU / FREE (no API nodes, no paid credits). Loading or running a pack workflow runs entirely on the user's GPU.\",\n  \"packs\": [\n    {\n      \"name\": \"anima\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 (Anime Base)\",\n      \"description\": \"ANIMA 1.0 — a ~2B DiT anime/illustration text-to-image base model (built on NVIDIA Cosmos-Predict2-2B). Danbooru tags + natural language, runs and trains on <6GB VRAM. Includes an Anima-LLLite inpainting / ControlNet workflow.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-img2img\",\n      \"family\": \"anima\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ANIMA 1.0 — Image to Image (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) image-to-image with Anima-LLLite ControlNet guidance — depth/openpose preprocessing steer the redraw from a source image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-inpaint\",\n      \"family\": \"anima\",\n      \"kind\": \"inpaint\",\n      \"display_name\": \"ANIMA 1.0 — Inpainting (ControlNet)\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) masked inpainting with the Anima-LLLite inpainting ControlNet — repaint a masked region while keeping the rest of the image. Single pipeline sliced from the ANIMA monolith (no group toggles), with the Turbo LoRA preset and a latent upscaler built in.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-inpaint\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"anima-txt2img\",\n      \"family\": \"anima\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ANIMA 1.0 — Text to Image\",\n      \"description\": \"ANIMA 1.0 (circlestone-labs, ~2B DiT anime/illustration base on NVIDIA Cosmos-Predict2-2B) text-to-image — Danbooru tags + natural language, runs on <6GB VRAM. Single-purpose txt2img graph sliced from the ANIMA monolith (one pipeline, no group toggles), with the Turbo LoRA preset, latent upscaler, and Impact-Pack face/hand detailing as built-in post-processing.\",\n      \"vram\": \"<6GB\",\n      \"skill\": \"anima-base\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\anima-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"artokun-flow\",\n      \"family\": \"wan\",\n      \"kind\": \"video\",\n      \"display_name\": \"Artokun Flow — Character Dance / Motion Transfer (WAN Animate 2.2)\",\n      \"description\": \"THE go-to / default pack for \\\"take this person and animate them\\\" — give it a character image (a photo or a generated still) plus a driving video and it makes that character dance, move, and mimic the clip's pose, face and motion, then outputs the animated video. Reach for THIS for any character-animation / motion-transfer / \\\"have/make <character> dance this video\\\" / video-to-video character drive or replace request. WAN Animate 2.2 + Uni3C controlnet (temporal stability) + ViTPose/YOLOv10 pose+face detection + SAM3 tracking/masking + a ReActor first-frame face-lock + color match. TWO MODES via the \\\"REPLACEMENT MODE\\\" subgraph node: it ships disabled = OFF (default — animate the whole character + background to the driving motion); set its Mode to Active = ON to replace the person in the real video (Mute or Bypass = OFF). Optional off-by-default \\\"Upscale4x-RIFE-1080p\\\" subgraph (RIFE + SeedVR2) for 1080p. Kijai WanVideo stack + lightx2v/relight/Pusa/Fun LoRAs.\",\n      \"vram\": \"24GB+\",\n      \"skill\": \"wan-t2v-video\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\artokun-flow\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image Ultra\",\n      \"description\": \"ERNIE-Image Ultra — Baidu's open-weight (~8B single-stream DiT, Apache-2.0) TEXT-TO-IMAGE model, repackaged for ComfyUI by Comfy-Org. Standout strength is precise multilingual TEXT RENDERING (including Chinese) — posters/signage/UI mockups, manga/anime multi-panel layouts — plus strong prompt/instruction following for complex multi-object scenes. This pack uses the distilled Turbo GGUF, which is high-fidelity in ~8 steps at cfg 1 and runs in <8GB VRAM. Not an instruction-based image editor (use qwen-image-edit / Flux Kontext for \\\"change X in this photo\\\").\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-combo\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE × Z-Image-Turbo Combo\",\n      \"description\": \"Combo pipeline chaining ERNIE-Image Ultra with Z-Image-Turbo — one model's output feeds/refines the other (\\\"ZIT → ERNIE\\\", \\\"ERNIE → ZIT\\\", two-times combos). ERNIE brings precise multilingual TEXT RENDERING; Z-Image-Turbo adds fast, sharp detail. Sliced + un-bypassed from the ERNIE monolith's combo groups into a standalone graph. Heavier than the single-model packs — loads both models, so expect higher VRAM and longer runs.\",\n      \"vram\": \"12GB+\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-img2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"ERNIE-Image — Image to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) image-to-image, distilled Turbo GGUF. Feed a source image (LoadImage) and a prompt to restyle or refine it; ERNIE's strength is precise multilingual TEXT RENDERING and structured layouts. Single-purpose img2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). Optional 3B prompt-enhancer LLM.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ernie-txt2img\",\n      \"family\": \"ernie\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"ERNIE-Image — Text to Image\",\n      \"description\": \"ERNIE-Image Ultra (Baidu, ~8B single-stream DiT, Apache-2.0) text-to-image, distilled Turbo GGUF — high fidelity in ~8 steps at cfg 1, under 8GB VRAM. Standout strength is precise multilingual TEXT RENDERING (incl. Chinese) for posters/signage/UI mockups and structured multi-panel layouts. Single-purpose txt2img graph sliced from the ERNIE monolith (one pipeline, no group toggles). An optional 3B prompt-enhancer LLM expands short prompts (toggle the ENHANCE PROMPT boolean). Not an instruction editor.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ernie-image\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ernie-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 (Ideogram Ultra)\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) — an open-weight text-to-image model with best-in-class text rendering (logos, posters, typography). Supports AREA PROMPTING and structured JSON prompts via the Ideogram4 Prompt Builder KJ node (ComfyUI-KJNodes), with a Gemma + Qwen3-VL text-encoder stack and the FLUX.2 VAE. Great for posters, flyers, brand kits, and text/logo-heavy art.\",\n      \"vram\": \"~16GB\",\n      \"skill\": \"ideogram-ultra\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-img2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"img2img\",\n      \"display_name\": \"Ideogram 4 — Image to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) image-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Encodes an input image (LoadImage -> VAEEncode) and re-renders it under denoise control, guided by a Qwen3-VL text encoder and a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) with a dual conditional/unconditional UNet guider. Single-purpose img2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with KJ resize/sharpen post-processing and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-img2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-img2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"ideogram-txt2img\",\n      \"family\": \"ideogram\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"Ideogram 4 — Text to Image\",\n      \"description\": \"Ideogram 4 (Ideogram Ultra) text-to-image, running LOCALLY from the Comfy-Org fp8 DiT weights (NOT the Ideogram cloud API). Pairs a Qwen3-VL text encoder with a Gemma4 prompt-builder LLM (JSON Prompt Builder subgraph) and a dual conditional/unconditional UNet guider for strong prompt adherence and crisp TEXT RENDERING. Single-purpose txt2img graph sliced from the ideogram monolith (one pipeline, no group toggles), with optional KJ image sharpening and an off-by-default Power Lora Loader.\",\n      \"vram\": \"<8GB\",\n      \"skill\": \"ideogram-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\ideogram-txt2img\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-combo\",\n      \"family\": \"krea2\",\n      \"kind\": \"combo\",\n      \"display_name\": \"KREA 2 — Combo (two-pass detail boost)\",\n      \"description\": \"KREA 2 (krea2_turbo) two-pass \\\"combo\\\" — a detail-boost pipeline from the KREA2 ULTRA V2 workflow. A first pass generates the image (8 steps, er_sde, denoise 1), then a low-denoise refine pass sharpens detail (4 steps, euler, denoise 0.3), with the krea2 turbo LoRA @0.2 on both passes and the Krea2T-Enhancer model detail-boost patch. Ideogram-4-style structured JSON / area prompting (Ideogram4PromptBuilderKJ) on the native krea2 stack (CLIPLoader type=krea2 + Qwen3-VL 4B + Qwen image VAE). Saves BOTH passes so you can compare. The optional IdeoKrea LoRA ships available for an Ideogram-style boost (see notes).\",\n      \"vram\": \"<24GB\",\n      \"skill\": \"krea2-txt2img\",\n      \"runtime\": \"local\",\n      \"has_workflow\": true,\n      \"has_manifest\": true,\n      \"manifest_path\": \"C:\\\\Users\\\\Artokun\\\\code\\\\comfyui-mcp\\\\packs\\\\krea2-combo\\\\manifest.yaml\"\n    },\n    {\n      \"name\": \"krea2-txt2img-json\",\n      \"family\": \"krea2\",\n      \"kind\": \"txt2img\",\n      \"display_name\": \"KREA 2 — Text to Image (JSON Prompt Builder)\",\n      \"description\": \"KREA 2 (krea2_turbo) text-to-image driven by an Ideogram-4-style structured JSON prompt-builder (Ideogram4PromptBuilderKJ) — per-region descriptions"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_994a37ceb6a8409d9858f281",
+      "content": "No models found for \"ACE Step 1.5 audio music\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me search more specifically for ACE Step models and check for a pack.",
+      "refusal": null,
+      "reasoning": "There's no ACE Step pack or model installed. Let me search specifically for ACE Step on HuggingFace and check if there's a pack available.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c80f6bc49ebf4a408b8837df",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step audio generation diffusion\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_bacf83ba91414208bbb9e35d",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"ACE Step audio music generation\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "There's no ACE Step pack or model installed. Let me search specifically for ACE Step on HuggingFace and check if there's a pack available.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c80f6bc49ebf4a408b8837df",
+      "content": "No models found for \"ACE-Step audio generation diffusion\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_bacf83ba91414208bbb9e35d",
+      "content": "No custom nodes found for \"ACE Step audio music generation\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The ACE Step 1.5 models and custom nodes aren't available through the registry or HuggingFace search. Let me try different search queries or look for the exact model name.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_37e6273372794b7f999cad87",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"ACE-Step\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_37eaeae5337548e5b6f7e0df",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"acestep audio unet vae\", \"limit\": 15}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The ACE Step 1.5 models and custom nodes aren't available through the registry or HuggingFace search. Let me try different search queries or look for the exact model name.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_37e6273372794b7f999cad87",
+      "content": "No custom nodes found for \"ACE-Step\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_37eaeae5337548e5b6f7e0df",
+      "content": "No models found for \"acestep audio unet vae\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me search for ACE Step on HuggingFace with different queries, and also check what the create_workflow template expects for ace_step_15.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c8bad0557eed47c0b62be6ce",
+          "function": {
+            "name": "create_workflow",
+            "arguments": "{\"template\": \"ace_step_15\", \"params\": {\"duration\": 15}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me search for ACE Step on HuggingFace with different queries, and also check what the create_workflow template expects for ace_step_15.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c8bad0557eed47c0b62be6ce",
+      "content": "{\n  \"1\": {\n    \"class_type\": \"UNETLoader\",\n    \"inputs\": {\n      \"ckpt_name\": \"acestep_v1.5_xl_sft_bf16.safetensors\",\n      \"weight_dtype\": \"default\"\n    }\n  },\n  \"2\": {\n    \"class_type\": \"DualCLIPLoader\",\n    \"inputs\": {\n      \"clip_name1\": \"qwen_0.6b_ace15.safetensors\",\n      \"clip_name2\": \"qwen_4b_ace15.safetensors\",\n      \"type\": \"ace\"\n    }\n  },\n  \"3\": {\n    \"class_type\": \"VAELoader\",\n    \"inputs\": {\n      \"vae_name\": \"ace_1.5_vae.safetensors\"\n    }\n  },\n  \"4\": {\n    \"class_type\": \"ModelSamplingAuraFlow\",\n    \"inputs\": {\n      \"model\": [\n        \"1\",\n        0\n      ],\n      \"shift\": 3\n    }\n  },\n  \"5\": {\n    \"class_type\": \"EmptyAceStep1.5LatentAudio\",\n    \"inputs\": {\n      \"seconds\": 15,\n      \"batch_size\": 1\n    }\n  },\n  \"6\": {\n    \"class_type\": \"TextEncodeAceStepAudio1.5\",\n    \"inputs\": {\n      \"clip\": [\n        \"2\",\n        0\n      ],\n      \"seed\": 251480209017382,\n      \"duration\": 15,\n      \"text\": \"\",\n      \"lyrics\": \"\",\n      \"language\": \"en\",\n      \"key\": \"C major\",\n      \"cfg\": 0.85\n    }\n  },\n  \"7\": {\n    \"class_type\": \"ConditioningZeroOut\",\n    \"inputs\": {\n      \"conditioning\": [\n        \"6\",\n        0\n      ]\n    }\n  },\n  \"8\": {\n    \"class_type\": \"KSampler\",\n    \"inputs\": {\n      \"model\": [\n        \"4\",\n        0\n      ],\n      \"positive\": [\n        \"6\",\n        0\n      ],\n      \"negative\": [\n        \"7\",\n        0\n      ],\n      \"latent_image\": [\n        \"5\",\n        0\n      ],\n      \"seed\": 251480209017382,\n      \"steps\": 50,\n      \"cfg\": 7,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"simple\",\n      \"denoise\": 1\n    }\n  },\n  \"9\": {\n    \"class_type\": \"VAEDecodeAudio\",\n    \"inputs\": {\n      \"samples\": [\n        \"8\",\n        0\n      ],\n      \"vae\": [\n        \"3\",\n        0\n      ]\n    }\n  },\n  \"10\": {\n    \"class_type\": \"SaveAudioMP3\",\n    \"inputs\": {\n      \"audio\": [\n        \"9\",\n        0\n      ],\n      \"filename_prefix\": \"audio/ace_step\"\n    }\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The ACE Step 1.5 workflow requires specific models that aren't installed. Let me search for and download them.",
+      "refusal": null,
+      "reasoning": "The workflow was created but requires specific model files:\n1. `acestep_v1.5_xl_sft_bf16.safetensors` (UNET)\n2. `qwen_0.6b_ace15.safetensors` and `qwen_4b_ace15.safetensors` (CLIP text encoders)\n3. `ace_1.5_vae.safetensors` (VAE)\n\nNone of these are installed. I need to search for and download these models. Let me search HuggingFace for them.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6b54a257848e49868f5a8d3d",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ACE-Step-1.5 safetensors\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_8f89758b3e3546f0972fe2ce",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"acestep_v1.5_xl\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The workflow was created but requires specific model files:\n1. `acestep_v1.5_xl_sft_bf16.safetensors` (UNET)\n2. `qwen_0.6b_ace15.safetensors` and `qwen_4b_ace15.safetensors` (CLIP text encoders)\n3. `ace_1.5_vae.safetensors` (VAE)\n\nNone of these are installed. I need to search for and download these models. Let me search HuggingFace for them.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6b54a257848e49868f5a8d3d",
+      "content": "No models found for \"ACE-Step-1.5 safetensors\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8f89758b3e3546f0972fe2ce",
+      "content": "1. **jeankassio/acestep_v1.5_sft_xl** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: region:us\n\n2. **jeankassio/acestep_v1.5_turbo_xl** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: region:us\n\n3. **jeankassio/acestep_v1.5_merge_sft_turbo_xl** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: region:us\n\n4. **naxneri/acestep_v1.5_xl_merge_sft_turbo_nvfp4** by unknown\n   Downloads: 0 | Likes: 3\n   Tags: license:mit, region:us\n\n5. **VoiceKit/AceStep-v1.5-XL-Merge-Base-Turbo-mlx** by unknown\n   Downloads: 1 | Likes: 0\n   Tags: safetensors, acestep, custom_code, region:us"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Found some models on HuggingFace. Let me look for the specific models needed:\n1. acestep_v1.5_xl_sft_bf16.safetensors (UNET)\n2. qwen_0.6b_ace15.safetensors (CLIP1)\n3. qwen_4b_ace15.safetensors (CLIP2)\n4. ace_1.5_vae.safetensors (VAE)\n\nLet me search for these specifically.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_a8f310c3ebca4c0485e8c993",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"acestep v1.5 xl sft bf16\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_0c8d55b89cf24e0bab982c8f",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"qwen ace15 clip text encoder\", \"limit\": 5}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_90fb9811853f41178036e00d",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace_1.5_vae safetensors\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Found some models on HuggingFace. Let me look for the specific models needed:\n1. acestep_v1.5_xl_sft_bf16.safetensors (UNET)\n2. qwen_0.6b_ace15.safetensors (CLIP1)\n3. qwen_4b_ace15.safetensors (CLIP2)\n4. ace_1.5_vae.safetensors (VAE)\n\nLet me search for these specifically.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a8f310c3ebca4c0485e8c993",
+      "content": "No models found for \"acestep v1.5 xl sft bf16\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_0c8d55b89cf24e0bab982c8f",
+      "content": "No models found for \"qwen ace15 clip text encoder\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_90fb9811853f41178036e00d",
+      "content": "No models found for \"ace_1.5_vae safetensors\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The models aren't found through HuggingFace search. Let me try looking at the Comfy-Org ACE Step pack directly on HuggingFace, as ComfyUI models are often distributed through their repos.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_183730486959418991da5aa7",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"comfy-org ace step\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_c5cde78563214357aad700aa",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"ace-step-1.5 music generation model\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The models aren't found through HuggingFace search. Let me try looking at the Comfy-Org ACE Step pack directly on HuggingFace, as ComfyUI models are often distributed through their repos.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_183730486959418991da5aa7",
+      "content": "1. **Comfy-Org/ace_step_1.5_ComfyUI_files** by unknown\n   Downloads: 330,588 | Likes: 151\n   Tags: diffusion-single-file, comfyui, license:apache-2.0, region:us\n\n2. **Comfy-Org/ACE-Step_ComfyUI_repackaged** by unknown\n   Downloads: 21,263 | Likes: 82\n   Tags: diffusion-single-file, comfyui, region:us"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c5cde78563214357aad700aa",
+      "content": "No models found for \"ace-step-1.5 music generation model\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Found the official Comfy-Org ACE Step 1.5 repo. Let me apply the manifest to install all the needed models.",
+      "refusal": null,
+      "reasoning": "Found the ComfyUI ACE Step 1.5 files repo. Let me check what's in it to find the right download URLs for each model file.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_d57fe1b3bf544372ab692875",
+          "function": {
+            "name": "apply_manifest",
+            "arguments": "{\"manifest\": {\"models\": [{\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/acestep_v1.5_xl_sft_bf16.safetensors\", \"model_type\": \"diffusion_models\", \"filename\": \"acestep_v1.5_xl_sft_bf16.safetensors\"}, {\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/qwen_0.6b_ace15.safetensors\", \"model_type\": \"text_encoders\", \"filename\": \"qwen_0.6b_ace15.safetensors\"}, {\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/qwen_4b_ace15.safetensors\", \"model_type\": \"text_encoders\", \"filename\": \"qwen_4b_ace15.safetensors\"}, {\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/ace_1.5_vae.safetensors\", \"model_type\": \"vae\", \"filename\": \"ace_1.5_vae.safetensors\"}]}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Found the ComfyUI ACE Step 1.5 files repo. Let me check what's in it to find the right download URLs for each model file.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_d57fe1b3bf544372ab692875",
+      "content": "{\n  \"success\": true,\n  \"summary\": {\n    \"applied\": 0,\n    \"skipped\": 4,\n    \"failed\": 0\n  },\n  \"results\": [\n    {\n      \"action\": \"model\",\n      \"item\": \"acestep_v1.5_xl_sft_bf16.safetensors\",\n      \"status\": \"skipped\",\n      \"message\": \"Model install is not supported against this ComfyUI (no local filesystem and no ComfyUI-Manager HTTP API); install it on the ComfyUI host.\"\n    },\n    {\n      \"action\": \"model\",\n      \"item\": \"qwen_0.6b_ace15.safetensors\",\n      \"status\": \"skipped\",\n      \"message\": \"Model install is not supported against this ComfyUI (no local filesystem and no ComfyUI-Manager HTTP API); install it on the ComfyUI host.\"\n    },\n    {\n      \"action\": \"model\",\n      \"item\": \"qwen_4b_ace15.safetensors\",\n      \"status\": \"skipped\",\n      \"message\": \"Model install is not supported against this ComfyUI (no local filesystem and no ComfyUI-Manager HTTP API); install it on the ComfyUI host.\"\n    },\n    {\n      \"action\": \"model\",\n      \"item\": \"ace_1.5_vae.safetensors\",\n      \"status\": \"skipped\",\n      \"message\": \"Model install is not supported against this ComfyUI (no local filesystem and no ComfyUI-Manager HTTP API); install it on the ComfyUI host.\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The manifest approach had issues. Let me download the models directly using the download_model tool.",
+      "refusal": null,
+      "reasoning": "The manifest approach didn't work because there's no local ComfyUI path configured. But earlier the system stats showed this is a local install with COMFYUI_PATH available. Let me try using download_model directly to download the files.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_994adf0f5520469191c03364",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/acestep_v1.5_xl_sft_bf16.safetensors\", \"target_subfolder\": \"diffusion_models\", \"filename\": \"acestep_v1.5_xl_sft_bf16.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_50c16fb2dcff40cfa5a587a1",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/qwen_0.6b_ace15.safetensors\", \"target_subfolder\": \"text_encoders\", \"filename\": \"qwen_0.6b_ace15.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_e6ae1d18abdf4413b8771a5d",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/qwen_4b_ace15.safetensors\", \"target_subfolder\": \"text_encoders\", \"filename\": \"qwen_4b_ace15.safetensors\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 3,
+          "id": "call_041b62a69de646989603ea2b",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/ace_1.5_vae.safetensors\", \"target_subfolder\": \"vae\", \"filename\": \"ace_1.5_vae.safetensors\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The manifest approach didn't work because there's no local ComfyUI path configured. But earlier the system stats showed this is a local install with COMFYUI_PATH available. Let me try using download_model directly to download the files.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_994adf0f5520469191c03364",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_50c16fb2dcff40cfa5a587a1",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e6ae1d18abdf4413b8771a5d",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_041b62a69de646989603ea2b",
+      "content": "{\"error\":\"MODEL_ERROR\",\"message\":\"COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "It seems COMFYUI_PATH is not set. Let me check the workspace to see what paths are configured.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_0761d55fdf0b4a4398dafa35",
+          "function": {
+            "name": "get_workspace",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "It seems COMFYUI_PATH is not set. Let me check the workspace to see what paths are configured.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_0761d55fdf0b4a4398dafa35",
+      "content": "{\n  \"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"workspace_source\": \"default-config\",\n  \"default_workspace\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"api_target\": \"http://127.0.0.1:8188\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The workspace is detected. Let me check if we can list workflows or something to verify the connection is working. Also, let me look at the extra_model_paths to see where the shared models are. The system stats showed models are in shared locations. Let me check the extra paths.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8f3aa545ecec4eab96ba86f4",
+          "function": {
+            "name": "list_extra_paths",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The workspace is detected. Let me check if we can list workflows or something to verify the connection is working. Also, let me look at the extra_model_paths to see where the shared models are. The system stats showed models are in shared locations. Let me check the extra paths.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8f3aa545ecec4eab96ba86f4",
+      "content": "{\"error\":\"VALIDATION_ERROR\",\"message\":\"No local ComfyUI path is known. Set COMFYUI_PATH, set a default workspace, or pass config_path explicitly.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The COMFYUI_PATH env var isn't set, but the workspace is detected. Let me try a different approach - check the logs for the actual error from the first enqueue attempt.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_1304ac013a094f2f8d2b2516",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"keyword\": \"ace\", \"max_lines\": 30}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_c85b6518beef4a3886244bc2",
+          "function": {
+            "name": "get_history",
+            "arguments": "{\"prompt_id\": \"latest\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The COMFYUI_PATH env var isn't set, but the workspace is detected. Let me try a different approach - check the logs for the actual error from the first enqueue attempt.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1304ac013a094f2f8d2b2516",
+      "content": "2026-07-04T11:56:33.132437 - [WARNING] Traceback (most recent call last):\n2026-07-04T11:56:38.562319 - [WARNING] [DEPRECATION WARNING] Detected import of deprecated legacy API: /extensions/core/clipspace.js. This is likely caused by a custom node extension using outdated APIs. Please update your extensions or contact the extension author for an updated version.\n2026-07-04T12:14:32.064249 - [ERROR]   - Value not in list: clip_name2: 'qwen_4b_ace15.safetensors' not in ['ernie-image-prompt-enhancer.safetensors', 'gemma4_e4b_it_fp8_scaled.safetensors', 'gemma_3_12B_it_fp4_mixed.safetensors', 'gemma_3_12B_it_fp8_scaled.safetensors', 'ltx-2.3_text_projection_bf16.safetensors', 'ministral-3-3b.safetensors', 'qwen3vl_4b_fp8_scaled.safetensors', 'qwen3vl_8b_fp8_scaled.safetensors', 'qwen_3_06b_base.safetensors', 'umt5-xxl-enc-bf16.safetensors', 'umt5_xxl_fp8_e4m3fn_scaled.safetensors']\n2026-07-04T12:14:32.064279 - [ERROR] * TextEncodeAceStepAudio1.5 6:"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c85b6518beef4a3886244bc2",
+      "content": "No history found for prompt latest."
+    },
+    {
+      "role": "assistant",
+      "content": "Now I can see the issue clearly — the ACE Step 1.5 models aren't installed on the server. The error shows `qwen_4b_ace15.safetensors` is not in the text_encoders list. Let me find the correct model paths and download them.",
+      "refusal": null,
+      "reasoning": "Now I see the real error. The models aren't installed on the server. The log confirms:\n1. `qwen_4b_ace15.safetensors` is NOT in the text_encoders list\n2. All four ACE Step models are missing\n\nThe server is a ComfyUI Desktop install at `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`, but the shared models are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. I need to download these models to the correct location.\n\nLet me check the shared model paths config to understand where models should go.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_274a9ffd3f064a6ab2849c92",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"keyword\": \"model\", \"max_lines\": 20}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Now I see the real error. The models aren't installed on the server. The log confirms:\n1. `qwen_4b_ace15.safetensors` is NOT in the text_encoders list\n2. All four ACE Step models are missing\n\nThe server is a ComfyUI Desktop install at `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`, but the shared models are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. I need to download these models to the correct location.\n\nLet me check the shared model paths config to understand where models should go.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_274a9ffd3f064a6ab2849c92",
+      "content": "2026-07-04T11:56:35.374002 - [INFO] [Impact Pack/Subpack] Loaded 0 model(s) from whitelist: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\user\\default\\ComfyUI-Impact-Subpack\\model-whitelist.txt\n2026-07-04T11:56:35.446957 - [INFO] [Impact Subpack] ultralytics_bbox: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\models\\ultralytics\\bbox\n2026-07-04T11:56:35.447166 - [INFO] [Impact Subpack] ultralytics_segm: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\models\\ultralytics\\segm\n2026-07-04T11:57:51.897329 - [INFO] model weight dtype torch.float16, manual cast: None\n2026-07-04T11:57:51.900293 - [INFO] model_type EPS\n2026-07-04T11:57:52.095105 - [INFO] CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16\n2026-07-04T11:57:52.097501 - [INFO] Requested to load SD1ClipModel\n2026-07-04T11:57:52.115934 - [INFO] Model SD1ClipModel prepared for dynamic VRAM loading. 235MB Staged. 0 patches attached. Force pre-loaded 50 weights: 75 KB.\n2026-07-04T11:57:52.349457 - [INFO] Requested to load BaseModel\n2026-07-04T11:57:52.393935 - [INFO] Model BaseModel prepared for dynamic VRAM loading. 1639MB Staged. 0 patches attached. Force pre-loaded 218 weights: 399 KB.\n2026-07-04T11:57:54.558407 - [INFO] Model AutoencoderKL prepared for dynamic VRAM loading. 159MB Staged. 0 patches attached. Force pre-loaded 112 weights: 91 KB.\n2026-07-04T12:02:05.215103 - [INFO] Model SD1ClipModel prepared for dynamic VRAM loading. 235MB Staged. 0 patches attached. Force pre-loaded 50 weights: 75 KB.\n2026-07-04T12:02:05.361320 - [INFO] Model BaseModel prepared for dynamic VRAM loading. 1639MB Staged. 0 patches attached. Force pre-loaded 218 weights: 399 KB.\n2026-07-04T12:02:08.750874 - [INFO] Model AutoencoderKL prepared for dynamic VRAM loading. 159MB Staged. 0 patches attached. Force pre-loaded 112 weights: 91 KB.\n2026-07-04T12:02:16.548182 - [INFO] Model BaseModel prepared for dynamic VRAM loading. 1639MB Staged. 0 patches attached. Force pre-loaded 218 weights: 399 KB.\n2026-07-04T12:02:21.757653 - [INFO] Model AutoencoderKL prepared for dynamic VRAM loading. 159MB Staged. 0 patches attached. Force pre-loaded 112 weights: 91 KB.\n2026-07-04T12:09:42.041171 - [INFO] Model SD1ClipModel prepared for dynamic VRAM loading. 235MB Staged. 0 patches attached. Force pre-loaded 50 weights: 75 KB.\n2026-07-04T12:09:42.096290 - [INFO] Model SD1ClipModel prepared for dynamic VRAM loading. 235MB Staged. 0 patches attached. Force pre-loaded 50 weights: 75 KB.\n2026-07-04T12:09:42.211631 - [INFO] Model BaseModel prepared for dynamic VRAM loading. 1639MB Staged. 0 patches attached. Force pre-loaded 218 weights: 399 KB.\n2026-07-04T12:09:45.518050 - [INFO] Model AutoencoderKL prepared for dynamic VRAM loading. 159MB Staged. 0 patches attached. Force pre-loaded 112 weights: 91 KB."
+    },
+    {
+      "role": "assistant",
+      "content": "I've diagnosed the issue. The **ACE Step 1.5 models aren't installed** on your ComfyUI server. The error confirms:\n\n> `'qwen_4b_ace15.safetensors' not in ['ernie-image-prompt-enhancer.safetensors', 'gemma4_...']`\n\nHere's what needs to happen. You need to download **4 model files** from HuggingFace to your ComfyUI models directories. Since this is a Desktop install, `COMFYUI_PATH` isn't set as an env var, so I can't use the auto-download tool directly. You'll need to download these manually:\n\n### Required ACE Step 1.5 Models\n\n| Model | Size (approx) | Destination |\n|-------|--------------|-------------|\n| `acestep_v1.5_xl_sft_bf16.safetensors` | ~6.5 GB | `models/diffusion_models/` |\n| `qwen_4b_ace15.safetensors` | ~8 GB | `models/text_encoders/` |\n| `qwen_0.6b_ace15.safetensors` | ~1.5 GB | `models/text_encoders/` |\n| `ace_1.5_vae.safetensors` | ~1 GB | `models/vae/` |\n\n### Download Source\nAll files are from: **[Comfy-Org/ace_step_1.5_ComfyUI_files](https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files)**\n\n### Where to put them\nYour ComfyUI Desktop install's models directory is:\n```\nC:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\models\\\n```\nPlace each file in the matching subfolder listed above.\n\n### Once installed\nAfter downloading all 4 files, I'll be able to generate your 15-second ambient rain clip with the ACE Step 1.5 workflow. Just let me know when the models are in place and I'll run it immediately! 🌧️⚡",
+      "refusal": null,
+      "reasoning": "The server has the ComfyUI Desktop install with shared model paths at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. The models paths show `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\models\\` as the main models directory.\n\nBut I can't use `download_model` because `COMFYUI_PATH` isn't set. However, the `generate_image` tool worked (or at least was attempted), and the `create_workflow` tool worked. Let me look at the extra_model_paths config mentioned in the launch args: `--extra-model-paths-config C:\\Users\\Artokun\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml`.\n\nThe shared input/output directories are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. Let me check if there's also a shared models directory.\n\nActually, looking at this more carefully: the `download_model` tool needs COMFYUI_PATH env var but the workspace is configured via `set_default_workspace`. The COMFYUI_PATH env var isn't set separately. This is a desktop install.\n\nLet me try a different approach. Since I can't download models directly, I need to tell the user what models are needed and where to put them. But wait - maybe I can use the install_model endpoint through ComfyUI-Manager. Let me check if the configure_manager or other tools can help.\n\nActually, looking at the system stats, this is a \"local-desktop2-standalone\" deployment. The shared model paths are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. Let me check if there's a models directory there too.\n\nActually, I should just explain to the user what needs to happen. The ACE Step 1.5 models need to be downloaded from HuggingFace to the correct directories. Since `COMFYUI_PATH` isn't set as an env var (it's configured via the default workspace setting), I can't use `download_model`. But maybe I can add an extra model path or use another approach.\n\nWait - let me re-read the workspace info. It says `workspace_path: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI` and `workspace_source: default-config`. The `download_model` error says \"COMFYUI_PATH is not configured\". Let me try setting the workspace again or checking if there's a way around this.\n\nActually, looking at the shared paths in the launch args, I see:\n- `--extra-model-paths-config C:\\Users\\Artokun\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml`\n- `--input-directory C:\\Users\\Artokun\\ComfyUI-Shared\\input`\n- `--output-directory C:\\Users\\Artokun\\ComfyUI-Shared\\output`\n\nSo the shared models are likely at `C:\\Users\\Artokun\\ComfyUI-Shared\\` as well. Let me try adding that as an extra path, or checking the shared_model_paths.yaml.\n\nBut really, the core issue is I can't download the models. Let me explain to the user what needs to happen.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The server has the ComfyUI Desktop install with shared model paths at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. The models paths show `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\models\\` as the main models directory.\n\nBut I can't use `download_model` because `COMFYUI_PATH` isn't set. However, the `generate_image` tool worked (or at least was attempted), and the `create_workflow` tool worked. Let me look at the extra_model_paths config mentioned in the launch args: `--extra-model-paths-config C:\\Users\\Artokun\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml`.\n\nThe shared input/output directories are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. Let me check if there's also a shared models directory.\n\nActually, looking at this more carefully: the `download_model` tool needs COMFYUI_PATH env var but the workspace is configured via `set_default_workspace`. The COMFYUI_PATH env var isn't set separately. This is a desktop install.\n\nLet me try a different approach. Since I can't download models directly, I need to tell the user what models are needed and where to put them. But wait - maybe I can use the install_model endpoint through ComfyUI-Manager. Let me check if the configure_manager or other tools can help.\n\nActually, looking at the system stats, this is a \"local-desktop2-standalone\" deployment. The shared model paths are at `C:\\Users\\Artokun\\ComfyUI-Shared\\`. Let me check if there's a models directory there too.\n\nActually, I should just explain to the user what needs to happen. The ACE Step 1.5 models need to be downloaded from HuggingFace to the correct directories. Since `COMFYUI_PATH` isn't set as an env var (it's configured via the default workspace setting), I can't use `download_model`. But maybe I can add an extra model path or use another approach.\n\nWait - let me re-read the workspace info. It says `workspace_path: C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI` and `workspace_source: default-config`. The `download_model` error says \"COMFYUI_PATH is not configured\". Let me try setting the workspace again or checking if there's a way around this.\n\nActually, looking at the shared paths in the launch args, I see:\n- `--extra-model-paths-config C:\\Users\\Artokun\\AppData\\Roaming\\Comfy Desktop\\shared_model_paths.yaml`\n- `--input-directory C:\\Users\\Artokun\\ComfyUI-Shared\\input`\n- `--output-directory C:\\Users\\Artokun\\ComfyUI-Shared\\output`\n\nSo the shared models are likely at `C:\\Users\\Artokun\\ComfyUI-Shared\\` as well. Let me try adding that as an extra path, or checking the shared_model_paths.yaml.\n\nBut really, the core issue is I can't download the models. Let me explain to the user what needs to happen.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

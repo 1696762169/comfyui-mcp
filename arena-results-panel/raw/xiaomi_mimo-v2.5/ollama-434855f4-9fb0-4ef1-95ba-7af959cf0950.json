@@ -1,0 +1,191 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Select my two prompt nodes and collapse them into a subgraph, then save it as a blueprint named 'Prompts'."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_c481921de6844a82b1180e5d",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_c481921de6844a82b1180e5d",
+      "content": "Live-canvas panel tools — 65 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_graph_outline: Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template)…\n- panel_get_subgraph: Read INSIDE a subgraph node on the user's open graph: ids, types, widget values, and connections of its inner nodes.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_add_node: Add a node to the user's OPEN ComfyUI graph by class_type (e.g.\n- panel_remove_node: Remove a node (and its connections) from the user's open graph by id.\n- panel_clear: Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'.\n- panel_strip_workflow: Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections…\n- panel_slice_workflow: Slice ONE pipeline out of a toggle-template workflow (built with rgthree 'Fast Groups Bypasser/Muter' — one graph holding many pipelines, only one active at a…\n- panel_load_workflow: Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph).\n- panel_connect: Connect an output slot of one node to an input slot of another in the user's open graph.\n- panel_disconnect: Disconnect an input slot of a node in the user's open graph.\n- panel_set_widget: Set a widget value on a node in the user's open graph (steps, cfg, seed, ckpt_name, text prompts, …).\n- panel_move_node: Move a node to a new canvas position [x, y] in the user's open graph.\n- panel_canvas: Control the user's canvas view: 'fit' frames the whole graph, 'center_on_node' jumps to a node (give node_id), 'pan' shifts by dx/dy, 'zoom' sets an absolute s…\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…\n- panel_reload: Soft-reload yourself to pick up code changes WITHOUT restarting ComfyUI — your chat session resumes automatically and you'll be nudged to continue.\n- panel_list_mcp: List the MCP servers available to you.\n- panel_add_mcp: Connect a new MCP server by writing it to the user's Claude config (~/.claude.json) — it then loads into THIS session after you call panel_reload, and also bec…\n- panel_remove_mcp: Remove an MCP server from the user's Claude config by name.\n- panel_request_secret: Securely collect an API token / secret from the user and write it straight to config — you NEVER see the value and it is never saved to chat history.\n- panel_get_content_mode: Query the persistent adult-content (NSFW) consent state for this user.\n- panel_request_adult_consent: Show the user the adult-content consent gate and persist their decision.\n- panel_disable_adult_mode: Turn the adult-content (NSFW) consent OFF — revert to SFW-only.\n- panel_set_todo: Show/update a live TODO checklist in the panel's footer tray — a running view of your plan that the user watches as you work a multi-step task.\n- panel_ask: Ask the user to choose between options — renders an interactive question card in the panel chat and BLOCKS until they pick, returning their choice as text.\n- panel_save_workflow: Save the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops.\n- panel_list_workflows: List the user's OPEN workflow tabs and which one is active (path, filename, modified, persisted).\n- panel_new_workflow: Open a brand-new BLANK workflow in a NEW TAB.\n- panel_open_workflow: Open / switch to a workflow by path or filename (from panel_list_workflows).\n- panel_rename_workflow: Rename a workflow (the active one, or the one matching `path`).\n- panel_close_workflow: Close a workflow tab (the active one, or the one matching `path`).\n- panel_select_nodes: Select nodes on the user's canvas by id (highlights them, sets the multi-selection).\n- panel_create_subgraph: Group the given nodes into a SUBGRAPH (ComfyUI 'Convert to Subgraph') on the user's canvas — collapses them into one subgraph node.\n- panel_subgraph_group: Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units.\n- panel_copy_nodes: Copy nodes from the user's open graph to the clipboard.\n- panel_paste_nodes: Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/co…\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_list_subgraphs: List the saved subgraph BLUEPRINTS in the user's library (from panel_save_subgraph, plus any global/bundled ones).\n- panel_add_subgraph: Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type).\n- panel_create_group: Create a labeled GROUP box (the colored rectangle that visually frames a region) on the user's open graph.\n- panel_move_group: Move a group box to a new top-left [x, y] on the user's open graph.\n- panel_edit_group: Edit a group box: its title, color, font_size, and/or bounds [x, y, width, height].\n- panel_remove_group: Remove a group box from the user's open graph.\n- panel_set_node_title: Rename a node's TITLE (the label on its header) — e.g.\n- panel_set_node_collapsed: Collapse (minimize) or expand a node on the user's open graph.\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_set_node_color: Set a node's title-bar and/or body color on the user's open graph.\n- panel_screenshot: Render the workflow the user is currently viewing (root graph, or the open subgraph) to a PNG and return it as an IMAGE so you can SEE the layout.\n- panel_enter_subgraph: Navigate INTO a subgraph node so you can read and EDIT its inner nodes — after this, panel_get_graph and all panel_* edit tools target the subgraph's inner gra…\n- panel_exit_subgraph: Leave the current subgraph and return to the root graph (undo a panel_enter_subgraph).\n- panel_move_rail: Reposition a subgraph's input or output RAIL (the boundary I/O node that the inner wires connect to).\n- panel_promote_widget: Expose (promote) an INNER subgraph widget on the PARENT subgraph node, so it can be set from outside without opening the subgraph — e.g.\n- panel_expose_subgraph_output: Wire an interior node's OUTPUT to the subgraph's OUTPUT RAIL — i.e.\n- panel_expose_subgraph_input: Wire an interior node's INPUT to the subgraph's INPUT RAIL — i.e.\n- panel_unpack_subgraph: EXPAND / DISSOLVE a subgraph node on the user's open graph — inline its interior nodes back into the PARENT graph, rewire all external links to those now-inlin…\n- panel_search_nodes: Search installable custom-node packs via the user's BUILT-IN ComfyUI Manager (the same source the Manager UI uses).\n- panel_list_nodes: List the custom-node packs currently installed in the user's ComfyUI (via the built-in Manager).\n- panel_install_node: Install a custom-node pack into the user's ComfyUI via the BUILT-IN Manager (queues the install).\n- panel_update_node: Update an ALREADY-INSTALLED custom-node pack to its latest (or nightly) code via the BUILT-IN Manager — the first thing to try when a node is broken or CRASHED…\n- panel_node_queue_status: Check the built-in Manager's install/update queue status (to see if a queued install finished).\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes.\n- panel_free_vram: Unload all loaded models and free VRAM (ComfyUI /free).\n- panel_show_media: Display one or more images or videos directly in the panel chat."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me start by finding the prompt nodes in your graph.",
+      "tool_calls": [
+        {
+          "id": "call_6fe1325ec392496ea27e6aad",
+          "function": {
+            "name": "panel_find_nodes",
+            "arguments": "{\"search\": \"prompt\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_find_nodes",
+      "tool_call_id": "call_6fe1325ec392496ea27e6aad",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_42d2fcf9da1e4736abd869e7",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\"}"
+          }
+        },
+        {
+          "id": "call_1178f12e0dae4c80bea96947",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_create_subgraph\"}"
+          }
+        },
+        {
+          "id": "call_a1d43be61da44b31a3a4d7cb",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_save_subgraph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_42d2fcf9da1e4736abd869e7",
+      "content": "# panel_find_nodes\n\nSEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a LARGE graph instead of dumping the whole thing with panel_get_graph and scanning it. This searches the LIVE graph ON THE CANVAS — NOT the installable node registry (that's panel_search_nodes). Unlike panel_get_graph it scans EVERY node (no truncation). Give a free-text `query` (matched case-insensitively across node type, title, description, widget NAMES, widget VALUES, and input/output port names+types — a node hits if ANY of those contain it) and/or targeted filters: type, title, input, output, widget (name), widget_value (contents), is_output, is_subgraph, mode. Targeted filters are ANDed together; the free `query` ORs across fields. Each match is the SAME rich summary as panel_get_graph (id, type, title, widgets, inputs WITH their connected_from sources, outputs, mode, is_output, …) PLUS the node's description and a `matched_on` list saying WHY it matched. Read-only. Examples — the video loader: {query:'tiktok'} or {type:'LoadVideo'} or {input:'video'}; every output node: {is_output:true}; the node whose widget holds a file: {widget_value:'.png'}; a bypassed switch: {type:'Switch', mode:'bypass'}.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"query\": {\n   \"description\": \"Free text matched (case-insensitive substring) across type, title, description, widget names, widget values, and port names/types. A node matches if ANY field contains it.\",\n   \"type\": \"string\"\n  },\n  \"type\": {\n   \"description\": \"Node class_type contains this (e.g. 'KSampler', 'LoadImage').\",\n   \"type\": \"string\"\n  },\n  \"title\": {\n   \"description\": \"Node title contains this.\",\n   \"type\": \"string\"\n  },\n  \"input\": {\n   \"description\": \"Has an INPUT port whose name or type contains this (e.g. 'image', 'LATENT').\",\n   \"type\": \"string\"\n  },\n  \"output\": {\n   \"description\": \"Has an OUTPUT port whose name or type contains this.\",\n   \"type\": \"string\"\n  },\n  \"widget\": {\n   \"description\": \"Has a widget whose NAME contains this (e.g. 'seed', 'ckpt_name').\",\n   \"type\": \"string\"\n  },\n  \"widget_value\": {\n   \"description\": \"Has a widget whose VALUE contains this (e.g. a filename or prompt fragment).\",\n   \"type\": \"string\"\n  },\n  \"is_output\": {\n   \"description\": \"true = only output nodes (SaveImage/PreviewImage/…); false = exclude them.\",\n   \"type\": \"boolean\"\n  },\n  \"is_subgraph\": {\n   \"description\": \"true = only subgraph nodes.\",\n   \"type\": \"boolean\"\n  },\n  \"mode\": {\n   \"description\": \"Only nodes in this execution mode.\",\n   \"type\": \"string\",\n   \"enum\": [\n    \"active\",\n    \"bypass\",\n    \"mute\"\n   ]\n  },\n  \"limit\": {\n   \"description\": \"Max matches to return (default 40).\",\n   \"type\": \"integer\",\n   \"minimum\": 1,\n   \"maximum\": 200\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_find_nodes\", \"args\": {...}}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_1178f12e0dae4c80bea96947",
+      "content": "# panel_create_subgraph\n\nGroup the given nodes into a SUBGRAPH (ComfyUI 'Convert to Subgraph') on the user's canvas — collapses them into one subgraph node. Returns the new subgraph node id. Undoable with Ctrl+Z. To wrap an existing GROUP, prefer panel_subgraph_group (you don't have to list the node_ids yourself).\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"node_ids\": {\n   \"type\": \"array\",\n   \"items\": {\n    \"type\": \"integer\",\n    \"minimum\": -9007199254740991,\n    \"maximum\": 9007199254740991\n   },\n   \"description\": \"Node ids to group into a subgraph.\"\n  }\n },\n \"required\": [\n  \"node_ids\"\n ],\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_create_subgraph\", \"args\": {...}}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_a1d43be61da44b31a3a4d7cb",
+      "content": "# panel_save_subgraph\n\nSave a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later. Pass node_id to pick the subgraph node (else a single selected subgraph node is used) and name to title the blueprint (defaults to the node's title). Runs programmatically — NO save dialog pops. The blueprint becomes the addable type 'SubgraphBlueprint.<name>' (use panel_add_subgraph or panel_list_subgraphs). Returns {saved: {name, type}}.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"node_id\": {\n   \"description\": \"Subgraph node id to publish (is_subgraph=true). Omit to use the selected subgraph node.\",\n   \"type\": \"integer\",\n   \"minimum\": -9007199254740991,\n   \"maximum\": 9007199254740991\n  },\n  \"name\": {\n   \"description\": \"Blueprint name. Defaults to the subgraph node's title.\",\n   \"type\": \"string\"\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_save_subgraph\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "Now let me find your prompt nodes:",
+      "tool_calls": [
+        {
+          "id": "call_ba0f64cfa05a4b4d80b74185",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\", \"args\": \"{\\\"query\\\": \\\"CLIPTextEncode\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_ba0f64cfa05a4b4d80b74185",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_38f90e1848e94f09a704ce77",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"args\": \"{\\\"type\\\": \\\"CLIPTextEncode\\\"}\", \"name\": \"panel_find_nodes\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_38f90e1848e94f09a704ce77",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_56136a1e07fb4d99b28d32a1",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_get_graph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_56136a1e07fb4d99b28d32a1",
+      "content": "{\n  \"viewing\": {\n    \"scope\": \"root\"\n  },\n  \"node_count\": 7,\n  \"truncated\": false,\n  \"nodes\": [\n    {\n      \"id\": 1,\n      \"type\": \"CheckpointLoaderSimple\",\n      \"title\": \"Load Checkpoint\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 2,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"a scenic mountain lake\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 3,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Negative Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"blurry, low quality\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 4,\n      \"type\": \"EmptyLatentImage\",\n      \"title\": \"Empty Latent\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"width\": 512,\n        \"height\": 512,\n        \"batch_size\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 5,\n      \"type\": \"KSampler\",\n      \"title\": \"KSampler\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"seed\": 42,\n        \"steps\": 20,\n        \"cfg\": 7,\n        \"sampler_name\": \"euler\",\n        \"denoise\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 6,\n      \"type\": \"VAEDecode\",\n      \"title\": \"VAE Decode\",\n      \"is_subgraph\": false,\n      \"widgets\": {},\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 7,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Image\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"filename_prefix\": \"ComfyUI\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "I found your two prompt nodes:\n- **Node 2**: \"Positive Prompt\" (CLIPTextEncode) — *a scenic mountain lake*\n- **Node 3**: \"Negative Prompt\" (CLIPTextEncode) — *blurry, low quality*\n\nLet me now collapse them into a subgraph:",
+      "tool_calls": [
+        {
+          "id": "call_74b128e7404747aba1b1e8fb",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"args\": \"{\\\"node_ids\\\": [2, 3]}\", \"name\": \"panel_create_subgraph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_74b128e7404747aba1b1e8fb",
+      "content": "{\n  \"subgraph\": {\n    \"node_id\": 8,\n    \"name\": \"Subgraph\",\n    \"from_nodes\": [\n      2,\n      3\n    ]\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The subgraph was created (node 8). Now let me save it as a blueprint named **\"Prompts\"**:",
+      "tool_calls": [
+        {
+          "id": "call_9556d0b6e1494683a62e3032",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"args\": \"{\\\"node_id\\\": 8, \\\"name\\\": \\\"Prompts\\\"}\", \"name\": \"panel_save_subgraph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_9556d0b6e1494683a62e3032",
+      "content": "{\n  \"saved\": {\n    \"name\": \"Prompts\",\n    \"from_node_id\": 8,\n    \"type\": \"SubgraphBlueprint.Prompts\"\n  }\n}"
+    }
+  ]
+}

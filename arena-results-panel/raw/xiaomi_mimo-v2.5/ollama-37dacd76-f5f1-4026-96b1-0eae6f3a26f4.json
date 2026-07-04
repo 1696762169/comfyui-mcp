@@ -1,0 +1,83 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Start a new workflow for me."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_43bb84ca98894ff4bc94d2da",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"new workflow\"}"
+          }
+        },
+        {
+          "id": "call_f5fdbd4aadc54460b68a7a84",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"workflow\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_43bb84ca98894ff4bc94d2da",
+      "content": "Live-canvas panel tools — 2 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_clear: Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'.\n- panel_new_workflow: Open a brand-new BLANK workflow in a NEW TAB."
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_f5fdbd4aadc54460b68a7a84",
+      "content": "Live-canvas panel tools — 21 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_graph_outline: Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template)…\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_clear: Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'.\n- panel_strip_workflow: Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections…\n- panel_slice_workflow: Slice ONE pipeline out of a toggle-template workflow (built with rgthree 'Fast Groups Bypasser/Muter' — one graph holding many pipelines, only one active at a…\n- panel_load_workflow: Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph).\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_content_mode: Query the persistent adult-content (NSFW) consent state for this user.\n- panel_save_workflow: Save the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops.\n- panel_list_workflows: List the user's OPEN workflow tabs and which one is active (path, filename, modified, persisted).\n- panel_new_workflow: Open a brand-new BLANK workflow in a NEW TAB.\n- panel_open_workflow: Open / switch to a workflow by path or filename (from panel_list_workflows).\n- panel_rename_workflow: Rename a workflow (the active one, or the one matching `path`).\n- panel_close_workflow: Close a workflow tab (the active one, or the one matching `path`).\n- panel_copy_nodes: Copy nodes from the user's open graph to the clipboard.\n- panel_paste_nodes: Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/co…\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_add_subgraph: Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type).\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_screenshot: Render the workflow the user is currently viewing (root graph, or the open subgraph) to a PNG and return it as an IMAGE so you can SEE the layout."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_179d1cb1c49a416eb4087db9",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_new_workflow\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_179d1cb1c49a416eb4087db9",
+      "content": "# panel_new_workflow\n\nOpen a brand-new BLANK workflow in a NEW TAB. Use this whenever the user wants a 'new workflow' / 'fresh canvas' / 'start over for a new project'. This does NOT touch their current workflow — it opens a separate tab. NEVER use panel_clear for a new workflow (panel_clear wipes the CURRENT graph and is only for 'clear/reset this canvas').\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {},\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_new_workflow\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_27cc09ea8f3f488b99147d13",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_new_workflow\", \"args\": \"{}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_27cc09ea8f3f488b99147d13",
+      "content": "{\n  \"created\": true,\n  \"active\": \"Untitled (new tab)\"\n}"
+    }
+  ]
+}

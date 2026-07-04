@@ -29,9 +29,20 @@ HERE = Path(__file__).resolve().parent
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=str(HERE / "config.yaml"))
+    ap.add_argument("--size", default=None, help="size-ladder key (e2b/e4b/12b/31b); default: config 'size'")
     ap.add_argument("--dry-run", action="store_true", help="render 2 samples and exit (verify template + masking)")
     args = ap.parse_args()
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+
+    # Resolve the size-ladder rung: the same dataset trains onto every Gemma 4
+    # size (e2b→31b) so users pick by VRAM budget. --size overrides config 'size'.
+    size = args.size or cfg.get("size")
+    rung = (cfg.get("size_ladder") or {}).get(size) if size else None
+    if rung:
+        cfg["base_model"] = rung["base_model"]
+        cfg["max_seq_length"] = rung.get("max_seq_length", cfg["max_seq_length"])
+        cfg["output_dir"] = f"outputs/gemma4-{size}-comfyui-mcp"
+        print(f"[train] size={size} base={cfg['base_model']} seq_len={cfg['max_seq_length']}")
 
     from unsloth import FastLanguageModel  # import first: patches transformers
 

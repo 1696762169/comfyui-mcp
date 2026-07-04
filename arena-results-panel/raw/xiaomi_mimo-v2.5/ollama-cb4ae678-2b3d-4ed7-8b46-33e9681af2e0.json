@@ -1,0 +1,74 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Save this workflow as 'portrait-pipeline'."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_678f831533ce4385b0a47b18",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"save\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_678f831533ce4385b0a47b18",
+      "content": "Live-canvas panel tools — 8 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_request_secret: Securely collect an API token / secret from the user and write it straight to config — you NEVER see the value and it is never saved to chat history.\n- panel_save_workflow: Save the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops.\n- panel_close_workflow: Close a workflow tab (the active one, or the one matching `path`).\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_list_subgraphs: List the saved subgraph BLUEPRINTS in the user's library (from panel_save_subgraph, plus any global/bundled ones).\n- panel_add_subgraph: Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type)."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_995bee8e90604082af583959",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_save_workflow\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_995bee8e90604082af583959",
+      "content": "# panel_save_workflow\n\nSave the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops. A never-saved workflow is auto-named and persisted; pass `name` to give it (or rename it to) a specific name. Use this freely (e.g. after building a graph) — it won't interrupt the user.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"name\": {\n   \"description\": \"Name to save/rename to (no .json needed). Omit to save in place / auto-name an unsaved workflow.\",\n   \"type\": \"string\"\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_save_workflow\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_314d48daab81480aba3e94b1",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_save_workflow\", \"args\": \"{\\\"name\\\": \\\"portrait-pipeline\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_314d48daab81480aba3e94b1",
+      "content": "{\n  \"saved_as\": \"workflows/portrait-pipeline.json\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Done! Your workflow has been saved as **`workflows/portrait-pipeline.json`**. You can open it anytime from your ComfyUI workflow browser."
+    }
+  ]
+}

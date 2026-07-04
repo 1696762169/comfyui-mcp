@@ -1,0 +1,138 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Change the steps on my KSampler to 12."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_57c08d53c2a34510b3ee19a3",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"sampler\"}"
+          }
+        },
+        {
+          "id": "call_26a5cd6c4c714d3e825b2364",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"widget\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_57c08d53c2a34510b3ee19a3",
+      "content": "Live-canvas panel tools — 3 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_add_node: Add a node to the user's OPEN ComfyUI graph by class_type (e.g.\n- panel_promote_widget: Expose (promote) an INNER subgraph widget on the PARENT subgraph node, so it can be set from outside without opening the subgraph — e.g."
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_26a5cd6c4c714d3e825b2364",
+      "content": "Live-canvas panel tools — 11 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_graph_outline: Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template)…\n- panel_get_subgraph: Read INSIDE a subgraph node on the user's open graph: ids, types, widget values, and connections of its inner nodes.\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_add_node: Add a node to the user's OPEN ComfyUI graph by class_type (e.g.\n- panel_set_widget: Set a widget value on a node in the user's open graph (steps, cfg, seed, ckpt_name, text prompts, …).\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…\n- panel_set_node_title: Rename a node's TITLE (the label on its header) — e.g.\n- panel_enter_subgraph: Navigate INTO a subgraph node so you can read and EDIT its inner nodes — after this, panel_get_graph and all panel_* edit tools target the subgraph's inner gra…\n- panel_promote_widget: Expose (promote) an INNER subgraph widget on the PARENT subgraph node, so it can be set from outside without opening the subgraph — e.g."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me find your KSampler node first, then set its steps.",
+      "tool_calls": [
+        {
+          "id": "call_66a91c419a004adbb17afee2",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\"}"
+          }
+        },
+        {
+          "id": "call_e784c9fd0a024d7a88dc5345",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_set_widget\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_66a91c419a004adbb17afee2",
+      "content": "# panel_find_nodes\n\nSEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a LARGE graph instead of dumping the whole thing with panel_get_graph and scanning it. This searches the LIVE graph ON THE CANVAS — NOT the installable node registry (that's panel_search_nodes). Unlike panel_get_graph it scans EVERY node (no truncation). Give a free-text `query` (matched case-insensitively across node type, title, description, widget NAMES, widget VALUES, and input/output port names+types — a node hits if ANY of those contain it) and/or targeted filters: type, title, input, output, widget (name), widget_value (contents), is_output, is_subgraph, mode. Targeted filters are ANDed together; the free `query` ORs across fields. Each match is the SAME rich summary as panel_get_graph (id, type, title, widgets, inputs WITH their connected_from sources, outputs, mode, is_output, …) PLUS the node's description and a `matched_on` list saying WHY it matched. Read-only. Examples — the video loader: {query:'tiktok'} or {type:'LoadVideo'} or {input:'video'}; every output node: {is_output:true}; the node whose widget holds a file: {widget_value:'.png'}; a bypassed switch: {type:'Switch', mode:'bypass'}.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"query\": {\n   \"description\": \"Free text matched (case-insensitive substring) across type, title, description, widget names, widget values, and port names/types. A node matches if ANY field contains it.\",\n   \"type\": \"string\"\n  },\n  \"type\": {\n   \"description\": \"Node class_type contains this (e.g. 'KSampler', 'LoadImage').\",\n   \"type\": \"string\"\n  },\n  \"title\": {\n   \"description\": \"Node title contains this.\",\n   \"type\": \"string\"\n  },\n  \"input\": {\n   \"description\": \"Has an INPUT port whose name or type contains this (e.g. 'image', 'LATENT').\",\n   \"type\": \"string\"\n  },\n  \"output\": {\n   \"description\": \"Has an OUTPUT port whose name or type contains this.\",\n   \"type\": \"string\"\n  },\n  \"widget\": {\n   \"description\": \"Has a widget whose NAME contains this (e.g. 'seed', 'ckpt_name').\",\n   \"type\": \"string\"\n  },\n  \"widget_value\": {\n   \"description\": \"Has a widget whose VALUE contains this (e.g. a filename or prompt fragment).\",\n   \"type\": \"string\"\n  },\n  \"is_output\": {\n   \"description\": \"true = only output nodes (SaveImage/PreviewImage/…); false = exclude them.\",\n   \"type\": \"boolean\"\n  },\n  \"is_subgraph\": {\n   \"description\": \"true = only subgraph nodes.\",\n   \"type\": \"boolean\"\n  },\n  \"mode\": {\n   \"description\": \"Only nodes in this execution mode.\",\n   \"type\": \"string\",\n   \"enum\": [\n    \"active\",\n    \"bypass\",\n    \"mute\"\n   ]\n  },\n  \"limit\": {\n   \"description\": \"Max matches to return (default 40).\",\n   \"type\": \"integer\",\n   \"minimum\": 1,\n   \"maximum\": 200\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_find_nodes\", \"args\": {...}}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_e784c9fd0a024d7a88dc5345",
+      "content": "# panel_set_widget\n\nSet a widget value on a node in the user's open graph (steps, cfg, seed, ckpt_name, text prompts, …). Returns the previous and new value. Undoable with Ctrl+Z.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"node_id\": {\n   \"type\": \"integer\",\n   \"minimum\": -9007199254740991,\n   \"maximum\": 9007199254740991,\n   \"description\": \"Node id from panel_get_graph.\"\n  },\n  \"widget\": {\n   \"type\": \"string\",\n   \"description\": \"Widget name (e.g. 'steps', 'cfg', 'text').\"\n  },\n  \"value\": {\n   \"anyOf\": [\n    {\n     \"type\": \"string\"\n    },\n    {\n     \"type\": \"number\"\n    },\n    {\n     \"type\": \"boolean\"\n    }\n   ],\n   \"description\": \"New value. Must match the widget's expected type.\"\n  }\n },\n \"required\": [\n  \"node_id\",\n  \"widget\",\n  \"value\"\n ],\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_set_widget\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_a97db810cba44ef7888b9df9",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_find_nodes\", \"args\": \"{\\\"type\\\": \\\"KSampler\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_a97db810cba44ef7888b9df9",
+      "content": "Error: unknown cmd graph_find_nodes"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me try reading the graph directly:",
+      "tool_calls": [
+        {
+          "id": "call_45df56e2b02e44568bdce8bc",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"args\": \"{}\", \"name\": \"panel_get_graph\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_45df56e2b02e44568bdce8bc",
+      "content": "{\n  \"viewing\": {\n    \"scope\": \"root\"\n  },\n  \"node_count\": 7,\n  \"truncated\": false,\n  \"nodes\": [\n    {\n      \"id\": 1,\n      \"type\": \"CheckpointLoaderSimple\",\n      \"title\": \"Load Checkpoint\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 2,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Positive Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"a scenic mountain lake\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 3,\n      \"type\": \"CLIPTextEncode\",\n      \"title\": \"Negative Prompt\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"text\": \"blurry, low quality\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 4,\n      \"type\": \"EmptyLatentImage\",\n      \"title\": \"Empty Latent\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"width\": 512,\n        \"height\": 512,\n        \"batch_size\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 5,\n      \"type\": \"KSampler\",\n      \"title\": \"KSampler\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"seed\": 42,\n        \"steps\": 20,\n        \"cfg\": 7,\n        \"sampler_name\": \"euler\",\n        \"denoise\": 1\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 6,\n      \"type\": \"VAEDecode\",\n      \"title\": \"VAE Decode\",\n      \"is_subgraph\": false,\n      \"widgets\": {},\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    },\n    {\n      \"id\": 7,\n      \"type\": \"SaveImage\",\n      \"title\": \"Save Image\",\n      \"is_subgraph\": false,\n      \"widgets\": {\n        \"filename_prefix\": \"ComfyUI\"\n      },\n      \"inputs\": [\n        {\n          \"name\": \"in0\",\n          \"type\": \"*\",\n          \"link\": null\n        },\n        {\n          \"name\": \"model\",\n          \"type\": \"MODEL\",\n          \"link\": null\n        }\n      ],\n      \"outputs\": [\n        {\n          \"name\": \"out0\",\n          \"type\": \"*\",\n          \"links\": []\n        },\n        {\n          \"name\": \"MODEL\",\n          \"type\": \"MODEL\",\n          \"links\": []\n        }\n      ]\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Found your **KSampler** (node `5`) — steps are currently at **20**. Setting them to **12** now.",
+      "tool_calls": [
+        {
+          "id": "call_d3ffdbeaa6a343ce903947eb",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_set_widget\", \"args\": \"{\\\"node_id\\\": 5, \\\"widget\\\": \\\"steps\\\", \\\"value\\\": 12}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_d3ffdbeaa6a343ce903947eb",
+      "content": "{\n  \"set\": {\n    \"node_id\": 5,\n    \"widget\": \"steps\",\n    \"previous\": 20,\n    \"value\": 12\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Done! ✅ Your **KSampler** steps have been changed from **20 → 12**. You can undo this anytime with **Ctrl+Z** if needed."
+    }
+  ]
+}

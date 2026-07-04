@@ -1,0 +1,59 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "workflows-atomic-0001",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Check the system stats to see all GPU devices, their VRAM, and the ComfyUI version."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants to see system stats including GPU devices, VRAM, and ComfyUI version. I can use the get_system_stats function to get this information.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_592410728e104332a30fc490",
+          "function": {
+            "name": "get_system_stats",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to see system stats including GPU devices, VRAM, and ComfyUI version. I can use the get_system_stats function to get this information.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_592410728e104332a30fc490",
+      "content": "{\n  \"system\": {\n    \"os\": \"win32\",\n    \"ram_total\": 137190801408,\n    \"ram_free\": 90641252352,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]\",\n    \"pytorch_version\": \"2.10.0+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-desktop2-standalone\",\n    \"argv\": [\n      \"ComfyUI\\\\main.py\",\n      \"--feature-flag\",\n      \"show_signin_button=true\",\n      \"--feature-flag\",\n      \"enable_telemetry=true\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--extra-model-paths-config\",\n      \"C:\\\\Users\\\\Artokun\\\\AppData\\\\Roaming\\\\Comfy Desktop\\\\shared_model_paths.yaml\",\n      \"--input-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\input\",\n      \"--output-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\output\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25756696576,\n      \"vram_free\": 21877696694,\n      \"torch_vram_total\": 33554432,\n      \"torch_vram_free\": 14887094\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's a summary of your ComfyUI system:\n\n## GPU Device\n\n| Property | Value |\n|----------|-------|\n| **Device** | NVIDIA GeForce RTX 4090 |\n| **Type** | CUDA (cudaMallocAsync) |\n| **VRAM Total** | ~24 GB (25,756,696,576 bytes) |\n| **VRAM Free** | ~20.4 GB (21,877,696,694 bytes) |\n\n## ComfyUI Version & Environment\n\n| Property | Value |\n|----------|-------|\n| **ComfyUI Version** | **0.27.0** |\n| **Python Version** | 3.13.12 (64-bit AMD64) |\n| **PyTorch Version** | 2.10.0+cu130 |\n| **OS** | Windows (win32) |\n| **System RAM Total** | ~127.7 GB |\n| **System RAM Free** | ~84.4 GB |\n| **Deploy Environment** | local-desktop2-standalone |\n\nYour RTX 4090 has **~20.4 GB of VRAM free** out of 24 GB — plenty of headroom for most workflows including SDXL, Flux, and even large video models. The stack is up-to-date with ComfyUI 0.27.0, PyTorch 2.10.0 with CUDA 13.0, and Python 3.13.12.",
+      "refusal": null,
+      "reasoning": "The system stats have been retrieved. Let me present this information clearly to the user.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The system stats have been retrieved. Let me present this information clearly to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,30 @@
 # Training config for gemma4-abliterated-comfyui-mcp (see finetune/README.md).
 # Run on a RunPod A100 80GB / RTX Pro 6000; verify the two TEMPLATE_* markers
 # against tokenizer.apply_chat_template output on the pod before training.
+#
+# SIZE LADDER — we train the SAME dataset onto every abliterated Gemma 4 size so
+# users pick by their VRAM budget / deployment split (local LLM + local gen,
+# local LLM + RunPod gen, or small LLM everywhere). Select with --size on
+# train_qlora.py (default: the `size` key below). All use identical data +
+# hyperparameters except max_seq_length, which scales down for the small models
+# so they fit modest GPUs. Approx inference footprint at q4_k_m:
+#   size   base_model (huihui-ai/…)                     QLoRA train VRAM   local run @q4
+#   e2b    Huihui-gemma-4-E2B-it-abliterated            ~8 GB              ~2 GB
+#   e4b    Huihui-gemma-4-E4B-it-abliterated            ~10 GB             ~3.5 GB   ← "small, most users"
+#   12b    Huihui-gemma-4-12B-it-abliterated            ~16 GB             ~8 GB     ← default sweet spot
+#   31b    Huihui-gemma-4-31B-it-abliterated            ~22 GB             ~20 GB    ← "full local GPU"
+# (26B-A4B MoE intentionally omitted — QLoRA+MoE routing interact poorly.)
 
+size: 12b
+size_ladder:
+  e2b:  { base_model: huihui-ai/Huihui-gemma-4-E2B-it-abliterated, max_seq_length: 32768 }
+  e4b:  { base_model: huihui-ai/Huihui-gemma-4-E4B-it-abliterated, max_seq_length: 32768 }
+  12b:  { base_model: huihui-ai/Huihui-gemma-4-12B-it-abliterated, max_seq_length: 49152 }
+  31b:  { base_model: huihui-ai/Huihui-gemma-4-31B-it-abliterated, max_seq_length: 49152 }
+
+# Overridden per-size from size_ladder above; left here as the resolved default.
 base_model: huihui-ai/Huihui-gemma-4-12B-it-abliterated
-output_dir: outputs/gemma4-12b-comfyui-mcp
+output_dir: outputs/gemma4-comfyui-mcp
 
 # Full tool list (~30-40K tokens) + trajectory must fit. If OOM on 80GB,
 # drop to 32768 and enable the trimmed-context dataset variant.

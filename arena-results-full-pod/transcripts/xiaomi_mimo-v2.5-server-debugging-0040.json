@@ -1,0 +1,433 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "server-debugging-0040",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "I attempted to generate a 768x768 image of a 'steampunk airship' with 30 steps using the model 'dreamshaper_8', but the server failed with 'model checkpoint not found'. Help me diagnose why the model isn't loading and set it up correctly."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me diagnose the issue. I'll check the server status and available checkpoints simultaneously.",
+      "refusal": null,
+      "reasoning": "The user wants to generate an image but the model 'dreamshaper_8' wasn't found. Let me diagnose this by:\n\n1. Checking what models are available on the server\n2. Getting system stats to confirm the server is reachable\n3. Searching for the model if needed\n\nLet me start by checking the available checkpoints and system status.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_aa64fc5606f14ea18929d99e",
+          "function": {
+            "name": "get_system_stats",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_3983c4034cde424f9f983f4f",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to generate an image but the model 'dreamshaper_8' wasn't found. Let me diagnose this by:\n\n1. Checking what models are available on the server\n2. Getting system stats to confirm the server is reachable\n3. Searching for the model if needed\n\nLet me start by checking the available checkpoints and system status.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_aa64fc5606f14ea18929d99e",
+      "content": "{\n  \"system\": {\n    \"os\": \"linux\",\n    \"ram_total\": 270071574528,\n    \"ram_free\": 214483095552,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]\",\n    \"pytorch_version\": \"2.9.1+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-git\",\n    \"argv\": [\n      \"main.py\",\n      \"--listen\",\n      \"0.0.0.0\",\n      \"--port\",\n      \"3001\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--use-sage-attention\",\n      \"--enable-triton-backend\",\n      \"--user-directory\",\n      \"/workspace/user\",\n      \"--input-directory\",\n      \"/workspace/input\",\n      \"--output-directory\",\n      \"/workspace/output\",\n      \"--extra-model-paths-config\",\n      \"/opt/ComfyUI/extra_model_paths.yaml\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25296044032,\n      \"vram_free\": 24916197376,\n      \"torch_vram_total\": 33554432,\n      \"torch_vram_free\": 23986176\n    }\n  ]\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3983c4034cde424f9f983f4f",
+      "content": "## checkpoints (2)\n- JuggernautXL_v9.safetensors\n- sd_xl_base_1.0.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "**Diagnosis complete.** The server is healthy (RTX 3090 with 24GB VRAM, ComfyUI 0.27.0), but the problem is simple:\n\n### ❌ `dreamshaper_8` is **not installed**\n\nYour server only has **2 checkpoints** available:\n| # | Checkpoint |\n|---|---|\n| 1 | `JuggernautXL_v9.safetensors` (SDXL) |\n| 2 | `sd_xl_base_1.0.safetensors` (SDXL) |\n\nDreamShaper 8 is an **SD 1.5** model — it was never downloaded. Let me find it for you on HuggingFace and download it.",
+      "refusal": null,
+      "reasoning": "The issue is clear: the server only has 2 checkpoints installed:\n1. JuggernautXL_v9.safetensors\n2. sd_xl_base_1.0.safetensors\n\nThe user wants to use `dreamshaper_8`, which is NOT installed. Let me search HuggingFace for it and help them download it.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_a8db81d82f6346c48657afc9",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"dreamshaper 8 checkpoint\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The issue is clear: the server only has 2 checkpoints installed:\n1. JuggernautXL_v9.safetensors\n2. sd_xl_base_1.0.safetensors\n\nThe user wants to use `dreamshaper_8`, which is NOT installed. Let me search HuggingFace for it and help them download it.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a8db81d82f6346c48657afc9",
+      "content": "No models found for \"dreamshaper 8 checkpoint\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me try a broader search on HuggingFace for DreamShaper.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_aa4650f87d42401686718255",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"dreamshaper\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me try a broader search on HuggingFace for DreamShaper.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_aa4650f87d42401686718255",
+      "content": "1. **Lykon/dreamshaper-xl-1-0** by unknown\n   Downloads: 14,368 | Likes: 42\n   Tags: diffusers, safetensors, stable-diffusion, stable-diffusion-diffusers, stable-diffusion-xl\n\n2. **amd/dreamshaper-xl-lightning_io32_amdgpu** by unknown\n   Downloads: 0 | Likes: 3\n   Tags: onnx, license:apache-2.0, region:us\n\n3. **stduhpf/dreamshaper-8LCM-im-GGUF-sdcpp** by unknown\n   Downloads: 760 | Likes: 2\n   Tags: gguf, text-to-image, base_model:Lykon/dreamshaper-8-lcm, base_model:quantized:Lykon/dreamshaper-8-lcm, license:creativeml-openrail-m\n\n4. **BulentOngun/coreml-dreamshaper-xl-turbo** by unknown\n   Downloads: 0 | Likes: 1\n   Tags: coreml, text-to-image, stable-diffusion-xl, base_model:Lykon/dreamshaper-xl-v2-turbo, base_model:finetune:Lykon/dreamshaper-xl-v2-turbo\n\n5. **darkmaniac7/TokForge-DreamShaper-8-LCM-CoreML-6bit** by unknown\n   Downloads: 0 | Likes: 1\n   Tags: ml-stable-diffusion, text-to-image, stable-diffusion, dreamshaper, lcm\n\n6. **Lykon/DreamShaper** by unknown\n   Downloads: 236,406 | Likes: 1012\n   Tags: diffusers, stable-diffusion, stable-diffusion-diffusers, text-to-image, art\n\n7. **jzli/DreamShaper-3.3** by unknown\n   Downloads: 8 | Likes: 20\n   Tags: diffusers, endpoints_compatible, diffusers:StableDiffusionPipeline, region:us\n\n8. **Airic/Dreamshaper_33-vae** by unknown\n   Downloads: 0 | Likes: 0\n   Tags: region:us\n\n9. **trysem/DreamShaper-3.3** by unknown\n   Downloads: 12 | Likes: 2\n   Tags: diffusers, text-to-image, endpoints_compatible, diffusers:StableDiffusionPipeline, region:us\n\n10. **lin368/DreamShaper-v3.3** by unknown\n   Downloads: 0 | Likes: 1\n   Tags: license:creativeml-openrail-m, region:us"
+    },
+    {
+      "role": "assistant",
+      "content": "DreamShaper 8 is hosted on **CivitAI** (by Lykon). Let me download it directly from there into your checkpoints folder.",
+      "refusal": null,
+      "reasoning": "The DreamShaper 8 model is typically hosted on CivitAI. Let me search for it there. Actually, let me try to find the direct download URL. The model is \"DreamShaper 8\" by Lykon on CivitAI. The CivitAI model ID is 4384. Let me try downloading it from CivitAI.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_676ec4ee1d954dcfb14dd34f",
+          "function": {
+            "name": "download_civitai_model",
+            "arguments": "{\"model_id\": 4384, \"target_subfolder\": \"checkpoints\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The DreamShaper 8 model is typically hosted on CivitAI. Let me search for it there. Actually, let me try to find the direct download URL. The model is \"DreamShaper 8\" by Lykon on CivitAI. The CivitAI model ID is 4384. Let me try downloading it from CivitAI.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_676ec4ee1d954dcfb14dd34f",
+      "content": "MCP error: MCP error -32001: Request timed out"
+    },
+    {
+      "role": "assistant",
+      "content": "The CivitAI download timed out (the model is ~2GB). Let me try an alternative — downloading the model directly via a known HuggingFace mirror or direct URL.",
+      "refusal": null,
+      "reasoning": "The CivitAI download timed out. Let me try with a direct URL approach or try again. Let me search for the direct download link for DreamShaper 8 on HuggingFace or find an alternative.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_3e08753ad2b14b8d8d3b30f3",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"Lykon dreamshaper 8 safetensors\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The CivitAI download timed out. Let me try with a direct URL approach or try again. Let me search for the direct download link for DreamShaper 8 on HuggingFace or find an alternative.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3e08753ad2b14b8d8d3b30f3",
+      "content": "No models found for \"Lykon dreamshaper 8 safetensors\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me try downloading from CivitAI again, but this time I'll try with a specific version ID. Or let me try a direct URL. Actually, let me try the download with a longer timeout or use the download_model tool with a direct URL.\n\nLet me try searching for DreamShaper 8 on HuggingFace with a different query.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_16bab41e622b4f1a8faf214a",
+          "function": {
+            "name": "search_models",
+            "arguments": "{\"query\": \"dreamshaper-8 Lykon sd15\", \"limit\": 5}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me try downloading from CivitAI again, but this time I'll try with a specific version ID. Or let me try a direct URL. Actually, let me try the download with a longer timeout or use the download_model tool with a direct URL.\n\nLet me try searching for DreamShaper 8 on HuggingFace with a different query.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_16bab41e622b4f1a8faf214a",
+      "content": "No models found for \"dreamshaper-8 Lykon sd15\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me retry the CivitAI download — timeouts can be transient with large files:",
+      "refusal": null,
+      "reasoning": "HuggingFace doesn't have DreamShaper 8 directly. It's a CivitAI model. Let me try the CivitAI download again, or try to find a direct download URL. Let me try using the CivitAI model version ID approach, or try a direct URL.\n\nActually, I know the DreamShaper 8 model is at CivitAI model ID 4384. The latest version is typically the one people want. Let me try again with the model_version_id approach, or try a direct download from the known CivitAI URL.\n\nLet me try downloading with a direct URL. The CivitAI download URL for DreamShaper 8 would be something like:\nhttps://civitai.com/api/download/models/128713\n\nBut I don't have the exact version ID. Let me try the download_civitai_model again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_4eefa3a71c874b1a9d87d042",
+          "function": {
+            "name": "download_civitai_model",
+            "arguments": "{\"model_id\": 4384, \"target_subfolder\": \"checkpoints\", \"filename\": \"dreamshaper_8.safetensors\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "HuggingFace doesn't have DreamShaper 8 directly. It's a CivitAI model. Let me try the CivitAI download again, or try to find a direct download URL. Let me try using the CivitAI model version ID approach, or try a direct URL.\n\nActually, I know the DreamShaper 8 model is at CivitAI model ID 4384. The latest version is typically the one people want. Let me try again with the model_version_id approach, or try a direct download from the known CivitAI URL.\n\nLet me try downloading with a direct URL. The CivitAI download URL for DreamShaper 8 would be something like:\nhttps://civitai.com/api/download/models/128713\n\nBut I don't have the exact version ID. Let me try the download_civitai_model again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_4eefa3a71c874b1a9d87d042",
+      "content": "MCP error: MCP error -32001: Request timed out"
+    },
+    {
+      "role": "assistant",
+      "content": "The CivitAI download keeps timing out (large file over network). Let me try a direct URL download from an alternative source:",
+      "refusal": null,
+      "reasoning": "The CivitAI download keeps timing out. Let me try downloading from a direct URL instead, perhaps from a HuggingFace mirror of the model or another source. Let me search for the model on HuggingFace with a more specific query.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_374842b8f12946f18677e147",
+          "function": {
+            "name": "download_model",
+            "arguments": "{\"url\": \"https://huggingface.co/stablediffusionapi/dreamshaper/resolve/main/dreamshaper_8.safetensors\", \"target_subfolder\": \"checkpoints\", \"filename\": \"dreamshaper_8.safetensors\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The CivitAI download keeps timing out. Let me try downloading from a direct URL instead, perhaps from a HuggingFace mirror of the model or another source. Let me search for the model on HuggingFace with a more specific query.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_374842b8f12946f18677e147",
+      "content": "Model downloaded successfully to:\ncheckpoints/dreamshaper_8.safetensors (installed on the remote ComfyUI via ComfyUI-Manager)"
+    },
+    {
+      "role": "assistant",
+      "content": "The model downloaded successfully. Let me verify it's available and then generate your image.",
+      "refusal": null,
+      "reasoning": "The model downloaded successfully. Now let me verify it's in the checkpoints folder, and then try generating the image again.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_526e7ecc83584317882059d4",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The model downloaded successfully. Now let me verify it's in the checkpoints folder, and then try generating the image again.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_526e7ecc83584317882059d4",
+      "content": "## checkpoints (3)\n- JuggernautXL_v9.safetensors\n- dreamshaper_8.safetensors\n- sd_xl_base_1.0.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "`dreamshaper_8.safetensors` is now installed and visible. Let me generate your image:",
+      "refusal": null,
+      "reasoning": "The model is now available. Let me now generate the image with the requested parameters:\n- prompt: \"steampunk airship\"\n- width: 768\n- height: 768\n- steps: 30\n- checkpoint: dreamshaper_8.safetensors\n\nDreamShaper 8 is an SD 1.5 model, so these settings should work well. Let me generate the image.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2b0dc885cfbe4f34a3be1b35",
+          "function": {
+            "name": "generate_image",
+            "arguments": "{\"prompt\": \"steampunk airship\", \"width\": 768, \"height\": 768, \"steps\": 30, \"checkpoint\": \"dreamshaper_8.safetensors\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The model is now available. Let me now generate the image with the requested parameters:\n- prompt: \"steampunk airship\"\n- width: 768\n- height: 768\n- steps: 30\n- checkpoint: dreamshaper_8.safetensors\n\nDreamShaper 8 is an SD 1.5 model, so these settings should work well. Let me generate the image.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2b0dc885cfbe4f34a3be1b35",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"131f59d1-09d1-4743-8bce-076510dbda6f\",\n  \"checkpoint\": \"dreamshaper_8.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Generation enqueued! Let me poll for completion:",
+      "refusal": null,
+      "reasoning": "The image generation has been enqueued. Let me wait for it to complete by checking the job status.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_55643b466faf4ca9877d1750",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"131f59d1-09d1-4743-8bce-076510dbda6f\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image generation has been enqueued. Let me wait for it to complete by checking the job status.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_55643b466faf4ca9877d1750",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 4485,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Generation complete! Let me show you the result:",
+      "refusal": null,
+      "reasoning": "The generation is complete. Let me view the image to show the user the result.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_56e629ef213b499f9929255d",
+          "function": {
+            "name": "list_assets",
+            "arguments": "{\"limit\": 1}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The generation is complete. Let me view the image to show the user the result.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_56e629ef213b499f9929255d",
+      "content": "{\n  \"count\": 1,\n  \"assets\": [\n    {\n      \"asset_id\": \"a_896e83b4\",\n      \"prompt_id\": \"131f59d1-09d1-4743-8bce-076510dbda6f\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_00004_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"https://l0xfaimbq622gy-3000.proxy.runpod.net:443/view?filename=ComfyUI_00004_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T19:28:06.549Z\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me view the generated image.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_70e247ae44bd43f08b9fb919",
+          "function": {
+            "name": "view_image",
+            "arguments": "{\"asset_id\": \"a_896e83b4\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me view the generated image.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_70e247ae44bd43f08b9fb919",
+      "content": "Asset a_896e83b4 — ComfyUI_00004_.png (image/png)"
+    },
+    {
+      "role": "assistant",
+      "content": "---\n\n## ✅ Problem Diagnosed & Resolved\n\n### What went wrong\nYour server had **only 2 SDXL checkpoints** installed (`JuggernautXL_v9` and `sd_xl_base_1.0`). The `dreamshaper_8` model (an SD 1.5 checkpoint by Lykon) was **never downloaded**, so ComfyUI couldn't find it.\n\n### What I did\n| Step | Action |\n|------|--------|\n| 1 | Confirmed server health — RTX 3090, 24GB VRAM, ComfyUI 0.27.0 ✅ |\n| 2 | Listed available checkpoints — `dreamshaper_8` was missing ❌ |\n| 3 | Downloaded `dreamshaper_8.safetensors` from HuggingFace → `checkpoints/` |\n| 4 | Verified the model now appears in the checkpoint list ✅ |\n| 5 | Generated your **768×768 steampunk airship** image with 30 steps ✅ |\n\n### Output\n- **Prompt ID:** `131f59d1-09d1-4743-8bce-076510dbda6f`\n- **Asset ID:** `a_896e83b4`\n- **File:** `ComfyUI_00004_.png`\n- **Generation time:** ~4.5 seconds\n\nYour steampunk airship image is ready! You can now use `dreamshaper_8` in any future workflow. If you want to tweak the result, I can regenerate with different settings (CFG, seed, sampler, etc.).",
+      "refusal": null,
+      "reasoning": "The image was generated successfully. Let me now provide a summary to the user.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image was generated successfully. Let me now provide a summary to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

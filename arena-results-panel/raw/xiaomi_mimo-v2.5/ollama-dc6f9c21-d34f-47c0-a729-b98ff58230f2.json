@@ -1,0 +1,93 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Did my last run hit any errors? Check and tell me."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_ad22f924334f41e1a8ea3052",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"queue history error\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_ad22f924334f41e1a8ea3052",
+      "content": "No tools matched (category=any, search=queue history error). Categories: workflows, workflow-authoring, custom-nodes, models, skills-config, diagnostics, server, images-assets, generation"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_31c52ee7bae8466897f4f343",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"queue\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_31c52ee7bae8466897f4f343",
+      "content": "comfyui-mcp tool catalog — 29 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (12)\n- enqueue_workflow: Submit a ComfyUI workflow for execution and return immediately with the prompt_id and queue position.\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_queue: Get the current ComfyUI execution queue: the job running now plus all pending jobs, each with its prompt_id and position.\n- get_queued_workflow: Return the full workflow payload for one PENDING queue item by prompt_id.\n- move_queued_job: Move a PENDING ComfyUI queue item to the front or back by removing it and re-enqueuing its saved workflow payload.\n- edit_queued_job: Edit a PENDING ComfyUI queue item by removing it and re-enqueuing an updated workflow.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n- cancel_job: Stop the CURRENTLY RUNNING ComfyUI job ROBUSTLY.\n- cancel_queued_job: Remove a specific pending job from the ComfyUI queue by prompt_id.\n- clear_queue: Clear all pending jobs from the ComfyUI queue.\n- run_workflow_url: Read (and optionally execute) a shared ComfyUI workflow from a URL.\n- install_workflow_dependencies: Resolve and install the custom node packs a ComfyUI workflow requires via ComfyUI-Manager.\n\n## workflow-authoring (4)\n- create_workflow: Create a ready-to-run ComfyUI API-format workflow from a built-in template (txt2img, img2img, upscale, inpaint, controlnet, ip_adapter, ace_step_15, stable_aud…\n- get_workflow: Load a saved workflow and return its raw JSON.\n- analyze_workflow: Load a saved workflow and return a structured analysis — sections, node settings, connections, and data flow.\n- dsl_to_workflow: Convert the compact workflow DSL (see workflow_to_dsl) back into executable ComfyUI API-format JSON.\n\n## models (2)\n- download_model: Download a model file to the connected ComfyUI's models directory from a URL (HuggingFace, direct HTTP(S), s3://, or Azure Blob).\n- download_civitai_model: Download a model from CivitAI into the connected ComfyUI's models/ directory.\n\n## skills-config (1)\n- read_pack_workflow: Return a bundled pack's ready workflow.json graph by pack name (discover names + which packs have a workflow with list_packs).\n\n## diagnostics (2)\n- get_history: Get execution history for a ComfyUI prompt.\n- health_check: Pre-flight diagnostic for the connected ComfyUI: one call that aggregates the signals an agent should check before dispatching a batch.\n\n## server (2)\n- update_all: Update ALL installed custom nodes via the ComfyUI-Manager HTTP API (queues update_all, then starts the queue worker).\n- configure_manager: Configure ComfyUI-Manager settings, mirroring `comfy-cli manager` subcommands.\n\n## images-assets (2)\n- view_image: Fetch a registered asset's bytes and return them as an inline image so the agent can see the result.\n- regenerate: Re-enqueue the workflow that produced an existing asset, optionally applying parameter overrides.\n\n## generation (4)\n- generate_image: Generate an image from a text prompt — the high-level entry point.\n- remove_background: Remove an image's background, returning a transparent (RGBA) cutout — the high-level entry point.\n- upscale_image: Upscale an image with an ESRGAN super-resolution model — the high-level entry point.\n- generate_with_api_node: Build a minimal single-node workflow that runs a chosen API/partner node with the provided inputs and enqueue it.\n\nThis is a FILTERED view (84 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_ecfd0ee1efcd432a925a939c",
+          "function": {
+            "name": "describe_tool",
+            "arguments": "{\"name\": \"get_history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "describe_tool",
+      "tool_call_id": "call_ecfd0ee1efcd432a925a939c",
+      "content": "# get_history  (category: diagnostics)\n\nGet execution history for a ComfyUI prompt. Returns status, timing, cached nodes, output details, and full error information including Python tracebacks. Use after a failed enqueue_workflow to diagnose what went wrong.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"prompt_id\": {\n   \"description\": \"Specific prompt ID to look up (returned by enqueue_workflow). If omitted, returns the most recent COMMITTED execution (chosen by ComfyUI's queue number, not dict order). Note: immediately after a run finishes it can briefly lag by one until ComfyUI commits the new entry — pass the prompt_id from enqueue_workflow to get that exact run, and prefer the run-finished event for naming a just-produced output.\",\n   \"type\": \"string\"\n  }\n }\n}\n\nRun it with: call_tool {\"name\": \"get_history\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_4472671f8d18454e8aa5d6b9",
+          "function": {
+            "name": "call_tool",
+            "arguments": "{\"name\": \"get_history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "call_tool",
+      "tool_call_id": "call_4472671f8d18454e8aa5d6b9",
+      "content": "## Execution: 2f16470d-991d-41cd-92fc-19f436c6ada2\n**Status**: success | Completed: true\n**Duration**: 29.53s\n\n### Outputs (1 nodes)\n- Node 27: images → **video/ltx-2.3_00002_.mp4**"
+    },
+    {
+      "role": "assistant",
+      "content": "Your last run **completed successfully** with no errors! 🎉\n\nHere's the summary:\n\n| Field | Detail |\n|-------|--------|\n| **Prompt ID** | `2f16470d-991d-41cd-92fc-19f436c6ada2` |\n| **Status** | ✅ Success |\n| **Duration** | 29.53 seconds |\n| **Output** | A video file: `ltx-2.3_00002_.mp4` |\n\nNo errors, no warnings — everything ran clean. Want me to show you the generated video or queue up another run?"
+    }
+  ]
+}

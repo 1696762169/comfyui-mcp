@@ -1,0 +1,87 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Run my current graph."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_e90609fe463845d190763ea6",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"queue\"}"
+          }
+        },
+        {
+          "id": "call_665dcd01a50b4e6d8067b89d",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"run\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_e90609fe463845d190763ea6",
+      "content": "Live-canvas panel tools — 7 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…\n- panel_subgraph_group: Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units.\n- panel_install_node: Install a custom-node pack into the user's ComfyUI via the BUILT-IN Manager (queues the install).\n- panel_update_node: Update an ALREADY-INSTALLED custom-node pack to its latest (or nightly) code via the BUILT-IN Manager — the first thing to try when a node is broken or CRASHED…\n- panel_node_queue_status: Check the built-in Manager's install/update queue status (to see if a queued install finished).\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes."
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_665dcd01a50b4e6d8067b89d",
+      "content": "Live-canvas panel tools — 10 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_load_workflow: Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph).\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…\n- panel_set_todo: Show/update a live TODO checklist in the panel's footer tray — a running view of your plan that the user watches as you work a multi-step task.\n- panel_subgraph_group: Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units.\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_c116671b91db4af785166be4",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_run\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_c116671b91db4af785166be4",
+      "content": "# panel_run\n\nQueue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see). Returns queued:true, or queued:false with node_errors when frontend validation fails. Pass to_node_id to RUN ONLY ONE BRANCH ('run to node'): ComfyUI renders just that output node plus everything upstream of it and SKIPS every other output branch — handy for previewing or debugging part of a big graph without rendering the whole thing. to_node_id MUST be an OUTPUT node (SaveImage, PreviewImage, SaveVideo, …) — pick the one at the END of the branch you want; nodes are tagged is_output:true in panel_get_graph. Omit it to run the whole graph. Use this so the render runs on THEIR canvas and they see the result.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"batch_count\": {\n   \"description\": \"Times to queue (default 1).\",\n   \"type\": \"integer\",\n   \"minimum\": 1,\n   \"maximum\": 100\n  },\n  \"to_node_id\": {\n   \"description\": \"Output node id to render UP TO (partial execution). Omit to run the whole graph. Must be an OUTPUT node — one with is_output:true in panel_get_graph.\",\n   \"type\": \"integer\",\n   \"minimum\": -9007199254740991,\n   \"maximum\": 9007199254740991\n  }\n },\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_run\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_794e50ffcff349be9227ebcd",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_run\", \"args\": \"{}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_794e50ffcff349be9227ebcd",
+      "content": "{\n  \"queued\": true,\n  \"batch_count\": 1\n}\n\n[IMPORTANT] You will be notified automatically with the output image(s)/video when the render finishes — do NOT poll get_queue, get_history, or list_output_images. Just end your turn now and wait for the result to be delivered to you."
+    },
+    {
+      "role": "assistant",
+      "content": "Your workflow has been queued and is running! 🚀 \n\nThe graph is executing with 1 batch — you'll see the result(s) appear on your canvas and I'll get notified when the render finishes. Just wait for the output to pop up."
+    }
+  ]
+}

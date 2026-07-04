@@ -1,0 +1,74 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Did my last run hit any errors? Check and tell me."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_b9a86fb355354a9a86bd737c",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"error\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_b9a86fb355354a9a86bd737c",
+      "content": "comfyui-mcp tool catalog — 23 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (4)\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_system_stats: Get system information from the connected ComfyUI server: GPU device(s), total/free VRAM, ComfyUI/Python/PyTorch versions, and OS details.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n- run_workflow_url: Read (and optionally execute) a shared ComfyUI workflow from a URL.\n\n## workflow-authoring (2)\n- validate_workflow: Validate a ComfyUI workflow without executing it.\n- save_workflow: Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI.\n\n## custom-nodes (7)\n- install_custom_node: Install a ComfyUI custom node pack by registry id (e.g.\n- update_custom_node: Update an installed ComfyUI custom node pack, or pass 'all' to update every installed pack.\n- reinstall_custom_node: Reinstall a ComfyUI custom node pack (uninstall then install).\n- fix_custom_node: Repair a ComfyUI custom node pack's install and Python dependencies, or pass 'all' to repair every pack.\n- list_installed_nodes: List installed ComfyUI custom node packs with their version and enabled/disabled state.\n- sync_node_dependencies: Reconcile the Python dependencies of all installed custom node packs (comfy-cli `node uv-sync` analogue).\n- verify_custom_node: Test that a custom-node pack actually loads in ComfyUI — the middle step of the author loop (scaffold_custom_node → verify_custom_node → publish_custom_node).\n\n## diagnostics (4)\n- get_logs: Get ComfyUI server runtime logs.\n- get_history: Get execution history for a ComfyUI prompt.\n- report_issue: Build a ready-to-open GitHub issue link for a bug/problem you hit (ComfyUI, a workflow, a model, custom nodes, or comfyui-mcp itself).\n- health_check: Pre-flight diagnostic for the connected ComfyUI: one call that aggregates the signals an agent should check before dispatching a batch.\n\n## server (3)\n- update_comfyui: Update the ComfyUI core install: runs `git pull` in the configured ComfyUI directory and reinstalls its Python requirements (auto-detecting uv vs pip).\n- install_panel: Install, update, reinstall, or report status of the ComfyUI sidebar panel ('comfyui-agent-panel' on the Comfy Registry; repo comfyui-mcp-panel) in the LOCAL Co…\n- self_update: Check or apply a self-update of the comfyui-mcp npm package against the npm registry.\n\n## generation (3)\n- generate_video: Generate a short video from a text prompt (text-to-video), or animate a start image (image-to-video when `image` is given) — the high-level entry point.\n- remove_background: Remove an image's background, returning a transparent (RGBA) cutout — the high-level entry point.\n- upscale_image: Upscale an image with an ESRGAN super-resolution model — the high-level entry point.\n\nThis is a FILTERED view (90 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_75af5f53070846f1910a31c5",
+          "function": {
+            "name": "describe_tool",
+            "arguments": "{\"name\": \"get_logs\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "describe_tool",
+      "tool_call_id": "call_75af5f53070846f1910a31c5",
+      "content": "# get_logs  (category: diagnostics)\n\nGet ComfyUI server runtime logs. Useful for debugging execution errors, model loading issues, missing nodes, and Python tracebacks.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"max_lines\": {\n   \"description\": \"Maximum number of log lines to return from the end (default: 100)\",\n   \"type\": \"integer\",\n   \"minimum\": 1,\n   \"maximum\": 2000\n  },\n  \"keyword\": {\n   \"description\": \"Filter log lines containing this keyword (case-insensitive). Examples: 'error', 'warning', 'VRAM', a node name\",\n   \"type\": \"string\"\n  }\n }\n}\n\nRun it with: call_tool {\"name\": \"get_logs\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_ef11f73d3ef84c3d804603f2",
+          "function": {
+            "name": "call_tool",
+            "arguments": "{\"name\": \"get_logs\", \"args\": \"{\\\"keyword\\\": \\\"error\\\", \\\"max_lines\\\": 100}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "call_tool",
+      "tool_call_id": "call_ef11f73d3ef84c3d804603f2",
+      "content": "2026-07-04T12:14:32.064089 - [ERROR] Failed to validate prompt for output 10:\n2026-07-04T12:14:32.064156 - [ERROR] * (prompt):\n2026-07-04T12:14:32.064189 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:14:32.064221 - [ERROR] * DualCLIPLoader 2:\n2026-07-04T12:14:32.064249 - [ERROR]   - Value not in list: clip_name2: 'qwen_4b_ace15.safetensors' not in ['ernie-image-prompt-enhancer.safetensors', 'gemma4_e4b_it_fp8_scaled.safetensors', 'gemma_3_12B_it_fp4_mixed.safetensors', 'gemma_3_12B_it_fp8_scaled.safetensors', 'ltx-2.3_text_projection_bf16.safetensors', 'ministral-3-3b.safetensors', 'qwen3vl_4b_fp8_scaled.safetensors', 'qwen3vl_8b_fp8_scaled.safetensors', 'qwen_3_06b_base.safetensors', 'umt5-xxl-enc-bf16.safetensors', 'umt5_xxl_fp8_e4m3fn_scaled.safetensors']\n2026-07-04T12:14:32.064279 - [ERROR] * TextEncodeAceStepAudio1.5 6:\n2026-07-04T12:14:32.064303 - [ERROR]   - Required input is missing: generate_audio_codes\n2026-07-04T12:14:32.064328 - [ERROR]   - Required input is missing: timesignature\n2026-07-04T12:14:32.064351 - [ERROR]   - Required input is missing: keyscale\n2026-07-04T12:14:32.064373 - [ERROR]   - Required input is missing: cfg_scale\n2026-07-04T12:14:32.064395 - [ERROR]   - Required input is missing: temperature\n2026-07-04T12:14:32.064418 - [ERROR]   - Required input is missing: bpm\n2026-07-04T12:14:32.064439 - [ERROR]   - Required input is missing: top_p\n2026-07-04T12:14:32.064460 - [ERROR]   - Required input is missing: min_p\n2026-07-04T12:14:32.064484 - [ERROR]   - Required input is missing: top_k\n2026-07-04T12:14:32.064508 - [ERROR]   - Required input is missing: tags\n2026-07-04T12:14:32.064534 - [ERROR] * UNETLoader 1:\n2026-07-04T12:14:32.064556 - [ERROR]   - Required input is missing: unet_name\n2026-07-04T12:14:32.064579 - [ERROR] * SaveAudioMP3 10:\n2026-07-04T12:14:32.064601 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:14:32.064623 - [ERROR] Output will be ignored\n2026-07-04T12:18:08.766976 - [ERROR] Failed to validate prompt for output 10:\n2026-07-04T12:18:08.767062 - [ERROR] * (prompt):\n2026-07-04T12:18:08.767100 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:08.767131 - [ERROR] * DualCLIPLoader 2:\n2026-07-04T12:18:08.767163 - [ERROR]   - Value not in list: clip_name2: 'qwen_4b_ace15.safetensors' not in ['ernie-image-prompt-enhancer.safetensors', 'gemma4_e4b_it_fp8_scaled.safetensors', 'gemma_3_12B_it_fp4_mixed.safetensors', 'gemma_3_12B_it_fp8_scaled.safetensors', 'ltx-2.3_text_projection_bf16.safetensors', 'ministral-3-3b.safetensors', 'qwen3vl_4b_fp8_scaled.safetensors', 'qwen3vl_8b_fp8_scaled.safetensors', 'qwen_3_06b_base.safetensors', 'umt5-xxl-enc-bf16.safetensors', 'umt5_xxl_fp8_e4m3fn_scaled.safetensors']\n2026-07-04T12:18:08.767194 - [ERROR] * TextEncodeAceStepAudio1.5 6:\n2026-07-04T12:18:08.767226 - [ERROR]   - Required input is missing: generate_audio_codes\n2026-07-04T12:18:08.767259 - [ERROR]   - Required input is missing: timesignature\n2026-07-04T12:18:08.767285 - [ERROR]   - Required input is missing: keyscale\n2026-07-04T12:18:08.767309 - [ERROR]   - Required input is missing: cfg_scale\n2026-07-04T12:18:08.767332 - [ERROR]   - Required input is missing: temperature\n2026-07-04T12:18:08.767356 - [ERROR]   - Required input is missing: bpm\n2026-07-04T12:18:08.767379 - [ERROR]   - Required input is missing: top_p\n2026-07-04T12:18:08.767405 - [ERROR]   - Required input is missing: min_p\n2026-07-04T12:18:08.767429 - [ERROR]   - Required input is missing: top_k\n2026-07-04T12:18:08.767452 - [ERROR]   - Required input is missing: tags\n2026-07-04T12:18:08.767478 - [ERROR] * UNETLoader 1:\n2026-07-04T12:18:08.767503 - [ERROR]   - Required input is missing: unet_name\n2026-07-04T12:18:08.767528 - [ERROR] * SaveAudioMP3 10:\n2026-07-04T12:18:08.767564 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:08.767599 - [ERROR] Output will be ignored\n2026-07-04T12:18:23.335671 - [ERROR] Failed to validate prompt for output 8:\n2026-07-04T12:18:23.335753 - [ERROR] * (prompt):\n2026-07-04T12:18:23.335788 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:23.335819 - [ERROR] * SaveAudioMP3 8:\n2026-07-04T12:18:23.335848 - [ERROR]   - Required input is missing: quality\n2026-07-04T12:18:23.335874 - [ERROR] Output will be ignored"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes — your last run hit **validation errors** (the same set repeated a few times). Here's the breakdown:\n\n---\n\n### 1. 🔴 `DualCLIPLoader 2` — Model file not found\n> **`qwen_4b_ace15.safetensors`** is not in the list of available clip models.\n\nThe available options are: `ernie-image-prompt-enhancer`, `gemma4_e4b_it_fp8_scaled`, `gemma_3_12B_it_fp4_mixed`, `gemma_3_12B_it_fp8_scaled`, `ltx-2.3_text_projection_bf16`, `ministral-3-3b`, `qwen3vl_4b_fp8_scaled`, `qwen3vl_8b_fp8_scaled`, `qwen_3_06b_base`, `umt5-xxl-enc-bf16`, `umt5_xxl_fp8_e4m3fn_scaled`.\n\nYou'll need to either **download** `qwen_4b_ace15.safetensors` into your CLIP models folder, or **switch** to one of the listed models.\n\n---\n\n### 2. 🔴 `UNETLoader 1` — Missing input\n> Required input **`unet_name`** is not connected/set.\n\nThe UNET loader has no model selected. You need to wire a UNET file name into this node.\n\n---\n\n### 3. 🔴 `TextEncodeAceStepAudio1.5 6` — Many missing inputs\n> Required inputs are missing: `generate_audio_codes`, `timesignature`, `keyscale`, `cfg_scale`, `temperature`, `bpm`, `top_p`, `min_p`, `top_k`, `tags`.\n\nThis text-encoder node has a lot of required parameters that aren't wired up.\n\n---\n\n### 4. 🔴 `SaveAudioMP3 8 & 10` / Prompt root — Missing `quality`\n> Required input **`quality`** is missing on `SaveAudioMP3` nodes (and propagated to the prompt level).\n\nBoth audio save nodes need a `quality` parameter set (e.g., `128`, `192`, `320`).\n\n---\n\n### Summary\nThe workflow **failed validation and never actually executed**. It looks like an Ace-Step audio generation workflow that's missing:\n- A valid CLIP model file\n- A UNET model selection  \n- Multiple required audio-encoding parameters\n- MP3 quality settings\n\nWant me to take a look at your live canvas and help fix these nodes?"
+    }
+  ]
+}

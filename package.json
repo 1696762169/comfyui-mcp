@@ -37,6 +37,7 @@
     "ft:seed": "node finetune/datagen/convert-seed-transcripts.mjs",
     "ft:tasks": "node finetune/datagen/synth-tasks.mjs",
     "arena:full": "npm run build && node scripts/llm-arena-full.mjs",
+    "arena:panel": "npm run build && node scripts/panel-arena.mjs",
     "packs:gen": "node scripts/gen-pack-installers.mjs",
     "packs:validate": "node scripts/validate-manifests.mjs",
     "packs:test": "bash scripts/test-packs.sh",

@@ -1,0 +1,59 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "skills-config-atomic-0025",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "List every official workflow template I have available on my connected ComfyUI server right now."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants to see all official workflow templates available on their ComfyUI server. I should use the list_workflow_templates tool to get this information.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_3adff0fb848b4bdba9041846",
+          "function": {
+            "name": "list_workflow_templates",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to see all official workflow templates available on their ComfyUI server. I should use the list_workflow_templates tool to get this information.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3adff0fb848b4bdba9041846",
+      "content": "{\n  \"source_count\": 2,\n  \"template_count\": 2,\n  \"templates\": {\n    \"ComfyUI-Pixal3D-Pozzetti\": [\n      \"pixal3d_basic\"\n    ],\n    \"ComfyUI-MoGe2\": [\n      \"simple\"\n    ]\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are the official workflow templates available on your connected ComfyUI server:\n\n## Available Workflow Templates\n\n| Source Pack | Template Name |\n|-------------|---------------|\n| **ComfyUI-Pixal3D-Pozzetti** | `pixal3d_basic` |\n| **ComfyUI-MoGe2** | `simple` |\n\n**Total:** 2 templates from 2 custom node packs\n\nThese are the templates installed via the `comfyui-workflow-templates` package and any custom-node-provided templates on your server. The templates are visible in the ComfyUI web UI's Templates browser, but note that loading them onto the canvas is done through the frontend interface directly.",
+      "refusal": null,
+      "reasoning": "The tool returned the available workflow templates from the ComfyUI server. There are 2 sources with 1 template each:\n1. ComfyUI-Pixal3D-Pozzetti: pixal3d_basic\n2. ComfyUI-MoGe2: simple\n\nThis is a relatively short list - only 2 templates total. I should present this clearly to the user.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The tool returned the available workflow templates from the ComfyUI server. There are 2 sources with 1 template each:\n1. ComfyUI-Pixal3D-Pozzetti: pixal3d_basic\n2. ComfyUI-MoGe2: simple\n\nThis is a relatively short list - only 2 templates total. I should present this clearly to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

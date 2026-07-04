@@ -41,6 +41,26 @@ Scale by raising `SYNTH_PER_CATEGORY` and adding teachers. PoC gate: ~3-5k
 trajectories. Full run: 20-50k (parallelize with several ComfyUI instances /
 a RunPod ComfyUI pod; the harness is one-process-per-ComfyUI).
 
+**Mutating tasks** (custom-nodes / models / server categories install packs,
+download models, restart ComfyUI) run against a DISPOSABLE RunPod ComfyUI pod
+(template `bnqtkvcer3`), never the daily-driver install: set `COMFYUI_URL` to
+the pod proxy and pass the filtered task file.
+
+### Panel (live-canvas) trajectories — the deployment surface
+
+The fine-tune deploys as the PANEL agent, whose full surface is the 113 MCP
+tools PLUS the panel_* live-canvas tools. `npm run arena:panel`
+(scripts/panel-arena.mjs) generates that half: real orchestrator + Ollama
+backend (teacher via OpenRouter), a HEADLESS mock panel (scripts/mock-graph.mjs)
+executing graph_*/workflow_* in-memory, verdicts checked against the mock graph
+state, transcripts harvested via the `COMFYUI_MCP_TRANSCRIPT_DIR` hook in
+ollama-backend and rewritten from the compact 6-router form to direct calls
+under `FULL_PANEL_SYSTEM_PROMPT`. Output: `arena-results-panel/trajectories.jsonl`
+(records carry `surface: "panel"`).
+
+Target mix: ~45% headless MCP / ~30% panel / ~15% general tool-calling
+(Toucan/xLAM) / ~10% domain Q&A.
+
 ## Phase 2 — train (RunPod A100 80GB or RTX Pro 6000, spot)
 
 ```bash

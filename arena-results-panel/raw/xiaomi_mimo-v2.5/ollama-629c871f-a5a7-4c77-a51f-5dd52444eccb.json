@@ -1,0 +1,83 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Did my last run hit any errors? Check and tell me."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_4391cc37073f496f92eba6b2",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"history\"}"
+          }
+        },
+        {
+          "id": "call_3b83189cbb0f4e288ceda5a1",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"error\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_4391cc37073f496f92eba6b2",
+      "content": "comfyui-mcp tool catalog — 11 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (3)\n- enqueue_workflow: Submit a ComfyUI workflow for execution and return immediately with the prompt_id and queue position.\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n\n## diagnostics (1)\n- get_history: Get execution history for a ComfyUI prompt.\n\n## images-assets (3)\n- get_image: Fetch a generated image from ComfyUI and return it as an inline image.\n- stage_output_as_input: Stage an EXISTING ComfyUI output (or temp/preview) as an INPUT so the next stage's loader (LoadImage / VHS_LoadVideo / LoadAudio) can read it.\n- list_output_images: List recently generated image AND video files from ComfyUI's output/ directory, newest-first, with each file's kind ('image' | 'video'), subfolder, size, and m…\n\n## generation (4)\n- suggest_settings: Recommend concrete, proven sampler/scheduler/steps/CFG (and denoise/shift/LoRA) settings derived from THIS MCP server's local generation-history database (popu…\n- generation_stats: Show statistics from this MCP server's local generation-history database (populated as you run workflows; not from ComfyUI itself): total generations, count of…\n- generate_video: Generate a short video from a text prompt (text-to-video), or animate a start image (image-to-video when `image` is given) — the high-level entry point.\n- generate_with_api_node: Build a minimal single-node workflow that runs a chosen API/partner node with the provided inputs and enqueue it.\n\nThis is a FILTERED view (102 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_3b83189cbb0f4e288ceda5a1",
+      "content": "comfyui-mcp tool catalog — 23 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (4)\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_system_stats: Get system information from the connected ComfyUI server: GPU device(s), total/free VRAM, ComfyUI/Python/PyTorch versions, and OS details.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n- run_workflow_url: Read (and optionally execute) a shared ComfyUI workflow from a URL.\n\n## workflow-authoring (2)\n- validate_workflow: Validate a ComfyUI workflow without executing it.\n- save_workflow: Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI.\n\n## custom-nodes (7)\n- install_custom_node: Install a ComfyUI custom node pack by registry id (e.g.\n- update_custom_node: Update an installed ComfyUI custom node pack, or pass 'all' to update every installed pack.\n- reinstall_custom_node: Reinstall a ComfyUI custom node pack (uninstall then install).\n- fix_custom_node: Repair a ComfyUI custom node pack's install and Python dependencies, or pass 'all' to repair every pack.\n- list_installed_nodes: List installed ComfyUI custom node packs with their version and enabled/disabled state.\n- sync_node_dependencies: Reconcile the Python dependencies of all installed custom node packs (comfy-cli `node uv-sync` analogue).\n- verify_custom_node: Test that a custom-node pack actually loads in ComfyUI — the middle step of the author loop (scaffold_custom_node → verify_custom_node → publish_custom_node).\n\n## diagnostics (4)\n- get_logs: Get ComfyUI server runtime logs.\n- get_history: Get execution history for a ComfyUI prompt.\n- report_issue: Build a ready-to-open GitHub issue link for a bug/problem you hit (ComfyUI, a workflow, a model, custom nodes, or comfyui-mcp itself).\n- health_check: Pre-flight diagnostic for the connected ComfyUI: one call that aggregates the signals an agent should check before dispatching a batch.\n\n## server (3)\n- update_comfyui: Update the ComfyUI core install: runs `git pull` in the configured ComfyUI directory and reinstalls its Python requirements (auto-detecting uv vs pip).\n- install_panel: Install, update, reinstall, or report status of the ComfyUI sidebar panel ('comfyui-agent-panel' on the Comfy Registry; repo comfyui-mcp-panel) in the LOCAL Co…\n- self_update: Check or apply a self-update of the comfyui-mcp npm package against the npm registry.\n\n## generation (3)\n- generate_video: Generate a short video from a text prompt (text-to-video), or animate a start image (image-to-video when `image` is given) — the high-level entry point.\n- remove_background: Remove an image's background, returning a transparent (RGBA) cutout — the high-level entry point.\n- upscale_image: Upscale an image with an ESRGAN super-resolution model — the high-level entry point.\n\nThis is a FILTERED view (90 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_6bcb55059519423ab3a63b03",
+          "function": {
+            "name": "describe_tool",
+            "arguments": "{\"name\": \"get_history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "describe_tool",
+      "tool_call_id": "call_6bcb55059519423ab3a63b03",
+      "content": "# get_history  (category: diagnostics)\n\nGet execution history for a ComfyUI prompt. Returns status, timing, cached nodes, output details, and full error information including Python tracebacks. Use after a failed enqueue_workflow to diagnose what went wrong.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"prompt_id\": {\n   \"description\": \"Specific prompt ID to look up (returned by enqueue_workflow). If omitted, returns the most recent COMMITTED execution (chosen by ComfyUI's queue number, not dict order). Note: immediately after a run finishes it can briefly lag by one until ComfyUI commits the new entry — pass the prompt_id from enqueue_workflow to get that exact run, and prefer the run-finished event for naming a just-produced output.\",\n   \"type\": \"string\"\n  }\n }\n}\n\nRun it with: call_tool {\"name\": \"get_history\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_792bb7ffa5d9490797f01d22",
+          "function": {
+            "name": "call_tool",
+            "arguments": "{\"name\": \"get_history\", \"args\": \"{}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "call_tool",
+      "tool_call_id": "call_792bb7ffa5d9490797f01d22",
+      "content": "## Execution: 37c49328-d21e-40bd-a674-8aad486dd3a4\n**Status**: success | Completed: true\n**Duration**: 3.76s\n**Cached nodes**: 1, 4\n\n### Outputs (1 nodes)\n- Node 7: images → **ComfyUI_01163_.png**"
+    }
+  ]
+}

@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const DATA_DIR = join(REPO_ROOT, "finetune", "data");
 export const TOOLS_JSON = join(DATA_DIR, "tools-full.json");
+export const PANEL_TOOLS_JSON = join(DATA_DIR, "tools-panel.json");
+export const COMBINED_TOOLS_JSON = join(DATA_DIR, "tools-combined.json");
 
 /**
  * Teacher models whose outputs are licensed for distillation. Provider ToS for
@@ -49,6 +51,21 @@ export const FULL_SYSTEM_PROMPT =
   "Finish every task by actually running tools; never invent tool results or filenames.";
 
 /**
+ * System prompt for PANEL trajectories — the combined surface (headless MCP
+ * tools + panel_* live-canvas tools, called directly by name). This is what
+ * the fine-tuned model deploys with in panel full-tool mode.
+ */
+export const FULL_PANEL_SYSTEM_PROMPT =
+  "You are the ComfyUI agent in a sidebar panel. You control BOTH the headless ComfyUI server " +
+  "(comfyui-mcp tools: generation, queue, models, workflows) AND the user's LIVE canvas " +
+  "(panel tools: graph_*, workflow_* — add/wire/edit nodes the user can see). " +
+  "Prefer the panel tools when working on the user's visible graph; use server tools for " +
+  "generation jobs, queue operations, and model management. Call tools directly by name with " +
+  "JSON arguments matching their schemas. Never clear the user's graph unless explicitly asked — " +
+  "'new workflow' means workflow_new (a new tab), NOT graph_clear. " +
+  "Finish every task by actually running tools; never invent tool results.";
+
+/**
  * Extra expert guidance appended to the TEACHER's system prompt during
  * trajectory generation (ARENA_RICH_PROMPT=1). Big-context teachers (MiMo,
  * MiniMax: 1M ctx) absorb this easily; the saved trajectory is rewritten to
@@ -58,6 +75,13 @@ export const FULL_SYSTEM_PROMPT =
 export const TEACHER_GUIDANCE =
   "Expert operating notes: prefer the single high-level tool when one covers the task " +
   "(generate_image over hand-building a graph); compose graphs yourself only when no template fits. " +
+  "QUALITY DEFAULTS for imaging (when the models are installed — check diffusion_models; fall back to " +
+  "plain txt2img only when absent): text-to-image → KREA 2 JSON-prompting workflow " +
+  "(read_pack_workflow 'krea2-txt2img-json', read_skill 'krea2'); alternative T2I and image-to-image " +
+  "restyling → Ideogram 4 (read_pack_workflow 'ideogram-txt2img' / 'ideogram-img2img', read_skill " +
+  "'ideogram'); targeted image EDITS (change/add/remove elements in an existing image) → Qwen-Image-Edit " +
+  "2511 (read_pack_workflow 'qwen-image-edit', read_skill 'qwen'). Read the pack workflow, adapt its " +
+  "prompt/JSON to the request, enqueue, and poll to completion. " +
   "Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. " +
   "For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. " +
   "When a call fails, read the error, explain it briefly, and recover with a corrected call. " +
