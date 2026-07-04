@@ -24,7 +24,7 @@ import { dirname, join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SCENARIOS } from "./arena-scenarios.mjs";
-import { FULL_SYSTEM_PROMPT } from "../finetune/datagen/lib.mjs";
+import { FULL_SYSTEM_PROMPT, TEACHER_GUIDANCE } from "../finetune/datagen/lib.mjs";
 
 const OLLAMA = process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
 const MODELS = (process.env.ARENA_MODELS ?? "gemma4:12b")
@@ -40,11 +40,19 @@ const OUT_DIR = process.env.ARENA_OUT ?? join(process.cwd(), "arena-results-full
 const TASKS_FILE = process.env.ARENA_TASKS ?? "";
 
 const API = process.env.ARENA_API ?? "ollama";
-const BASE_URL = process.env.ARENA_BASE_URL ?? `${OLLAMA}/v1`;
-const API_KEY = process.env.ARENA_API_KEY ?? "";
+const BASE_URL =
+  process.env.ARENA_BASE_URL ??
+  (API === "openai" && process.env.OPENROUTER_API_KEY ? "https://openrouter.ai/api/v1" : `${OLLAMA}/v1`);
+const API_KEY = process.env.ARENA_API_KEY ?? (API === "openai" ? process.env.OPENROUTER_API_KEY ?? "" : "");
 
 const NUDGE =
   "You have not successfully run a tool yet. Call the tools directly by name to actually do the task.";
+
+// ARENA_RICH_PROMPT=1: teacher runs with expert guidance appended, but saved
+// trajectories carry only the student's lean FULL_SYSTEM_PROMPT (distillation:
+// expert behavior, deployable prompt). Use for big-context teachers.
+const RICH_PROMPT = process.env.ARENA_RICH_PROMPT === "1";
+const RUN_SYSTEM = RICH_PROMPT ? `${FULL_SYSTEM_PROMPT}\n\n${TEACHER_GUIDANCE}` : FULL_SYSTEM_PROMPT;
 
 async function chat(model, messages, tools) {
   if (API === "openai") {
@@ -108,10 +116,15 @@ function textOf(result) {
     .join("\n");
 }
 
-/** Strip harness nudges (and the stalled turn before each) for SFT output. */
+/** Strip harness nudges (and the stalled turn before each) for SFT output;
+ *  rewrite the system turn to the student's lean prompt (see RICH_PROMPT). */
 function cleanForTraining(messages) {
   const out = [];
   for (const m of messages) {
+    if (m.role === "system") {
+      out.push({ role: "system", content: FULL_SYSTEM_PROMPT });
+      continue;
+    }
     if (m.role === "user" && m.content === NUDGE) {
       if (out[out.length - 1]?.role === "assistant" && !out[out.length - 1].tool_calls) out.pop();
       continue;
@@ -123,7 +136,7 @@ function cleanForTraining(messages) {
 
 async function runTask(mcp, openAiTools, model, task) {
   const messages = [
-    { role: "system", content: FULL_SYSTEM_PROMPT },
+    { role: "system", content: RUN_SYSTEM },
     { role: "user", content: task.task },
   ];
   const t = { calls: [], toolText: "", finalAnswer: "", rounds: 0, nudges: 0 };

@@ -1,4 +1,5 @@
 // Shared constants for the fine-tune data pipeline (see finetune/README.md).
+import "dotenv/config"; // pick up OPENROUTER_API_KEY etc. from the repo .env
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,6 +24,14 @@ export const ALLOWED_TEACHER_PREFIXES = [
 
 export const BLOCKED_TEACHER_PREFIXES = ["anthropic/", "openai/", "google/", "x-ai/"];
 
+/**
+ * Primary teacher: MIT license (secondary training explicitly permitted),
+ * 19/20 on our own arena (tied best open-weight), 1M context — plenty of room
+ * for the ~30-40K-token full tool payload plus long multi-stage episodes —
+ * and a sparse MoE (310B/15B-active) so it's cheap per token to run.
+ */
+export const DEFAULT_TEACHER = "xiaomi/mimo-v2.5";
+
 export function isAllowedTeacher(model) {
   if (BLOCKED_TEACHER_PREFIXES.some((p) => model.startsWith(p))) return false;
   return ALLOWED_TEACHER_PREFIXES.some((p) => model.startsWith(p));
@@ -38,6 +47,21 @@ export const FULL_SYSTEM_PROMPT =
   "call tools directly by name with JSON arguments that match their schemas exactly. " +
   "Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. " +
   "Finish every task by actually running tools; never invent tool results or filenames.";
+
+/**
+ * Extra expert guidance appended to the TEACHER's system prompt during
+ * trajectory generation (ARENA_RICH_PROMPT=1). Big-context teachers (MiMo,
+ * MiniMax: 1M ctx) absorb this easily; the saved trajectory is rewritten to
+ * carry only FULL_SYSTEM_PROMPT so the student learns expert behavior under
+ * the lean prompt it will actually deploy with.
+ */
+export const TEACHER_GUIDANCE =
+  "Expert operating notes: prefer the single high-level tool when one covers the task " +
+  "(generate_image over hand-building a graph); compose graphs yourself only when no template fits. " +
+  "Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. " +
+  "For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. " +
+  "When a call fails, read the error, explain it briefly, and recover with a corrected call. " +
+  "Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones.";
 
 /** Render the tools-full.json entries as OpenAI-style tool definitions. */
 export function toOpenAiTools(toolsFull) {

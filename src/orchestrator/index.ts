@@ -44,6 +44,7 @@ import { startPanelMcpHttpServer, type PanelMcpHttpServer } from "./panel-mcp-ht
 import type { AgentBackend } from "./agent-backend.js";
 import { readComfyuiCrashLog, formatCrashNote } from "../services/crash-log.js";
 import { QueueMonitor, type StallReport } from "../services/queue-monitor.js";
+import { getAgentSettings, setAgentSettings } from "../services/panel-settings.js";
 import {
   gatherEnvCapabilities,
   buildPanelSystemAppend,
@@ -531,13 +532,25 @@ export async function runPanelOrchestrator(): Promise<void> {
   // applied PER REQUEST — switching live is free. Default = the LLM Arena's best
   // performer (scripts/llm-arena.mjs): gemma4:e4b, 9/10 with the cleanest runs
   // (first-try tool dispatch, no nudges) and multimodal headroom for vision.
-  const ollamaModel = process.env.COMFYUI_MCP_OLLAMA_MODEL ?? "gemma4:e4b";
+  //
+  // Config precedence: env (escape hatch, always wins) → persisted user settings
+  // (~/.comfyui-mcp/panel-settings.json, edited from the panel Settings dialog
+  // via set_config) → built-in default. Mutable (`let`) because set_config can
+  // retarget them live; API keys stay env-only and never touch the settings file.
+  const persistedAgent = getAgentSettings();
+  let ollamaModel =
+    process.env.COMFYUI_MCP_OLLAMA_MODEL ?? persistedAgent.ollama?.model ?? "gemma4:e4b";
   // The same backend also speaks any OpenAI-compatible endpoint (OpenRouter,
   // DeepSeek, vLLM, LM Studio): COMFYUI_MCP_OLLAMA_API=openai +
   // COMFYUI_MCP_OLLAMA_BASE_URL (incl. /v1) + COMFYUI_MCP_OLLAMA_API_KEY
   // (falls back to OPENROUTER_API_KEY). The chip stays "Ollama (local)".
-  const ollamaApi = process.env.COMFYUI_MCP_OLLAMA_API === "openai" ? ("openai" as const) : ("ollama" as const);
-  const ollamaBaseUrl = process.env.COMFYUI_MCP_OLLAMA_BASE_URL;
+  let ollamaApi: "openai" | "ollama" =
+    (process.env.COMFYUI_MCP_OLLAMA_API
+      ? process.env.COMFYUI_MCP_OLLAMA_API === "openai"
+      : persistedAgent.ollama?.api === "openai")
+      ? "openai"
+      : "ollama";
+  let ollamaBaseUrl = process.env.COMFYUI_MCP_OLLAMA_BASE_URL ?? persistedAgent.ollama?.baseUrl;
   const ollamaApiKey = process.env.COMFYUI_MCP_OLLAMA_API_KEY || process.env.OPENROUTER_API_KEY;
   const ollamaDeps = () => ({
     api: ollamaApi,
@@ -934,7 +947,26 @@ export async function runPanelOrchestrator(): Promise<void> {
             })
         : fetchSupportedModels(model);
       p = probe.then((list) => {
-        if (!list.length) modelsByBackend.delete(backend); // don't cache a failure
+        if (!list.length) modelsByBackend.delete(backend); // don't cache a failed probe
+        // User-curated preferred models (panel Settings → set_config) pin to the
+        // top of the ollama picker, ahead of the discovered catalog. Read fresh
+        // on every probe; set_config evicts the cache so edits apply live.
+        if (backend === "ollama") {
+          const preferred = getAgentSettings().preferredModels ?? [];
+          if (preferred.length) {
+            const discovered = new Map(list.map((m) => [m.value, m] as const));
+            list = [
+              ...preferred.map(
+                (id) =>
+                  (discovered.get(id) ?? {
+                    value: id,
+                    displayName: `${id} ★`,
+                  }) as unknown as ModelInfo,
+              ),
+              ...list.filter((m) => !preferred.includes(m.value as string)),
+            ];
+          }
+        }
         return list;
       });
       modelsByBackend.set(backend, p);
@@ -1128,15 +1160,58 @@ export async function runPanelOrchestrator(): Promise<void> {
       logger.info(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} switched backend ${prev} → ${reqBackend}`);
       return;
     }
-    // Live panel config (currently just the render-stall threshold). Applied
-    // immediately, no reconnect — the next turn's watchdog check uses the new
-    // value. Sent by the panel on connect and whenever the setting changes.
+    // Live panel config: render-stall threshold, plus the user's agent-model
+    // preferences (preferred_models list + ollama endpoint config), persisted to
+    // ~/.comfyui-mcp/panel-settings.json. Sent by the panel on connect and
+    // whenever a setting changes. Model-list changes apply live (cache evicted,
+    // fresh `models` frame pushed); an endpoint change retargets NEW sessions —
+    // live ollama sessions keep their connection until restarted.
     if (event.type === "set_config" && event.tab_id) {
       if ("stall_seconds" in event) {
         setLiveStallSeconds((event as { stall_seconds?: unknown }).stall_seconds);
         logger.info(
           `[panel-orchestrator] live stall threshold → ${liveStallSeconds ?? "default"}s`,
         );
+      }
+      const cfg = event as { preferred_models?: unknown; ollama?: unknown };
+      let ollamaChanged = false;
+      if (Array.isArray(cfg.preferred_models)) {
+        const ids = cfg.preferred_models.filter((m): m is string => typeof m === "string");
+        setAgentSettings({ preferredModels: ids });
+        ollamaChanged = true;
+        logger.info(`[panel-orchestrator] preferred models → [${ids.join(", ")}]`);
+      }
+      if (cfg.ollama && typeof cfg.ollama === "object") {
+        const o = cfg.ollama as { model?: unknown; api?: unknown; base_url?: unknown };
+        const patch: { model?: string; api?: "ollama" | "openai"; baseUrl?: string } = {};
+        if (typeof o.model === "string" && o.model.trim()) {
+          patch.model = o.model.trim();
+          if (!process.env.COMFYUI_MCP_OLLAMA_MODEL) ollamaModel = patch.model;
+        }
+        if (o.api === "openai" || o.api === "ollama") {
+          patch.api = o.api;
+          if (!process.env.COMFYUI_MCP_OLLAMA_API) ollamaApi = o.api;
+        }
+        if (typeof o.base_url === "string") {
+          patch.baseUrl = o.base_url.trim();
+          if (!process.env.COMFYUI_MCP_OLLAMA_BASE_URL) ollamaBaseUrl = patch.baseUrl || undefined;
+        }
+        if (Object.keys(patch).length) {
+          setAgentSettings({ ollama: patch });
+          ollamaChanged = true;
+          // Endpoint may have moved — drop the cached probe backend so the next
+          // readiness/model probe hits the NEW host/api with fresh deps.
+          const pb = probeBackends.get("ollama");
+          if (pb?.close) void pb.close().catch(() => {});
+          probeBackends.delete("ollama");
+          logger.info(
+            `[panel-orchestrator] ollama config → model=${ollamaModel} api=${ollamaApi} host=${ollamaBaseUrl ?? "(default)"}`,
+          );
+        }
+      }
+      if (ollamaChanged) {
+        modelsByBackend.delete("ollama");
+        pushModels(event.tab_id);
       }
       bridge.push({ type: "ack", ok: true, kind: "config" }, event.tab_id);
       return;

@@ -9,8 +9,10 @@ Full plan/rationale: `~/.claude/plans/robust-petting-token.md`.
 
 ## Hard rules
 
-1. **Teacher ToS.** Only open-weight teachers generate training data (Kimi,
-   GLM, DeepSeek, MiMo, MiniMax, Qwen — allowlist in `datagen/lib.mjs`).
+1. **Teacher ToS.** Only open-weight teachers generate training data (allowlist
+   in `datagen/lib.mjs`). Primary teacher: **xiaomi/mimo-v2.5** (MIT, secondary
+   training permitted, 19/20 on our arena, 1M ctx); Kimi-K2.5 and GLM-5.1
+   (both 19/20) add trajectory diversity.
    Anthropic/OpenAI/Google/xAI outputs must never enter the dataset, including
    their old arena transcripts. Filters enforce this in `convert-seed-transcripts.mjs`,
    `synth-tasks.mjs`, and again in `train/prepare_dataset.py`.
@@ -26,13 +28,12 @@ npm run build
 npm run ft:tools     # dump all 113 tool schemas → finetune/data/tools-full.json
 npm run ft:seed      # rewrite ToS-safe PASS arena transcripts → seed-trajectories.jsonl (~87)
 
-# synthesize tasks (open-weight teacher via any OpenAI-compatible API):
-SYNTH_BASE_URL=https://openrouter.ai/api/v1 SYNTH_API_KEY=sk-... \
-SYNTH_MODEL=moonshotai/kimi-k2.5 SYNTH_PER_CATEGORY=40 npm run ft:tasks
+# synthesize tasks (OPENROUTER_API_KEY in .env is picked up automatically):
+SYNTH_MODEL=xiaomi/mimo-v2.5 SYNTH_PER_CATEGORY=40 npm run ft:tasks
 
 # generate trajectories against a LIVE ComfyUI (teacher runs the agent loop):
-ARENA_API=openai ARENA_BASE_URL=https://openrouter.ai/api/v1 ARENA_API_KEY=sk-... \
-ARENA_MODELS=moonshotai/kimi-k2.5,z-ai/glm-5.1 ARENA_TASKS=finetune/data/tasks.jsonl \
+ARENA_API=openai ARENA_MODELS=xiaomi/mimo-v2.5,moonshotai/kimi-k2.5,z-ai/glm-5.1 \
+ARENA_TASKS=finetune/data/tasks.jsonl \
 node scripts/llm-arena-full.mjs        # → arena-results-full/trajectories.jsonl
 ```
 

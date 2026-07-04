@@ -13,9 +13,13 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR, TOOLS_JSON, isAllowedTeacher } from "./lib.mjs";
 
+// OpenRouter is the default provider when its key is in .env (same key the
+// arena runs used); SYNTH_* overrides still win.
 const MODEL = process.env.SYNTH_MODEL ?? "";
-const BASE_URL = (process.env.SYNTH_BASE_URL ?? "").replace(/\/$/, "");
-const API_KEY = process.env.SYNTH_API_KEY ?? "";
+const API_KEY = process.env.SYNTH_API_KEY ?? process.env.OPENROUTER_API_KEY ?? "";
+const BASE_URL = (
+  process.env.SYNTH_BASE_URL ?? (process.env.OPENROUTER_API_KEY ? "https://openrouter.ai/api/v1" : "")
+).replace(/\/$/, "");
 const PER_CATEGORY = Number(process.env.SYNTH_PER_CATEGORY ?? 40);
 
 if (!MODEL || !BASE_URL) {
