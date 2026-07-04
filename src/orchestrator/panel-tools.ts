@@ -38,7 +38,7 @@ import {
   removeUserMcpServer,
   setUserMcpServerSecret,
 } from "../services/user-mcp-config.js";
-import { setComfyuiSecret } from "../services/panel-secrets.js";
+import { setComfyuiSecret, setAgentSecret, isAllowedAgentSecretKey } from "../services/panel-secrets.js";
 import { getNsfwConsent, setNsfwConsent } from "../services/panel-settings.js";
 import { QueueMonitor } from "../services/queue-monitor.js";
 import { getObjectInfo, backfillObjectInfo } from "../comfyui/client.js";
@@ -812,6 +812,16 @@ export function buildPanelToolDefs(): PanelToolDef[] {
             return ok("No token entered — nothing was saved.");
           }
           const server = (args.mcp_server as string) ?? "";
+          // An ORCHESTRATOR provider secret (OpenRouter API key) — stored in the
+          // agent-secret slice of the 0600 config and hydrated into the
+          // orchestrator's OWN env, which flips the OpenRouter provider to ready
+          // and lists its models. NOT injected into the comfyui child.
+          if (server.toLowerCase() === "orchestrator" || isAllowedAgentSecretKey(args.key as string)) {
+            setAgentSecret(args.key as string, secret);
+            return ok(
+              `🔒 ${args.key} saved to your ~/.comfyui-mcp config. The OpenRouter provider is now enabled — pick it in the provider list.`,
+            );
+          }
           // The BUILT-IN comfyui server is NOT in the user's ~/.claude.json — the
           // orchestrator spawns it with its own env. Route its secrets to the
           // dedicated store, which injects them into that env and RESPAWNS the

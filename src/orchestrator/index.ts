@@ -35,6 +35,8 @@ import {
   buildComfyuiMcpEnv,
   comfyuiSecretKeys,
   onComfyuiSecretsChanged,
+  hydrateAgentSecretsIntoEnv,
+  onAgentSecretsChanged,
 } from "../services/panel-secrets.js";
 import { CodexBackend } from "./codex-backend.js";
 import { GeminiBackend, GEMINI_DEFAULT_MODEL } from "./gemini-backend.js";
@@ -537,6 +539,12 @@ export async function runPanelOrchestrator(): Promise<void> {
   // (~/.comfyui-mcp/panel-settings.json, edited from the panel Settings dialog
   // via set_config) → built-in default. Mutable (`let`) because set_config can
   // retarget them live; API keys stay env-only and never touch the settings file.
+  // Copy any panel-stored provider keys (OPENROUTER_API_KEY) into env BEFORE we
+  // read them below, so a key set on a prior run enables its provider on boot.
+  const hydratedSecrets = hydrateAgentSecretsIntoEnv();
+  if (hydratedSecrets.length) {
+    logger.info(`[panel-orchestrator] hydrated agent secrets from store: ${hydratedSecrets.join(", ")}`);
+  }
   const persistedAgent = getAgentSettings();
   let ollamaModel =
     process.env.COMFYUI_MCP_OLLAMA_MODEL ?? persistedAgent.ollama?.model ?? "gemma4:e4b";
@@ -557,6 +565,25 @@ export async function runPanelOrchestrator(): Promise<void> {
     ...(ollamaBaseUrl ? { host: ollamaBaseUrl } : {}),
     ...(ollamaApi === "openai" && ollamaApiKey ? { apiKey: ollamaApiKey } : {}),
   });
+  // OpenRouter is a first-class provider = the Ollama backend hard-wired to
+  // OpenRouter's OpenAI-compatible endpoint, so its picker leads with the
+  // curated arena-winning models (RECOMMENDED_OPENROUTER_MODELS, MiMo/MiniMax
+  // tagged 1M · SOTA). Key comes from OPENROUTER_API_KEY (or the shared ollama
+  // key). Default model = the arena's top open-weight, MiMo v2.5.
+  const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+  let openrouterModel = process.env.COMFYUI_MCP_OPENROUTER_MODEL ?? "xiaomi/mimo-v2.5";
+  // Read the key FRESH each call (not a startup const) so a key the user sets
+  // later via the panel — setAgentSecret hydrates it into env — takes effect on
+  // the next backend build without an orchestrator restart.
+  const openrouterApiKey = () => process.env.OPENROUTER_API_KEY || process.env.COMFYUI_MCP_OLLAMA_API_KEY;
+  const openrouterDeps = () => {
+    const key = openrouterApiKey();
+    return {
+      api: "openai" as const,
+      host: OPENROUTER_BASE_URL,
+      ...(key ? { apiKey: key } : {}),
+    };
+  };
   // ── Per-tab backend (single-port multi-provider) ──────────────────────────
   // ONE orchestrator on ONE bridge port serves ALL providers; the panel picks a
   // provider per tab via the `hello`/`set_backend` handshake, instead of the node
@@ -566,7 +593,7 @@ export async function runPanelOrchestrator(): Promise<void> {
   // provider (the panel replays the transcript to seed it) while a same-provider
   // reconnect RESUMES. `backendId`/`codexModel`/`geminiModel` above are the
   // DEFAULT + per-provider model config; the process is no longer pinned to one.
-  const KNOWN_BACKENDS = new Set(["claude", "codex", "gemini", "ollama"]);
+  const KNOWN_BACKENDS = new Set(["claude", "codex", "gemini", "ollama", "openrouter"]);
   const defaultBackend = KNOWN_BACKENDS.has(backendId) ? backendId : "claude";
   const AGENT_KEY_SEP = "::";
   const tabBackends = new Map<string, string>(); // panel tabId -> selected backend
@@ -724,6 +751,16 @@ export async function runPanelOrchestrator(): Promise<void> {
         ...ollamaDeps(),
       });
     }
+    if (backend === "openrouter") {
+      return new OllamaBackend({
+        cwd: comfyuiPath ?? process.cwd(),
+        model: openrouterModel,
+        systemAppend: panelSystemAppend,
+        comfyuiUrl,
+        mcpServers: makeHttpBackendMcpServers(panelTabId),
+        ...openrouterDeps(),
+      });
+    }
     return undefined; // claude → built-in ClaudeBackend
   };
   logger.info(
@@ -745,7 +782,9 @@ export async function runPanelOrchestrator(): Promise<void> {
           ? new CodexBackend({ cwd: comfyuiPath ?? process.cwd(), model: codexModel })
           : backend === "ollama"
             ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: ollamaModel, ...ollamaDeps() })
-            : new GeminiBackend({ cwd: comfyuiPath ?? process.cwd(), model: geminiModel });
+            : backend === "openrouter"
+              ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: openrouterModel, ...openrouterDeps() })
+              : new GeminiBackend({ cwd: comfyuiPath ?? process.cwd(), model: geminiModel });
       probeBackends.set(backend, pb);
     }
     return pb;
@@ -906,6 +945,24 @@ export async function runPanelOrchestrator(): Promise<void> {
     );
   });
 
+  // An agent-provider secret changed (e.g. the OpenRouter API key set from the
+  // panel). Hydrate it into env, drop the cached openrouter probe/model list so
+  // the next probe uses the new key, and re-push readiness + models to every
+  // live tab so the OpenRouter provider flips to "ready" and lists its models
+  // without a reconnect.
+  const unsubscribeAgentSecrets = onAgentSecretsChanged(() => {
+    hydrateAgentSecretsIntoEnv();
+    modelsByBackend.delete("openrouter");
+    const pb = probeBackends.get("openrouter");
+    if (pb?.close) void pb.close().catch(() => {});
+    probeBackends.delete("openrouter");
+    for (const tabId of tabBackends.keys()) {
+      pushReadiness(tabId);
+      pushModels(tabId);
+    }
+    logger.info("[panel-orchestrator] OpenRouter key saved → provider readiness + models refreshed");
+  });
+
   // Debounce the connect ack: the panel re-sends `hello` on reconnect and on
   // workflow-title changes, which would otherwise stack duplicate greetings.
   const lastAckAt = new Map<string, number>();
@@ -980,6 +1037,7 @@ export async function runPanelOrchestrator(): Promise<void> {
     if (backend === "codex") return codexModel;
     if (backend === "gemini") return geminiModel;
     if (backend === "ollama") return ollamaModel;
+    if (backend === "openrouter") return openrouterModel;
     return model;
   }
   function pushModels(panelTabId: string): void {
@@ -1520,6 +1578,7 @@ export async function runPanelOrchestrator(): Promise<void> {
     clearInterval(downloadTimer);
     QueueMonitor.stop();
     unsubscribeSecrets();
+    unsubscribeAgentSecrets();
     await manager.stopAll();
     // Dispose the readiness-probe backends (kills each Codex/Gemini CLI child).
     for (const pb of probeBackends.values()) {
