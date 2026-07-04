@@ -1,0 +1,41 @@
+{
+  "model": "hf.co/mradermacher/Huihui-gemma-4-12B-it-abliterated-GGUF:Q4_K_M",
+  "task": "registry",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Find a tool that can search for ComfyUI custom node packs, then use it to search for 'controlnet' and tell me the name of one node pack from its results."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to find a tool that searches for ComfyUI custom node packs and specifically look for \"controlnet\" using that tool. Then, I need to identify one specific node pack from the results.\n\n1.  **Identify the search tool**: The `search_custom_nodes` tool is designed for this purpose.\n2.  **Perform the search**: Call `search_custom_nodes(query='controlnet')`.\n3.  **Extract a result**: From the list of results, pick one node pack name.",
+      "tool_calls": [
+        {
+          "id": "osvJGLauvuyjeuiFu6BMmSzQ05HaLEcA",
+          "function": {
+            "index": 0,
+            "name": "search_custom_nodes",
+            "arguments": {
+              "query": "controlnet"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "search_custom_nodes",
+      "content": "1. **ComfyUI YoloNasPose Tensorrt** (ComfyUI-YoloNasPose-Tensorrt)\n   This repo provides a ComfyUI Custom Node implementation of [a/YOLO-NAS-POSE](https://github.com/Deci-AI/super-gradients), powered by TensorRT for ultra fast pose estimation. It has been adapted to work with openpose controlnet (experimental)\n   Author: yuvraj108c | Installs: N/A | Version: N/A\n\n2. **Easy automatic (square) image cropper using Yolo** (ComfyUI-Yolo-Cropper)\n   A very simple and easy to use node to automaticaaly create (square) image crops and masks using YoloV8. This can be very useful when using controlnet and ip adapters\n   Author: Tool Of North america | Installs: N/A | Version: N/A"
+    },
+    {
+      "role": "assistant",
+      "content": "The search for 'controlnet' returned several results, including **ComfyUI-YoloNasPose-Tensorrt** and **ComfyUI-Yolo-Cropper**."
+    }
+  ]
+}

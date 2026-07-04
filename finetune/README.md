@@ -1,6 +1,6 @@
 # Fine-tuning `gemma4-abliterated-comfyui-mcp`
 
-Pipeline to turn [huihui-ai's abliterated Gemma 4 12B](https://huggingface.co/huihui-ai/Huihui-gemma-4-12B-it-abliterated)
+Pipeline to turn [the Heretic-abliterated Gemma 4 ladder](https://huggingface.co/coder3101/gemma-4-12B-it-heretic)
 into a local expert that drives the **full 113-tool** comfyui-mcp surface
 (no compact router mode). Recipe: TOUCAN-style data synthesis against the real
 MCP server → Unsloth QLoRA → arena eval → TheBloke-style GGUF packaging.
