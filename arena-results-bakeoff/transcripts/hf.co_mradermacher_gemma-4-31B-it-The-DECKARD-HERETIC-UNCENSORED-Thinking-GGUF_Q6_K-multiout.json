@@ -1,0 +1,1239 @@
+{
+  "model": "hf.co/mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF:Q6_K",
+  "task": "multiout",
+  "verdict": "PARTIAL",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Build and enqueue ONE single workflow that renders 'a lighthouse at dusk' at 512x512 AND, in the same graph, pipes that image through a 2x upscale so the SAME run saves TWO outputs: the 512x512 original and a 1024x1024 version. No template does this — compose the graph yourself. Wait for completion and report the prompt_id."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to build a ComfyUI workflow that generates an image of \"a lighthouse at dusk\" (512x512) and then upscales it by 2x, saving both images in one run.\n\nI need to:\n1.  Create the workflow graph manually since no template does this specific combination.\n2.  The nodes needed are:\n    *   `CheckpointLoaderSimple`: To load a model (e.g., SDXL or SD1.5). I'll use `sd_xl_base_1.0.safetensors` if available, otherwise whatever is there.\n    *   `CLIPTextEncode`: For the positive prompt (\"a lighthouse at dusk\").\n    *   `CLIPTextEncode`: For the negative prompt (empty or default).\n    *   `EmptyLatentImage`: Set to 512x512.\n    *   `KSampler`: To generate the image.\n    *   `VAEDecode`: To decode the latent into an image.\n    *   `SaveImage`: To save the original 512x512 image.\n    *   `UpscaleModelLoader`: To load an upscale model (e.g., `4x-UltraSharp`).\n    *   `ImageUpscaleWithModel`: To perform the 2x upscale.\n    *   `SaveImage`: To save the upscaled 1024x1024 image.\n\nI'll start by checking available models to ensure I use a valid checkpoint and upscale model.",
+      "tool_calls": [
+        {
+          "id": "AMmC7nh7ZK3pD4lIADCPQnnBMDW0p7RY",
+          "function": {
+            "index": 0,
+            "name": "list_local_models",
+            "arguments": {
+              "model_type": "checkpoints"
+            }
+          }
+        },
+        {
+          "id": "MYV99kfSNU1tgu7BnsCPd2fMjxvpAvB2",
+          "function": {
+            "index": 1,
+            "name": "list_local_models",
+            "arguments": {
+              "model_type": "upscale_models"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_local_models",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_local_models",
+      "content": "## upscale_models (2)\n- 4x-ClearRealityV1.pth\n- 4x_foolhardy_Remacri.pth\n"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a single workflow that generates an image of \"a lighthouse at dusk\" at 512x512 and then upscales it by 2x to save both the original and the upscaled version in one run.\n\nI have:\n- Checkpoint: `v1-5-pruned-emaonly-fp16.safetensors` (standard SD v1.5)\n- Upscale models: `4x-ClearRealityV1.pth`, `4x_foolhardy_Remacri.pth`.\n\nI need to build a workflow with the following nodes:\n1.  **CheckpointLoaderSimple**: Load `v1-5-pruned-emaonly-fp16.safetensors`.\n2.  **CLIPTextEncode (Positive)**: \"a lighthouse at dusk\".\n3.  **CLIPTextEncode (Negative)**: \"\" (empty).\n4.  **EmptyLatentImage**: 512x512.\n5.  **KSampler**: Generate the image.\n6.  **VAEDecode**: Decode latent to image.\n7.  **SaveImage (Original)**: Save the 512x512 image.\n8.  **UpscaleModelLoader**: Load `4x-ClearRealityV1.pth`.\n9.  **ImageUpscaleWithModel**: Upscale the decoded image by a factor of 2 (note: ESRGAN models usually upscale to 4x, but I can use an ImageScale node or just accept the model's native scale if that's what \"upscale\" implies here; however, the user specifically asked for 1024x1024 from 512x512. Most ESRGAN models are fixed at 4x. I should check if there is a way to get exactly 2x or just use an ImageScale node after).\n    *   Actually, `ImageUpscaleWithModel` uses the model's native scale (usually 4x). To get exactly 1024 from 512, I would need `ImageScale`. But usually \"upscale\" in ComfyUI context refers to these models. Let me check if there is a generic ImageScale node.\n    *   Wait, the user said \"pipes that image through a 2x upscale\". If I use an ESRGAN model (4x), it'll be 2048. To get exactly 1024, I should probably use `ImageUpscale` or similar if available, or just accept the model scale and then downscale? No, usually people mean \"upscale\" as in a super-res model.\n    *   Let's look for an ImageScale node to be precise about 1024x1024.\n\nActually, I can use `ImageUpscaleWithModel` followed by `ImageScale`. Or just `ImageScale` if they don't care about the AI quality of the upscale. But \"upscale\" usually implies a model.\nLet's check for an ImageScale node in `/object_info`.\n\nPlan:\n1.  CheckpointLoaderSimple (v1-5) -> KSampler -> VAEDecode -> SaveImage (Original).\n2.  VAEDecode output -> UpscaleModelLoader (4x-ClearRealityV1) -> ImageUpscaleWithModel -> ImageScale (to 1024x1024) -> SaveImage (Upscaled).\n\nWait, if I use `ImageUpscaleWithModel` it goes to 2048. Then `ImageScale` down to 1024. That's a common high-quality path.\nAlternatively, just `ImageScale`. But the user said \"upscale\", which usually means AI upscale in this context.\n\nLet's refine the graph:\nNode 1: CheckpointLoaderSimple (v1-5)\nNode 2: CLIPTextEncode (Positive: 'a lighthouse at dusk')\nNode 3: CLIPTextEncode (Negative: '')\nNode 4: EmptyLatentImage (512, 512)\nNode 5: KSampler (seed=random, steps=20, cfg=7.0, sampler='euler', scheduler='normal')\nNode 6: VAEDecode\nNode 7: SaveImage (filename_prefix=\"lighthouse_orig\")\nNode 8: UpscaleModelLoader (4x-ClearRealityV1)\nNode 9: ImageUpscaleWithModel\nNode 10: ImageScale (upscale_by=0.5? No, if it's already 2048, I need to scale down to 1024). Or just use `ImageScale` from the start for a simple 2x. But \"Upscale\" usually means AI.\nLet's assume they want an AI upscale and then resized to exactly 1024 if that's what they meant by \"a 2x upscale\". Actually, many people call any increase in size \"upscaling\". I will use `ImageScale` for a clean 512 -> 1024.\n\nWait, let me check the available nodes to see if there is an AI upscaler that does exactly 2x or if I should just use ImageScale.\nActually, most Comfy users mean \"AI Upscale\" when they say upscale. But ESRGANs are 4x.\nI'll use `ImageUpscaleWithModel` and then `ImageScale` to get it down to 1024.\n\nLet's build the workflow JSON.",
+      "tool_calls": [
+        {
+          "id": "gNO2QT3zftZX6NFuxNgbYfsYzdvHvvtd",
+          "function": {
+            "index": 0,
+            "name": "enqueue_workflow",
+            "arguments": {
+              "workflow": {
+                "3": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "4": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "a lighthouse at dusk"
+                  }
+                },
+                "5": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "low quality, blurry, distorted, watermark, text, signature"
+                  }
+                },
+                "6": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 512,
+                    "width": 512
+                  }
+                },
+                "7": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 7,
+                    "denoise": 1,
+                    "latent_image": {
+                      "link": [
+                        6,
+                        0
+                      ]
+                    },
+                    "model": {
+                      "link": [
+                        3,
+                        0
+                      ]
+                    },
+                    "negative": {
+                      "link": [
+                        5,
+                        0
+                      ]
+                    },
+                    "positive": {
+                      "link": [
+                        4,
+                        0
+                      ]
+                    },
+                    "sampler_name": "euler",
+                    "seed": 42,
+                    "steps": 20
+                  }
+                },
+                "8": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": {
+                      "link": [
+                        7,
+                        0
+                      ]
+                    },
+                    "vae": {
+                      "link": [
+                        3,
+                        2
+                      ]
+                    }
+                  }
+                },
+                "9": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_orig",
+                    "images": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "10": {
+                  "class_type": "UpscaleModelLoader",
+                  "inputs": {
+                    "model_name": "4x-ClearRealityV1.pth"
+                  }
+                },
+                "11": {
+                  "class_type": "ImageUpscaleWithModel",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    },
+                    "upscale_model": {
+                      "link": [
+                        10,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "12": {
+                  "class_type": "ImageScale",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        11,
+                        0
+                      ]
+                    },
+                    "scale_by": 0.5
+                  }
+                },
+                "13": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_upscaled",
+                    "images": {
+                      "link": [
+                        12,
+                        0
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "enqueue_workflow",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"d1b0b024-f366-4a6f-a4e5-9ceea71850e6\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The workflow has been enqueued. Now I need to poll `get_job_status` until it's finished before reporting the prompt ID back to the user as requested.",
+      "tool_calls": [
+        {
+          "id": "VPZEabBPtUrhBlV3cEcq0CMIRLzC5hnL",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "d1b0b024-f366-4a6f-a4e5-9ceea71850e6"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"error\",\n  \"error\": {\n    \"node_id\": \"9\",\n    \"node_type\": \"SaveImage\",\n    \"exception_message\": \"0\\n\",\n    \"exception_type\": \"KeyError\",\n    \"traceback\": \"  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 542, in execute\\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 341, in get_output_data\\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 315, in _async_map_node_over_list\\n    await process_inputs(input_dict, i)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 303, in process_inputs\\n    result = f(**inputs)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\nodes.py\\\", line 1678, in save_images\\n    full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])\\n                                                                                                                                           ~~~~~~^^^\\n\",\n    \"current_inputs\": {\n      \"filename_prefix\": [\n        \"lighthouse_orig\"\n      ],\n      \"images\": [\n        \"{'link': [8, 0]}\"\n      ],\n      \"prompt\": [\n        \"{'3': {'class_type': 'CheckpointLoaderSimple', 'inputs': {'ckpt_name': 'v1-5-pruned-emaonly-fp16.safetensors'}}, '4': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'a lighthouse at dusk'}}, '5': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'low quality, blurry, distorted, watermark, text, signature'}}, '6': {'class_type': 'EmptyLatentImage', 'inputs': {'batch_size': 1, 'height': 512, 'width': 512}}, '7': {'class_type': 'KSampler', 'inputs': {'cfg': 7, 'denoise': 1, 'latent_image': {'link': [6, 0]}, 'model': {'link': [3, 0]}, 'negative': {'link': [5, 0]}, 'positive': {'link': [4, 0]}, 'sampler_name': 'euler', 'seed': 1352796042, 'steps': 20}}, '8': {'class_type': 'VAEDecode', 'inputs': {'samples': {'link': [7, 0]}, 'vae': {'link': [3, 2]}}}, '9': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_orig', 'images': {'link': [8, 0]}}}, '10': {'class_type': 'UpscaleModelLoader', 'inputs': {'model_name': '4x-ClearRealityV1.pth'}}, '11': {'class_type': 'ImageUpscaleWithModel', 'inputs': {'image': {'link': [8, 0]}, 'upscale_model': {'link': [10, 0]}}}, '12': {'class_type': 'ImageScale', 'inputs': {'image': {'link': [11, 0]}, 'scale_by': 0.5}}, '13': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_upscaled', 'images': {'link': [12, 0]}}}}\"\n      ],\n      \"extra_pnginfo\": [\n        \"{}\"\n      ]\n    }\n  },\n  \"execution_stats\": {\n    \"total_duration_ms\": 3,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The workflow failed at node 9 (SaveImage) with a KeyError. Looking at the traceback and `current_inputs`, it seems like there's an issue in how ComfyUI is handling the image input for SaveImage or perhaps something about the environment. However, looking closer at the inputs: `images` is passed as `{'link': [8, 0]}` which is correct API format.\n\nWait, I see what happened. The error message says \"KeyError\" and points to line 1678 in nodes.py inside `save_images`. This usually happens if the image tensor itself is invalid or empty, but more likely it's a bug in how my generated workflow was structured for that specific server version or environment.\n\nActually, looking at node 9:\n`\"9\": {\"class_type\": \"SaveImage\", \"inputs\": {\"filename_prefix\": \"lighthouse_orig\", \"images\": {\"link\": [8, 0]}}}`\nThis is standard. But wait—I see the `VAEDecode` (node 8) comes before it. If node 7 (`KSampler`) failed or produced something weird, that could cause this.\n\nLet's check if there are any other errors in the logs to get more context.",
+      "tool_calls": [
+        {
+          "id": "sfpo72O0GMcDbQH3nlMljhcwsIEoDaJS",
+          "function": {
+            "index": 0,
+            "name": "get_logs",
+            "arguments": {
+              "keyword": "error"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_logs",
+      "content": "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\custom_nodes\\\\comfyui-does-not-exist-99999\\\\__init__.py'\n2026-07-04T13:00:45.107513 - Error loading C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\custom_nodes\\ComfyUI-RMBG\\py\\AILab_SegmentV2.py: No module named 'groundingdino'2026-07-04T13:00:45.107553 - \n2026-07-04T13:00:45.128832 - Error loading C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\custom_nodes\\ComfyUI-RMBG\\py\\AILab_SegmentV2.py: No module named 'groundingdino'2026-07-04T13:00:45.128870 - \n2026-07-04T13:26:31.296903 - [ERROR] Failed to validate prompt for output 7:\n2026-07-04T13:26:31.296966 - [ERROR] * CheckpointLoaderSimple 1:\n2026-07-04T13:26:31.296999 - [ERROR]   - Value not in list: ckpt_name: 'nonexistent-model.safetensors' not in ['ltx-2.3-22b-dev.safetensors', 'sam3.1_multiplex_fp16.safetensors', 'v1-5-pruned-emaonly-fp16.safetensors']\n2026-07-04T13:26:31.297028 - [ERROR] Output will be ignored\n2026-07-04T13:29:04.769888 - [ERROR] !!! Exception during processing !!! 0\n2026-07-04T13:29:04.770648 - [ERROR] Traceback (most recent call last):\nKeyError: 0"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The previous `enqueue_workflow` failed with a `KeyError: 0` at the `SaveImage` node (`node_id: \"9\"`). Looking at the workflow I sent, it seems like there might be an issue with how the images are being passed to `SaveImage`.\n\nIn my workflow:\nNode 8 (VAEDecode) outputs a list of images.\nNode 9 (SaveImage) takes `images` as input.\nI linked them via `{ \"link\": [8, 0] }`. This is correct for API format.\n\nWait, the error message in `get_job_status` shows:\n`full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])`\nAnd then `KeyError: 0`. This usually means the `images` list passed to `SaveImage` is empty.\n\nWhy would it be empty?\nNode 7 (KSampler) -> Node 8 (VAEDecode). If KSampler failed or returned nothing, VAEDecode might return an empty list. But KSampler should have run if there was no error before that.\n\nLet's check the `get_history` for this prompt to see what actually happened and if any images were produced at all.",
+      "tool_calls": [
+        {
+          "id": "eC3h3uH0woE2Uo899ZUiBngkCrnklDYb",
+          "function": {
+            "index": 0,
+            "name": "get_history",
+            "arguments": {
+              "prompt_id": "d1b0b024-f366-4a6f-a4e5-9ceea71850e6"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_history",
+      "content": "## Execution: d1b0b024-f366-4a6f-a4e5-9ceea71850e6\n**Status**: error | Completed: false\n**Duration**: 0.00s\n**Cached nodes**: 3, 6\n\n### Error Details\n**Failed node**: 9 (SaveImage)\n**Exception**: 0\n\n**Type**: KeyError\n\n**Traceback**:\n```\n  File \"C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\execution.py\", line 542, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\execution.py\", line 341, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\execution.py\", line 315, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n  File \"C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\execution.py\", line 303, in process_inputs\n    result = f(**inputs)\n  File \"C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\nodes.py\", line 1678, in save_images\n    full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])\n                                                                                                                                           ~~~~~~^^^\n\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a workflow that renders 'a lighthouse at dusk' at 512x512 and also upscales it to 1024x1024, saving both.\nI attempted this with `enqueue_workflow`, but it failed at node 9 (`SaveImage`) with a `KeyError: 0`.\n\nLooking at the traceback:\n`full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])`\nThe `KeyError: 0` suggests that the `images` list passed to `SaveImage` is empty or not what it expects.\n\nWait, looking at my workflow JSON in the previous turn:\nNode 8 (`VAEDecode`) takes samples from node 7 (`KSampler`).\nNode 9 (`SaveImage`) takes images from node 8.\nBut I also have Node 11 (`ImageUpscaleWithModel`) taking image from node 8.\n\nThe error `KeyError: 0` in `save_images` usually happens when the input list is empty or not a tensor. This implies that `VAEDecode` (node 8) might have failed to produce an output, even though it didn't throw its own exception? Or perhaps node 7 (`KSampler`) produced something invalid.\n\nActually, looking at my workflow:\nNode 3: CheckpointLoaderSimple -> v1-5-pruned-emaonly-fp16.safetensors (Exists)\nNode 4 & 5: CLIPTextEncode\nNode 6: EmptyLatentImage (512x512)\nNode 7: KSampler\nNode 8: VAEDecode\nNode 9: SaveImage\n\nThis is a standard txt2img pipeline. The `KeyError: 0` in `SaveImage` strongly suggests that the image tensor passed to it was empty or null. This often happens if there's an issue with the VAE decode step (e.g., out of memory, but usually that throws a different error) or if the sampler produced something that couldn't be decoded.\n\nHowever, I noticed in my `enqueue_workflow` call:\nNode 12 is `ImageScale`. It takes input from node 11 (`ImageUpscaleWithModel`).\nIt scales by 0.5. Since Node 11 upscales (likely 4x), the result of Node 12 will be 2x original size (512 * 4 * 0.5 = 1024). This matches the user's request for a 1024 version.\n\nLet me try to rerun it, but I'll check if there are any obvious issues in my graph construction.\nThe `SaveImage` node expects an input named `images`. In my JSON:\nNode 9: `inputs: { \"filename_prefix\": \"lighthouse_orig\", \"images\": {\"link\": [8, 0]} }`\nThis is correct.\n\nWait, I see the issue in the traceback from ComfyUI's logs (via get_history):\nThe error happened at node 9 (`SaveImage`). The `KeyError: 0` comes from trying to access `images[0]`. This means `images` was an empty list.\nWhy would `VAEDecode` return an empty list? Usually, it returns a tensor.\n\nLet's try again with a slightly different approach or just rerun and see if it was a transient issue. But first I will check the system stats to ensure there isn't a VRAM issue causing silent failures in nodes.",
+      "tool_calls": [
+        {
+          "id": "GAskEfXLDTZuTBjLX4NKND61UZRKl3ji",
+          "function": {
+            "index": 0,
+            "name": "get_system_stats",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_system_stats",
+      "content": "{\n  \"system\": {\n    \"os\": \"win32\",\n    \"ram_total\": 137190801408,\n    \"ram_free\": 105947455488,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]\",\n    \"pytorch_version\": \"2.10.0+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-desktop2-standalone\",\n    \"argv\": [\n      \"ComfyUI\\\\main.py\",\n      \"--feature-flag\",\n      \"show_signin_button=true\",\n      \"--feature-flag\",\n      \"enable_telemetry=true\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--extra-model-paths-config\",\n      \"C:\\\\Users\\\\Artokun\\\\AppData\\\\Roaming\\\\Comfy Desktop\\\\shared_model_paths.yaml\",\n      \"--input-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\input\",\n      \"--output-directory\",\n      \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\output\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25756696576,\n      \"vram_free\": 21877696982,\n      \"torch_vram_total\": 33554432,\n      \"torch_vram_free\": 14887382\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The previous workflow failed at the `SaveImage` node (node 9) with a `KeyError: 0`. Looking at the traceback and the inputs to node 9 (`images`: `{'link': [8, 0]}`), it seems that node 8 (`VAEDecode`) did not produce any images.\n\nWait, looking closer at the workflow I enqueued:\nNode 7 is a `KSampler`. It takes `latent_image` from Node 6 (`EmptyLatentImage`).\nBut wait... there's no model loaded into the KSampler! The `model` input of node 7 is linked to node 3, which is a `CheckpointLoaderSimple`.\n\nLet me re-examine my previous `enqueue_workflow` call:\nNode 3: CheckpointLoaderSimple (ckpt_name: v1-5-pruned-emaonly-fp16.safetensors) -> outputs [MODEL, CLIP, VAE]\nNode 4: CLIPTextEncode (clip from node 3[1])\nNode 5: CLIPTextEncode (clip from node 3[1])\nNode 6: EmptyLatentImage\nNode 7: KSampler (model from node 3[0], positive from node 4, negative from node 5, latent_image from node 6)\nNode 8: VAEDecode (samples from node 7[0], vae from node 3[2])\nNode 9: SaveImage (images from node 8[0])\n\nThis looks correct. Why did it fail with `KeyError: 0` at the `SaveImage` node?\nThe traceback says: `full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])`.\n`images[0]` is causing the `KeyError: 0`, which means `images` (the input to SaveImage) is an empty list or not a list at all.\n\nThis usually happens if the previous node (`VAEDecode`) failed silently or returned nothing, but ComfyUI continued execution. However, `get_job_status` says it's \"done\" with status \"error\". The error happened *at* SaveImage because there was no image to save.\n\nWhy did VAEDecode fail?\nLooking at the workflow again:\nNode 7 (KSampler) -> Node 8 (VAEDecode).\nIf KSampler failed, it might have passed an empty list or None to VAEDecode. But usually, if a node fails, execution stops there. If SaveImage is being called, then VAEDecode must have \"succeeded\" but returned something that isn't a list of images (or an empty list).\n\nWait, I see the issue in my `enqueue_workflow` call:\nNode 7 (`KSampler`) has inputs: `cfg`, `denoise`, `latent_image`, `model`, `negative`, `positive`, `sampler_name`, `seed`, `steps`.\nI provided all of them.\n\nLet's try to rerun it, but this time I will use a more robust approach. I'll check if there are any known issues with the models or nodes first? No, they are standard. Maybe the seed was bad? Unlikely for SD 1.5.\nActually, looking at `get_history` again: \"Cached nodes: 3, 6\". This means node 7 (KSampler) and others were executed.\n\nLet's try to rerun it with a different sampler or just simply retry. Sometimes transient errors occur. But the `KeyError: 0` in `SaveImage` strongly suggests that no image was passed to it.\nIf I look at my workflow again, node 8 is `VAEDecode`. If VAEDecode received nothing from KSampler (node 7), it might have returned an empty list.\n\nLet's try a simpler version first or just rerun the same one and see if it persists. Actually, let me check if I can find any clues in the logs about node 8.\nThe `get_logs` call showed some errors loading custom nodes (`comfyui-does-not-exist-99999`, `groundingdino`), but those are likely unrelated to a basic txt2img workflow.\n\nI'll try rerunning it with the same parameters, as it might have been a transient issue or I can tweak something like the sampler.\nActually, let me use `generate_image` which is more robust and handles the graph construction internally. But the user asked for ONE single workflow that does both txt2img AND upscale.\n\nI will build the workflow again but this time I'll be very careful with the connections.\n1. CheckpointLoaderSimple (3) -> MODEL to KSampler (7), CLIP to CLIPTextEncode (4, 5), VAE to VAEDecode (8).\n2. EmptyLatentImage (6) -> latent_image to KSampler (7).\n3. CLIPTextEncode (4) -> positive to KSampler (7).\n4. CLIPTextEncode (5) -> negative to KSampler (7).\n5. KSampler (7) -> samples to VAEDecode (8).\n6. VAEDecode (8) -> images to SaveImage (9) AND ImageUpscaleWithModel (11).\n7. UpscaleModelLoader (10) -> upscale_model to ImageUpscaleWithModel (11).\n8. ImageScale (12) -> image from 11[0], scale by 0.5 -> images to SaveImage (13).\n\nWait, I see a potential issue in my previous workflow:\nNode 11 (`ImageUpscaleWithModel`) takes `image` and `upscale_model`. It outputs an upscaled image.\nThen Node 12 (`ImageScale`) scales it back down by 0.5? That's redundant if I want a 1024x1024 version from a 512x512 original (since the upscale model is 4x, it would go to 2048 and then scale down to 1024).\nActually, `ImageUpscaleWithModel` with a 4x model on a 512 image gives 2048. Scaling by 0.5 gives 1024. This is correct for getting exactly 1024.\n\nLet's try again. I will use the same logic but maybe different seeds or just rerun it to see if it was a fluke.\nActually, looking at the `get_history` traceback:\n`full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])`\nThe error `KeyError: 0` happens at `images[0]`. This means the list `images` is empty.\nThis confirms that `VAEDecode` (node 8) returned an empty list.\nWhy would `VAEDecode` return an empty list? Usually because it received no samples from `KSampler`.\nWhy would `KSampler` return nothing? Maybe it crashed or timed out, but the server didn't report a node error for it; it just proceeded to the next node.\n\nI will try again with a slightly different sampler and see if that helps. I'll also use `generate_image` as a test first to make sure basic generation works? No, let's go straight to the complex workflow but be more explicit.",
+      "tool_calls": [
+        {
+          "id": "RBK5C3roQATahlTEgg9On96kpIvhrOxq",
+          "function": {
+            "index": 0,
+            "name": "enqueue_workflow",
+            "arguments": {
+              "workflow": {
+                "3": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "4": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution"
+                  }
+                },
+                "5": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "blurry, distorted, low quality, watermark, text, signature, ugly, deformed"
+                  }
+                },
+                "6": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 512,
+                    "width": 512
+                  }
+                },
+                "7": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 8,
+                    "denoise": 1,
+                    "latent_image": {
+                      "link": [
+                        6,
+                        0
+                      ]
+                    },
+                    "model": {
+                      "link": [
+                        3,
+                        0
+                      ]
+                    },
+                    "negative": {
+                      "link": [
+                        5,
+                        0
+                      ]
+                    },
+                    "positive": {
+                      "link": [
+                        4,
+                        0
+                      ]
+                    },
+                    "sampler_name": "euler_ancestral",
+                    "seed": 12345,
+                    "steps": 20
+                  }
+                },
+                "8": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": {
+                      "link": [
+                        7,
+                        0
+                      ]
+                    },
+                    "vae": {
+                      "link": [
+                        3,
+                        2
+                      ]
+                    }
+                  }
+                },
+                "9": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_orig",
+                    "images": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "10": {
+                  "class_type": "UpscaleModelLoader",
+                  "inputs": {
+                    "model_name": "4x-ClearRealityV1.pth"
+                  }
+                },
+                "11": {
+                  "class_type": "ImageUpscaleWithModel",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    },
+                    "upscale_model": {
+                      "link": [
+                        10,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "12": {
+                  "class_type": "ImageScale",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        11,
+                        0
+                      ]
+                    },
+                    "scale_by": 0.5
+                  }
+                },
+                "13": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_upscaled",
+                    "images": {
+                      "link": [
+                        12,
+                        0
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "enqueue_workflow",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"1fd6274e-1e6f-48bf-af28-a6b8da3de3a9\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to render 'a lighthouse at dusk' at 512x512 and also a 2x upscaled version (1024x1024) in the same workflow. I have already enqueued this workflow with `prompt_id: \"1fd6274e-1e6f-48bf-af28-a6b8da3de3a9\"`. Now I need to poll for its completion and report back.\n",
+      "tool_calls": [
+        {
+          "id": "A3muGvx8neS7WwimOklwJbNsJIG1X3TC",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "1fd6274e-1e6f-48bf-af28-a6b8da3de3a9"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"error\",\n  \"error\": {\n    \"node_id\": \"9\",\n    \"node_type\": \"SaveImage\",\n    \"exception_message\": \"0\\n\",\n    \"exception_type\": \"KeyError\",\n    \"traceback\": \"  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 542, in execute\\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 341, in get_output_data\\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 315, in _async_map_node_over_list\\n    await process_inputs(input_dict, i)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 303, in process_inputs\\n    result = f(**inputs)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\nodes.py\\\", line 1678, in save_images\\n    full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])\\n                                                                                                                                           ~~~~~~^^^\\n\",\n    \"current_inputs\": {\n      \"filename_prefix\": [\n        \"lighthouse_orig\"\n      ],\n      \"images\": [\n        \"{'link': [8, 0]}\"\n      ],\n      \"prompt\": [\n        \"{'3': {'class_type': 'CheckpointLoaderSimple', 'inputs': {'ckpt_name': 'v1-5-pruned-emaonly-fp16.safetensors'}}, '4': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution'}}, '5': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'blurry, distorted, low quality, watermark, text, signature, ugly, deformed'}}, '6': {'class_type': 'EmptyLatentImage', 'inputs': {'batch_size': 1, 'height': 512, 'width': 512}}, '7': {'class_type': 'KSampler', 'inputs': {'cfg': 8, 'denoise': 1, 'latent_image': {'link': [6, 0]}, 'model': {'link': [3, 0]}, 'negative': {'link': [5, 0]}, 'positive': {'link': [4, 0]}, 'sampler_name': 'euler_ancestral', 'seed': 183796014, 'steps': 20}}, '8': {'class_type': 'VAEDecode', 'inputs': {'samples': {'link': [7, 0]}, 'vae': {'link': [3, 2]}}}, '9': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_orig', 'images': {'link': [8, 0]}}}, '10': {'class_type': 'UpscaleModelLoader', 'inputs': {'model_name': '4x-ClearRealityV1.pth'}}, '11': {'class_type': 'ImageUpscaleWithModel', 'inputs': {'image': {'link': [8, 0]}, 'upscale_model': {'link': [10, 0]}}}, '12': {'class_type': 'ImageScale', 'inputs': {'image': {'link': [11, 0]}, 'scale_by': 0.5}}, '13': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_upscaled', 'images': {'link': [12, 0]}}}}\"\n      ],\n      \"extra_pnginfo\": [\n        \"{}\"\n      ]\n    }\n  },\n  \"execution_stats\": {\n    \"total_duration_ms\": 3,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a workflow that renders 'a lighthouse at dusk' at 512x512 and also upscales it to 1024x1024 in the same run.\n\nI have already attempted this twice but both times I got a `KeyError: 0` at node 9 (`SaveImage`).\nLooking at the traceback, the error occurs when calling `folder_paths.get_save_image_path`. This usually happens if the input image is empty or invalid (e.g., None).\n\nWait, looking closer at my previous workflow construction:\nNode 8 is `VAEDecode` which takes samples from node 7 (`KSampler`).\nNode 9 is `SaveImage` which takes images from node 8.\nThe error happens in `save_images`. This suggests that the image passed to it doesn't have a shape (i.e., it might be None).\n\nWhy would `VAEDecode` return nothing?\n1. The KSampler failed or returned an empty latent.\n2. There is a mismatch between the VAE and the model.\n3. I used `v1-5-pruned-emaonly-fp16.safetensors`. This checkpoint contains its own VAE, so node 8 should work fine if it uses that same checkpoint's VAE (which it does via link [3,2]).\n\nHowever, the error is a `KeyError: 0` in `images[0].shape[1]`. This means `images` is an empty list.\nThis implies node 8 (`VAEDecode`) returned an empty list of images.\n\nLet's check if there are any other issues. The logs showed some errors loading custom nodes (RMBG), but that shouldn't affect a basic SD1.5 workflow.\n\nI will try to build the workflow again, but this time I'll use `SaveImage` only at the very end or ensure the flow is absolutely standard. Actually, if node 9 fails, it means nothing was decoded. This often happens if the KSampler didn't actually run or produced an invalid latent.\n\nWait, looking at my previous workflow:\nNode 7 (KSampler) has `denoise: 1`. That's correct for txt2img.\nBut I noticed in the first attempt it failed immediately with a KeyError too.\n\nLet me try to use a more robust approach:\n1. Use `CheckpointLoaderSimple` -> `CLIPTextEncode` x2 -> `EmptyLatentImage` -> `KSampler` -> `VAEDecode` -> `SaveImage`.\n2. Then branch from the output of `VAEDecode` into another `UpscaleModelLoader` -> `ImageUpscaleWithModel` -> `ImageScale` (to get to 1024) -> `SaveImage`.\n\nActually, I'll use a simpler upscale: just `ImageUpscaleWithModel` and then save. If the model is 4x, it goes from 512 to 2048. To get exactly 1024, I can either use an Upscale Model that does 2x or use `ImageScale`.\n\nLet's try again with a very clean graph and check if there are any obvious errors in my node IDs or links.\nNode 3: CheckpointLoaderSimple (v1-5)\nNode 4: CLIPTextEncode (pos) -> link [3,1]\nNode 5: CLIPTextEncode (neg) -> link [3,1]\nNode 6: EmptyLatentImage (512x512)\nNode 7: KSampler -> model[3,0], pos[4,0], neg[5,0], latent[6,0]\nNode 8: VAEDecode -> samples[7,0], vae[3,2]\nNode 9: SaveImage -> images[8,0] (This is where it failed)\n\nIf `SaveImage` fails with `KeyError: 0`, then node 8 returned an empty list. This means the KSampler probably didn't produce a valid latent or VAEDecode couldn't handle it.\nWait... I see what happened in my previous attempt. The prompt was \"a lighthouse at dusk\". Maybe there's something about that specific seed? Or maybe the VAE is missing/corrupt?\n\nLet me try to use `VAE Loader` explicitly instead of relying on the checkpoint's internal VAE, just to be safe. And I'll check if any other models are available.\nActually, let's look at my previous workflow again. It looks correct for SD1.5.\nMaybe it's a server-side issue with that specific model?\n\nI will try one more time, but this time I'll use `vae` from the checkpoint loader explicitly and make sure all links are solid. I'll also add a `PreviewImage` node before `SaveImage` to see if anything is being generated at all (though it won't help me in headless mode).\n\nActually, let's try this:\n1. CheckpointLoaderSimple -> model, clip, vae\n2. CLIPTextEncode x 2\n3. EmptyLatentImage\n4. KSampler\n5. VAEDecode\n6. SaveImage (Original)\n7. UpscaleModelLoader\n8. ImageUpscaleWithModel (using output of VAEDecode)\n9. SaveImage (Upscaled)\n\nI'll use `4x-ClearRealityV1.pth` for upscaling and then scale it down to 0.5 using `ImageScale` to get exactly 1024 from 512.\n\nOne more thing: I should check if the server is actually healthy before enqueuing again.\nI'll run a health check first.",
+      "tool_calls": [
+        {
+          "id": "9K8d9pcSkGI6nCQuE4Dlvyil7WMMCEwS",
+          "function": {
+            "index": 0,
+            "name": "health_check",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "health_check",
+      "content": "## Health Check\n\n**ComfyUI**: 0.27.0 | Python 3.13.12 | PyTorch 2.10.0+cu130\n**GPU**: cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync | VRAM free 20.4/24.0 GB | RAM free 98.5 GB\n**Queue**: 0 running, 0 pending\n\n**Models** (61 total across 6 categories):\n- checkpoints: 3 — ltx-2.3-22b-dev.safetensors, sam3.1_multiplex_fp16.safetensors, v1-5-pruned-emaonly-fp16.safetensors\n- diffusion_models: 7 — Wan2_2-Animate-14B_fp8_scaled_e4m3fn_KJ_v2.safetensors, anima-base-v1.0.safetensors, ideogram4_fp8_scaled.safetensors (+4 more)\n- loras: 32 — IdeoKrea-test.safetensors, Illustrious\\style\\TRexStudio_Hentai_IL_v2.safetensors, Illustrious\\style\\anime_screencap-IL-NOOB_v3.safetensors (+29 more)\n- vae: 7 — LTX23_audio_vae_bf16.safetensors, LTX23_video_vae_bf16.safetensors, Wan2_1_VAE_bf16.safetensors (+4 more)\n- text_encoders: 11 — ernie-image-prompt-enhancer.safetensors, gemma4_e4b_it_fp8_scaled.safetensors, gemma_3_12B_it_fp4_mixed.safetensors (+8 more)\n- controlnet: 1 — Wan21_Uni3C_controlnet_fp16.safetensors\n\n**Recent errors** (last 1):\n  \"2026-07-04T13:00:27.287833 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path insightface C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\insightface\\n2026-07-04T13:00:27.287845 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path nsfw_detector C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\nsfw_detector\\n2026-07-04T13:00:27.287868 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path reactor C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\reactor\\n2026-07-04T13:00:27.287883 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path sam2 C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\sam2\\n2026-07-04T13:00:27.287895 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path sams C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\sams\\n2026-07-04T13:00:27.287907 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path ultralytics C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\ultralytics\\n2026-07-04T13:00:27.287920 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path yolo C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\yolo\\n2026-07-04T13:00:27.287934 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path clip C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\clip\\n2026-07-04T13:00:27.287947 - \\u001b[32m[INFO]\\u001b[0m Adding extra search path unet C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\models\\\\unet\\n2026-07-04T13:00:27.287972 - \\u001b[32m[INFO]\\u001b[0m Setting output directory to: C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\output\\n2026-07-04T13:00:27.287995 - \\u001b[32m[INFO]\\u001b[0m Setting input directory to: C:\\\\Users\\\\Artokun\\\\ComfyUI-Shared\\\\input\\n2026-07-04T13:00:27.684626 - [START] Security scan2026-07-04T13:00:27.684635 - \\n2026-07-04T13:00:28.784885 - [DONE] Security scan2026-07-04T13:00:28.784897 - \\n2026-07-04T13:00:28.787268 - ** ComfyUI startup time:2026-07-04T13:00:28.787320 -  2026-07-04T13:00:28.787345 - 2026-07-04 13:00:28.7872026-07-04T13:00:28.787367 - \\n2026-07-04T13:00:28.787392 - ** Platform:2026-07-04T13:00:28.787413 -  2026-07-04T13:00:28.787433 - Windows2026-07-04T13:00:28.787449 - \\n2026-07-04T13:00:28.787468 - ** Python version:2026-07-04T13:00:28.787485 -  2026-07-04T13:00:28.787504 - 3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]2026-07-04T13:00:28.787522 - \\n2026-07-04T13:00:28.787540 - ** Python executable:2026-07-04T13:00:28.787557 -  2026-07-04T13:00:28.787576 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\.venv\\\\Scripts\\\\python.exe2026-07-04T13:00:28.787594 - \\n2026-07-04T13:00:28.787614 - ** ComfyUI Path:2026-07-04T13:00:28.787633 -  2026-07-04T13:00:28.787651 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI2026-07-04T13:00:28.787668 - \\n2026-07-04T13:00:28.787912 - ** ComfyUI Base Folder Path:2026-07-04T13:00:28.787960 -  2026-07-04T13:00:28.787979 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI2026-07-04T13:00:28.787994 - \\n2026-07-04T13:00:28.788019 - ** User directory:2026-07-04T13:00:28.788033 -  2026-07-04T13:00:28.788048 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\user2026-07-04T13:00:28.788062 - \\n2026-07-04T13:00:28.788076 - ** ComfyUI-Manager config path:2026-07-04T13:00:28.788088 -  2026-07-04T13:00:28.788102 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\user\\\\__manager\\\\config.ini2026-07-04T13:00:28.788114 - \\n2026-07-04T13:00:28.788133 - ** Log path:2026-07-04T13:00:28.788146 -  2026-07-04T13:00:28.788158 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\user\\\\comfyui.log2026-07-04T13:00:28.788173 - \\n2026-07-04T13:00:29.923382 - \\u001b[32m[INFO]\\u001b[0m [PRE] ComfyUI-Manager\\n2026-07-04T13:00:29.925313 - \\u001b[32m[INFO]\\u001b[0m \\nPrestartup times for custom nodes:\\n2026-07-04T13:00:29.925397 - \\u001b[32m[INFO]\\u001b[0m    0.0 seconds: C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\custom_nodes\\\\rgthree-comfy\\n2026-07-04T13:00:29.925449 - \\u001b[32m[INFO]\\u001b[0m    0.0 seconds: C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\custom_nodes\\\\ComfyUI-Easy-Use\\n2026-07-04T13:00:29.925483 - \\u001b[32m[INFO]\\u001b[0m \\n2026-07-04T13:00:31.874340 - C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\.venv\\\\Lib\\\\site-packages\\\\torch\\\\cuda\\\\__init__.py:65: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.\\n  import pynvml  # type: ignore[import]\\n2026-07-04T13:00:34.916288 - \\u001b[32m[INFO]\\u001b[0m Found comfy_kitchen backend triton: {'available': True, 'disabled': True, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope_split_half', 'apply_rope_split_half1', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'int8_linear', 'quantize_and_rotate_rowwise', 'quantize_int8_rowwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8']}\\n2026-07-04T13:00:34.916430 - \\u001b[32m[INFO]\\u001b[0m Found comfy_kitchen backend eager: {'available': True, 'disabled': False, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope_split_half', 'apply_rope_split_half1', 'dequantize_int8_convrot_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_simple', 'dequantize_int8_simple_dtype', 'dequantize_mxfp8', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'gemv_awq_w4a16', 'int8_linear', 'quantize_and_rotate_rowwise', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'scaled_mm_mxfp8', 'scaled_mm_nvfp4', 'scaled_mm_svdquant_w4a4', 'stochastic_rounding_fp8']}\\n2026-07-04T13:00:34.916478 - \\u001b[32m[INFO]\\u001b[0m Found comfy_kitchen backend cuda: {'available': True, 'disabled': False, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope_split_half', 'apply_rope_split_half1', 'dequantize_int8_convrot_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_simple', 'dequantize_int8_simple_dtype', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'gemv_awq_w4a16', 'int8_linear', 'quantize_and_rotate_rowwise', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'scaled_mm_nvfp4', 'scaled_mm_svdquant_w4a4', 'stochastic_rounding_fp8']}\\n2026-07-04T13:00:34.926719 - \\u001b[32m[INFO]\\u001b[0m Checkpoint files will always be loaded safely.\\n2026-07-04T13:00:35.009391 - \\u001b[32m[INFO]\\u001b[0m Total VRAM 24564 MB, total RAM 130835 MB\\n2026-07-04T13:00:35.009542 - \\u001b[32m[INFO]\\u001b[0m pytorch version: 2.10.0+cu130\\n2026-07-04T13:00:35.009877 - \\u001b[32m[INFO]\\u001b[0m Set vram state to: NORMAL_VRAM\\n2026-07-04T13:00:35.010427 - \\u001b[32m[INFO]\\u001b[0m Device: cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync\\n2026-07-04T13:00:35.032258 - \\u001b[32m[INFO]\\u001b[0m Using async weight offloading with 2 streams\\n2026-07-04T13:00:35.032840 - \\u001b[32m[INFO]\\u001b[0m Enabled pinned memory 52334.0\\n2026-07-04T13:00:35.039169 - \\u001b[32m[INFO]\\u001b[0m working around nvidia conv3d memory bug.\\n2026-07-04T13:00:35.505898 - \\u001b[32m[INFO]\\u001b[0m Using pytorch attention\\n2026-07-04T13:00:38.656400 - \\u001b[32m[INFO]\\u001b[0m DynamicVRAM support detected and enabled\\n2026-07-04T13:00:38.656506 - \\u001b[32m[INFO]\\u001b[0m Python version: 3.13.12 (main, Feb 12 2026, 00:38:53) [MSC v.1944 64 bit (AMD64)]\\n2026-07-04T13:00:38.656544 - \\u001b[32m[INFO]\\u001b[0m ComfyUI version: 0.27.0\\n2026-07-04T13:00:38.657301 - \\u001b[32m[INFO]\\u001b[0m comfy-aimdo version: 0.4.10\\n2026-07-04T13:00:38.658055 - \\u001b[32m[INFO]\\u001b[0m comfy-kitchen version: 0.2.16\\n2026-07-04T13:00:38.666734 - \\u001b[32m[INFO]\\u001b[0m comfyui-frontend-package version: 1.45.20\\n2026-07-04T13:00:38.666821 - \\u001b[32m[INFO]\\u001b[0m comfyui-workflow-templates version: 0.11.1\\n2026-07-04T13:00:38.666858 - \\u001b[32m[INFO]\\u001b[0m comfyui-embedded-docs version: 0.5.6\\n2026-07-04T13:00:38.666890 - \\u001b[32m[INFO]\\u001b[0m comfy-kitchen version: 0.2.16\\n2026-07-04T13:00:38.666919 - \\u001b[32m[INFO]\\u001b[0m comfy-aimdo version: 0.4.10\\n2026-07-04T13:00:38.668228 - \\u001b[32m[INFO]\\u001b[0m [Prompt Server] web root: C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\.venv\\\\Lib\\\\site-packages\\\\comfyui_frontend_package\\\\static\\n2026-07-04T13:00:38.668793 - \\u001b[32m[INFO]\\u001b[0m Asset seeder disabled\\n2026-07-04T13:00:38.668890 - \\u001b[32m[INFO]\\u001b[0m [START] ComfyUI-Manager\\n2026-07-04T13:00:38.849048 - [ComfyUI-Manager] Using GitPython backend2026-07-04T13:00:38.849091 - \\n2026-07-04T13:00:38.882171 - \\u001b[32m[INFO]\\u001b[0m [ComfyUI-Manager] network_mode: public\\n2026-07-04T13:00:40.284456 - \\u001b[32m[INFO]\\u001b[0m No OpenGL_accelerate module loaded: No module named 'OpenGL_accelerate'\\n2026-07-04T13:00:41.525330 - [Crystools \\u001b[0;32mINFO\\u001b[0m] Crystools version: 1.27.4\\n2026-07-04T13:00:41.567328 - [Crystools \\u001b[0;32mINFO\\u001b[0m] Platform release: 11\\n2026-07-04T13:00:41.567395 - [Crystools \\u001b[0;32mINFO\\u001b[0m] JETSON: Not detected.\\n2026-07-04T13:00:41.568288 - [Crystools \\u001b[0;32mINFO\\u001b[0m] CPU: 13th Gen Intel(R) Core(TM) i9-13900KS - Arch: AMD64 - OS: Windows 11\\n2026-07-04T13:00:41.578987 - [Crystools \\u001b[0;32mINFO\\u001b[0m] pynvml (NVIDIA) initialized.\\n2026-07-04T13:00:41.579196 - [Crystools \\u001b[0;32mINFO\\u001b[0m] GPU/s:\\n2026-07-04T13:00:41.593444 - [Crystools \\u001b[0;32mINFO\\u001b[0m] 0) NVIDIA GeForce RTX 4090\\n2026-07-04T13:00:41.593554 - [Crystools \\u001b[0;32mINFO\\u001b[0m] NVIDIA Driver: 610.62\\n2026-07-04T13:00:41.866439 - \\u001b[1m\\u001b[33m[WARNING]\\u001b[0m Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\nodes.py\\\", line 2246, in load_custom_node\\n    module_spec.loader.exec_module(module)\\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^\\n  File \\\"<frozen importlib._bootstrap_external>\\\", line 1019, in exec_module\\n  File \\\"<frozen importlib._bootstrap_external>\\\", line 1156, in get_code\\n  File \\\"<frozen importlib._bootstrap_external>\\\", line 1214, in get_data\\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\\\\\Users\\\\\\\\Artokun\\\\\\\\ComfyUI-Installs\\\\\\\\ComfyUI\\\\\\\\ComfyUI\\\\\\\\custom_nodes\\\\\\\\comfyui-does-not-exist-99999\\\\\\\\__init__.py'\\n\\n2026-07-04T13:00:41.866624 - \\u001b[1m\\u001b[33m[WARNING]\\u001b[0m Cannot import C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\custom_nodes\\\\comfyui-does-not-exist-99999 module for custom nodes: [Errno 2] No such file or directory: 'C:\\\\\\\\Users\\\\\\\\Artokun\\\\\\\\ComfyUI-Installs\\\\\\\\ComfyUI\\\\\\\\ComfyUI\\\\\\\\custom_nodes\\\\\\\\comfyui-does-not-exist-99999\\\\\\\\__init__.py'\\n2026-07-04T13:00:44.003941 - [ComfyUI-Easy-Use] server: 2026-07-04T13:00:44.003982 - v1.3.7 2026-07-04T13:00:44.003999 - Loaded2026-07-04T13:00:44.004018 - \\n2026-07-04T13:00:44.004041 - [ComfyUI-Easy-Use] web root: 2026-07-04T13:00:44.004056 - C:"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a workflow that generates an image of \"a lighthouse at dusk\" at 512x512 and then upscales it by 2x to 1024x1024, saving both images.\n\nI previously attempted this but encountered a `KeyError: 0` in the `SaveImage` node (node 9). Looking at the traceback, it seems like an issue with how ComfyUI handles image tensors or paths when multiple SaveImage nodes are used or if there's some internal state corruption. However, more likely, I might have made a mistake in the workflow structure that caused the `SaveImage` node to fail during execution (perhaps due to the way it was linked).\n\nWait, looking at my previous `enqueue_workflow` call:\nNode 8 is `VAEDecode`. It outputs an image.\nNode 9 is `SaveImage`, which takes images as input from Node 8.\nNode 11 is `ImageUpscaleWithModel`, which also takes the same image from Node 8.\n\nThe error `KeyError: 0` in `save_images` usually happens when it tries to access an index of a list that doesn't exist, or if the input tensor is empty/invalid. Since node 7 (KSampler) and node 8 (VAEDecode) were cached, they didn't run again; but maybe something went wrong in their previous execution?\n\nActually, looking at `get_history` for prompt `d1b0b024-f366-4a6f-a4e5-9ceea71850e6`, it says \"Completed: false\" and shows the same KeyError.\nThe first attempt failed because I used a nonexistent checkpoint (`nonexistent-model.safetensors`).\nThe second attempt (prompt `1fd6274e...`) also failed with `KeyError: 0` at node 9 (`SaveImage`).\n\nLet's analyze why `SaveImage` would throw `KeyError: 0`. This often happens if the input image tensor is empty or not a batch of images.\nIn my workflow:\nNode 7 (KSampler) -> Node 8 (VAEDecode) -> Node 9 (SaveImage).\nIf KSampler failed to produce a valid latent, VAEDecode might output something that SaveImage can't handle. But the logs show `KeyError` in `folder_paths.get_save_image_path`, which suggests it couldn't determine the image dimensions from `images[0].shape`. This confirms `images` is empty or not a tensor of images.\n\nWait, I see what happened. In my second attempt:\nNode 7 (KSampler) had `seed: 12345`.\nBut in the first failed run (`d1b0b024...`), it was cached? No, that's not right. The history says \"Cached nodes: 3, 6\". Node 7 is KSampler; it should have run.\n\nLet me try a simpler approach to debug:\n1. Use `CheckpointLoaderSimple` -> `CLIPTextEncode` (pos) -> `CLIPTextEncode` (neg) -> `EmptyLatentImage` -> `KSampler` -> `VAEDecode` -> `SaveImage`.\n2. If that works, I'll add the upscale part.\n\nActually, looking at my second workflow:\nNode 3: CheckpointLoaderSimple (`v1-5-pruned-emaonly-fp16.safetensors`) - OK.\nNode 4 & 5: CLIPTextEncode - OK.\nNode 6: EmptyLatentImage (512x512) - OK.\nNode 7: KSampler - OK.\nNode 8: VAEDecode - OK.\nNode 9: SaveImage - FAILED with `KeyError: 0`.\n\nThis is strange because this is the most basic txt2img pipeline. The error in `get_save_image_path` suggests that `images[0]` doesn't exist or isn't a tensor. This usually means VAEDecode failed to produce an image, but didn't throw its own error.\n\nLet me try again with a very simple workflow first to ensure the basic pipeline works on this server, then I will add the upscale logic. If it fails again, I'll check if there are any specific issues with `v1-5-pruned-emaonly-fp16.safetensors` or the VAE.\n\nActually, let me try to use a different sampler and see if that helps. Or maybe just run it once more; sometimes transient errors occur. But I'll also add an Upscale model loader and upscale node as requested in one go, but I'll be very careful with the connections.\n\nOne detail: `ImageScale` is used to get 1024x1024 from a 4x upscaler (which would make it 2048).\nUpscale Model Loader -> Image Upscale With Model (4x) -> Image Scale (0.5) -> Save Image.\n\nLet's try this again, but I will use `euler` instead of `euler_ancestral` and a different seed just in case.",
+      "tool_calls": [
+        {
+          "id": "L8zlvsG9zgEiSKKSaberdqshuycUVXOC",
+          "function": {
+            "index": 0,
+            "name": "enqueue_workflow",
+            "arguments": {
+              "workflow": {
+                "3": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "4": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution"
+                  }
+                },
+                "5": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": {
+                      "link": [
+                        3,
+                        1
+                      ]
+                    },
+                    "text": "blurry, distorted, low quality, watermark, text, signature, ugly, deformed"
+                  }
+                },
+                "6": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 512,
+                    "width": 512
+                  }
+                },
+                "7": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 8,
+                    "denoise": 1,
+                    "latent_image": {
+                      "link": [
+                        6,
+                        0
+                      ]
+                    },
+                    "model": {
+                      "link": [
+                        3,
+                        0
+                      ]
+                    },
+                    "negative": {
+                      "link": [
+                        5,
+                        0
+                      ]
+                    },
+                    "positive": {
+                      "link": [
+                        4,
+                        0
+                      ]
+                    },
+                    "sampler_name": "euler",
+                    "seed": 999,
+                    "steps": 20
+                  }
+                },
+                "8": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": {
+                      "link": [
+                        7,
+                        0
+                      ]
+                    },
+                    "vae": {
+                      "link": [
+                        3,
+                        2
+                      ]
+                    }
+                  }
+                },
+                "9": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_orig",
+                    "images": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "10": {
+                  "class_type": "UpscaleModelLoader",
+                  "inputs": {
+                    "model_name": "4x-ClearRealityV1.pth"
+                  }
+                },
+                "11": {
+                  "class_type": "ImageUpscaleWithModel",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        8,
+                        0
+                      ]
+                    },
+                    "upscale_model": {
+                      "link": [
+                        10,
+                        0
+                      ]
+                    }
+                  }
+                },
+                "12": {
+                  "class_type": "ImageScale",
+                  "inputs": {
+                    "image": {
+                      "link": [
+                        11,
+                        0
+                      ]
+                    },
+                    "scale_by": 0.5
+                  }
+                },
+                "13": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_upscaled",
+                    "images": {
+                      "link": [
+                        12,
+                        0
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "enqueue_workflow",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"bf2b7b04-290d-4d27-b7a0-c72a6358ea0a\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to render 'a lighthouse at dusk' at 512x512 and also a 2x upscaled version (1024x1024) in the same workflow.\n\nI have already enqueued this workflow with `prompt_id: bf2b7b04-290d-4d27-b7a0-c72a6358ea0a`.\nThe previous attempt failed due to a KeyError at node 9 (SaveImage), which usually happens if the image tensor is empty or there's an issue with the output path. However, looking at my second `enqueue_workflow` call, I used standard nodes and valid model names found in `list_local_models`.\n\nNow I need to poll for completion of this job.",
+      "tool_calls": [
+        {
+          "id": "5OmR1ELSaUL2aSjJppUA2Fc7hL8RAIdS",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "bf2b7b04-290d-4d27-b7a0-c72a6358ea0a"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"error\",\n  \"error\": {\n    \"node_id\": \"9\",\n    \"node_type\": \"SaveImage\",\n    \"exception_message\": \"0\\n\",\n    \"exception_type\": \"KeyError\",\n    \"traceback\": \"  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 542, in execute\\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 341, in get_output_data\\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 315, in _async_map_node_over_list\\n    await process_inputs(input_dict, i)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\execution.py\\\", line 303, in process_inputs\\n    result = f(**inputs)\\n  File \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\nodes.py\\\", line 1678, in save_images\\n    full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])\\n                                                                                                                                           ~~~~~~^^^\\n\",\n    \"current_inputs\": {\n      \"filename_prefix\": [\n        \"lighthouse_orig\"\n      ],\n      \"images\": [\n        \"{'link': [8, 0]}\"\n      ],\n      \"prompt\": [\n        \"{'3': {'class_type': 'CheckpointLoaderSimple', 'inputs': {'ckpt_name': 'v1-5-pruned-emaonly-fp16.safetensors'}}, '4': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution'}}, '5': {'class_type': 'CLIPTextEncode', 'inputs': {'clip': {'link': [3, 1]}, 'text': 'blurry, distorted, low quality, watermark, text, signature, ugly, deformed'}}, '6': {'class_type': 'EmptyLatentImage', 'inputs': {'batch_size': 1, 'height': 512, 'width': 512}}, '7': {'class_type': 'KSampler', 'inputs': {'cfg': 8, 'denoise': 1, 'latent_image': {'link': [6, 0]}, 'model': {'link': [3, 0]}, 'negative': {'link': [5, 0]}, 'positive': {'link': [4, 0]}, 'sampler_name': 'euler', 'seed': 755362542, 'steps': 20}}, '8': {'class_type': 'VAEDecode', 'inputs': {'samples': {'link': [7, 0]}, 'vae': {'link': [3, 2]}}}, '9': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_orig', 'images': {'link': [8, 0]}}}, '10': {'class_type': 'UpscaleModelLoader', 'inputs': {'model_name': '4x-ClearRealityV1.pth'}}, '11': {'class_type': 'ImageUpscaleWithModel', 'inputs': {'image': {'link': [8, 0]}, 'upscale_model': {'link': [10, 0]}}}, '12': {'class_type': 'ImageScale', 'inputs': {'image': {'link': [11, 0]}, 'scale_by': 0.5}}, '13': {'class_type': 'SaveImage', 'inputs': {'filename_prefix': 'lighthouse_upscaled', 'images': {'link': [12, 0]}}}}\"\n      ],\n      \"extra_pnginfo\": [\n        \"{}\"\n      ]\n    }\n  },\n  \"execution_stats\": {\n    \"total_duration_ms\": 3,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a workflow that renders 'a lighthouse at dusk' at 512x512 and also upscales it to 1024x1024 in the same run.\n\nI have already tried enqueuing this twice, but both times I got a `KeyError: 0` at node 9 (`SaveImage`).\nLooking at the traceback: `images[0].shape[1]`. This suggests that `images` is empty or not what it's expected to be.\n\nWait, looking closer at my previous workflow construction:\nNode 8 (VAEDecode) outputs images. Node 9 (SaveImage) takes those images as input.\nIf node 7 (KSampler) failed silently or produced nothing, then VAEDecode might have received empty samples and passed an empty list to SaveImage.\n\nHowever, the `get_job_status` shows that nodes 3 and 6 were cached. This means they ran fine. The error happened at node 9.\nIf node 7 (KSampler) had failed, it would usually show up as a failure there or in VAEDecode.\nThe fact that SaveImage is failing with `images[0]` suggests the list of images passed to it is empty.\n\nLet's check if I have any custom nodes installed that might be interfering or if this is a standard ComfyUI issue. The health check shows no major errors except for some missing modules in RMBG, which shouldn't affect basic txt2img.\n\nActually, looking at the `SaveImage` node inputs:\nNode 9: `images`: {link: [8,0]} (from VAEDecode)\nIf VAEDecode received nothing from KSampler, it might output an empty list.\n\nLet me try to simplify and see if I can get a single image first, or check the logs more carefully. The traceback says `KeyError: 0`. This is almost certainly because `images` (the input to SaveImage) is an empty list.\n\nWhy would VAEDecode return an empty list?\n1. KSampler failed but didn't throw an error? Unlikely.\n2. EmptyLatentImage produced nothing? Also unlikely.\n3. The model loaded by CheckpointLoaderSimple isn't actually there or corrupted? But it was cached... wait, if it was cached from a previous run that worked, maybe the current environment is different.\n\nLet me try to use `generate_image` first to see if basic generation works. If that fails, I know it's a core issue. If it works, then my manual graph has a bug.",
+      "tool_calls": [
+        {
+          "id": "QwI2EpT41jIMd1jUXE3t5LGlh1nq8PzU",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "prompt": "a lighthouse at dusk"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"fea5f60a-0bf4-4be6-81dd-d31f03e69487\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a single workflow that renders an image and then upscales it. I previously tried to build this manually but encountered `KeyError` in the `SaveImage` node (likely due to how ComfyUI handles output paths or internal state during my manual graph construction).\n\nHowever, the `generate_image` tool is a high-level wrapper that should work reliably. But wait, the user specifically asked for \"ONE single workflow\" that does both rendering and upscaling in one run. The `generate_image` tool only handles text-to-image. To achieve the upscale as well, I need to use `create_workflow` or build it manually via `enqueue_workflow`.\n\nThe previous manual attempts failed at `SaveImage`. This often happens if there's a mismatch in how images are passed or saved. Let me try building it again but more carefully using `create_workflow` for the base and then adding the upscale part, OR just use `generate_image` to get the first image, then `upscale_image` on that asset. But the user said \"in the same graph\".\n\nLet's look at my previous manual workflow:\nNode 8 (VAEDecode) -> Node 9 (SaveImage)\nNode 8 (VAEDecode) -> Node 11 (UpscaleWithModel) -> Node 12 (Scale) -> Node 13 (SaveImage)\n\nThe error `KeyError: 0` in `save_images` usually means the `images` input is empty or not a list.\nIn my workflow, node 8 outputs an image tensor. The `SaveImage` node expects a list of images. In API format, it should be passed as a list if multiple are expected, but for one image, ComfyUI's internal logic usually handles the conversion from tensor to list.\n\nWait, I see what happened:\nNode 8 (VAEDecode) outputs `IMAGES`.\nNode 9 (SaveImage) takes `images` as input.\nIn my workflow JSON: `'images': {'link': [8, 0]}`. This is correct for API format.\n\nMaybe the issue is that I'm using a very old model (`v1-5`) and maybe there's something about the environment? No, `health_check` showed it's fine.\nActually, looking at the traceback: `images[0].shape[1]`. It tried to access index 0 of `images`, which means `images` was an empty list or not a list.\n\nLet me try using `create_workflow(template='txt2img')` first to get a guaranteed working base, then modify it to add the upscale branch. This is safer than building from scratch.",
+      "tool_calls": [
+        {
+          "id": "ju8x6YvMY6bExFyPbIiF3YIRNZ7XRIhl",
+          "function": {
+            "index": 0,
+            "name": "create_workflow",
+            "arguments": {
+              "params": {
+                "checkpoint": "v1-5-pruned-emaonly-fp16.safetensors",
+                "prompt": "a lighthouse at dusk"
+              },
+              "template": "txt2img"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "create_workflow",
+      "content": "{\n  \"1\": {\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"inputs\": {\n      \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n    }\n  },\n  \"2\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"1\",\n        1\n      ]\n    },\n    \"_meta\": {\n      \"title\": \"Positive Prompt\"\n    }\n  },\n  \"3\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"1\",\n        1\n      ]\n    },\n    \"_meta\": {\n      \"title\": \"Negative Prompt\"\n    }\n  },\n  \"4\": {\n    \"class_type\": \"EmptyLatentImage\",\n    \"inputs\": {\n      \"width\": 1024,\n      \"height\": 1024,\n      \"batch_size\": 1\n    }\n  },\n  \"5\": {\n    \"class_type\": \"KSampler\",\n    \"inputs\": {\n      \"model\": [\n        \"1\",\n        0\n      ],\n      \"positive\": [\n        \"2\",\n        0\n      ],\n      \"negative\": [\n        \"3\",\n        0\n      ],\n      \"latent_image\": [\n        \"4\",\n        0\n      ],\n      \"seed\": 192285950190335,\n      \"steps\": 20,\n      \"cfg\": 8,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"normal\",\n      \"denoise\": 1\n    }\n  },\n  \"6\": {\n    \"class_type\": \"VAEDecode\",\n    \"inputs\": {\n      \"samples\": [\n        \"5\",\n        0\n      ],\n      \"vae\": [\n        \"1\",\n        2\n      ]\n    }\n  },\n  \"7\": {\n    \"class_type\": \"SaveImage\",\n    \"inputs\": {\n      \"images\": [\n        \"6\",\n        0\n      ],\n      \"filename_prefix\": \"ComfyUI\"\n    }\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a single workflow that renders 'a lighthouse at dusk' at 512x512 and also upscales it to 1024x1024.\n\nI have the basic txt2img template from `create_workflow`. I need to:\n1. Change resolution of node 4 (EmptyLatentImage) to 512x512.\n2. Set prompt in node 2 and negative prompt in node 3.\n3. Add an UpscaleModelLoader for a model like '4x-ClearRealityV1.pth'.\n4. Add ImageUpscaleWithModel, connecting the output of VAEDecode (node 6) to it.\n5. Add another SaveImage node to save the upscaled result.\n\nLet's refine this into one `modify_workflow` call or a series of them. I can use `create_workflow` as the base and then modify it.\n\nPlan:\n1. Start with txt2img template.\n2. Modify prompts, resolution (512x512).\n3. Add UpscaleModelLoader ('4x-ClearRealityV1.pth').\n4. Add ImageUpscaleWithModel. Connect VAEDecode output to it and the upscale model loader's output to it.\n5. Add a second SaveImage node for the upscaled image.\n6. Enqueue.\n\nWait, I should check if `4x-ClearRealityV1.pth` is actually available first (I did this in previous turns but let me double check). Yes, it was listed.\n\nLet's build the workflow JSON and enqueue it.",
+      "tool_calls": [
+        {
+          "id": "BTYXy0JNpMgDTanC6rO6txT6eXhcoOmP",
+          "function": {
+            "index": 0,
+            "name": "modify_workflow",
+            "arguments": {
+              "operations": [
+                {
+                  "input_name": "text",
+                  "node_id": "2",
+                  "op": "set_input",
+                  "value": "a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution"
+                },
+                {
+                  "input_name": "text",
+                  "node_id": "3",
+                  "op": "set_input",
+                  "value": "blurry, distorted, low quality, watermark, text, signature, ugly, deformed"
+                },
+                {
+                  "input_name": "width",
+                  "node_id": "4",
+                  "op": "set_input",
+                  "value": 512
+                },
+                {
+                  "input_name": "height",
+                  "node_id": "4",
+                  "op": "set_input",
+                  "value": 512
+                }
+              ],
+              "workflow": {
+                "1": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "2": {
+                  "_meta": {
+                    "title": "Positive Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": ""
+                  }
+                },
+                "3": {
+                  "_meta": {
+                    "title": "Negative Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": ""
+                  }
+                },
+                "4": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 1024,
+                    "width": 1024
+                  }
+                },
+                "5": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 8,
+                    "denoise": 1,
+                    "latent_image": [
+                      "4",
+                      0
+                    ],
+                    "model": [
+                      "1",
+                      0
+                    ],
+                    "negative": [
+                      "3",
+                      0
+                    ],
+                    "positive": [
+                      "2",
+                      0
+                    ],
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "seed": 192285950190335,
+                    "steps": 20
+                  }
+                },
+                "6": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": [
+                      "5",
+                      0
+                    ],
+                    "vae": [
+                      "1",
+                      2
+                    ]
+                  }
+                },
+                "7": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "ComfyUI",
+                    "images": [
+                      "6",
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "modify_workflow",
+      "content": "{\n  \"workflow\": {\n    \"1\": {\n      \"class_type\": \"CheckpointLoaderSimple\",\n      \"inputs\": {\n        \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n      }\n    },\n    \"2\": {\n      \"_meta\": {\n        \"title\": \"Positive Prompt\"\n      },\n      \"class_type\": \"CLIPTextEncode\",\n      \"inputs\": {\n        \"clip\": [\n          \"1\",\n          1\n        ],\n        \"text\": \"a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution\"\n      }\n    },\n    \"3\": {\n      \"_meta\": {\n        \"title\": \"Negative Prompt\"\n      },\n      \"class_type\": \"CLIPTextEncode\",\n      \"inputs\": {\n        \"clip\": [\n          \"1\",\n          1\n        ],\n        \"text\": \"blurry, distorted, low quality, watermark, text, signature, ugly, deformed\"\n      }\n    },\n    \"4\": {\n      \"class_type\": \"EmptyLatentImage\",\n      \"inputs\": {\n        \"batch_size\": 1,\n        \"height\": 512,\n        \"width\": 512\n      }\n    },\n    \"5\": {\n      \"class_type\": \"KSampler\",\n      \"inputs\": {\n        \"cfg\": 8,\n        \"denoise\": 1,\n        \"latent_image\": [\n          \"4\",\n          0\n        ],\n        \"model\": [\n          \"1\",\n          0\n        ],\n        \"negative\": [\n          \"3\",\n          0\n        ],\n        \"positive\": [\n          \"2\",\n          0\n        ],\n        \"sampler_name\": \"euler\",\n        \"scheduler\": \"normal\",\n        \"seed\": 192285950190335,\n        \"steps\": 20\n      }\n    },\n    \"6\": {\n      \"class_type\": \"VAEDecode\",\n      \"inputs\": {\n        \"samples\": [\n          \"5\",\n          0\n        ],\n        \"vae\": [\n          \"1\",\n          2\n        ]\n      }\n    },\n    \"7\": {\n      \"class_type\": \"SaveImage\",\n      \"inputs\": {\n        \"filename_prefix\": \"ComfyUI\",\n        \"images\": [\n          \"6\",\n          0\n        ]\n      }\n    }\n  },\n  \"added_node_ids\": []\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "iXJWcF9mpI2uIVu6FvAHtyexMBroimND",
+          "function": {
+            "index": 0,
+            "name": "modify_workflow",
+            "arguments": {
+              "operations": [
+                {
+                  "class_type": "UpscaleModelLoader",
+                  "id": "10",
+                  "inputs": {
+                    "model_name": "4x-ClearRealityV1.pth"
+                  },
+                  "op": "add_node"
+                },
+                {
+                  "class_type": "ImageUpscaleWithModel",
+                  "id": "11",
+                  "inputs": {
+                    "image": [
+                      "6",
+                      0
+                    ],
+                    "upscale_model": [
+                      "10",
+                      0
+                    ]
+                  },
+                  "op": "add_node"
+                },
+                {
+                  "class_type": "ImageScale",
+                  "id": "12",
+                  "inputs": {
+                    "image": [
+                      "11",
+                      0
+                    ],
+                    "scale_by": 0.5
+                  },
+                  "op": "add_node"
+                },
+                {
+                  "class_type": "SaveImage",
+                  "id": "13",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_upscaled",
+                    "images": [
+                      "12",
+                      0
+                    ]
+                  },
+                  "op": "add_node"
+                }
+              ],
+              "workflow": {
+                "1": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "2": {
+                  "_meta": {
+                    "title": "Positive Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": "a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution"
+                  }
+                },
+                "3": {
+                  "_meta": {
+                    "title": "Negative Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": "blurry, distorted, low quality, watermark, text, signature, ugly, deformed"
+                  }
+                },
+                "4": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 512,
+                    "width": 512
+                  }
+                },
+                "5": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 8,
+                    "denoise": 1,
+                    "latent_image": [
+                      "4",
+                      0
+                    ],
+                    "model": [
+                      "1",
+                      0
+                    ],
+                    "negative": [
+                      "3",
+                      0
+                    ],
+                    "positive": [
+                      "2",
+                      0
+                    ],
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "seed": 192285950190335,
+                    "steps": 20
+                  }
+                },
+                "6": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": [
+                      "5",
+                      0
+                    ],
+                    "vae": [
+                      "1",
+                      2
+                    ]
+                  }
+                },
+                "7": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "ComfyUI",
+                    "images": [
+                      "6",
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "modify_workflow",
+      "content": "{\n  \"workflow\": {\n    \"1\": {\n      \"class_type\": \"CheckpointLoaderSimple\",\n      \"inputs\": {\n        \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n      }\n    },\n    \"2\": {\n      \"_meta\": {\n        \"title\": \"Positive Prompt\"\n      },\n      \"class_type\": \"CLIPTextEncode\",\n      \"inputs\": {\n        \"clip\": [\n          \"1\",\n          1\n        ],\n        \"text\": \"a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution\"\n      }\n    },\n    \"3\": {\n      \"_meta\": {\n        \"title\": \"Negative Prompt\"\n      },\n      \"class_type\": \"CLIPTextEncode\",\n      \"inputs\": {\n        \"clip\": [\n          \"1\",\n          1\n        ],\n        \"text\": \"blurry, distorted, low quality, watermark, text, signature, ugly, deformed\"\n      }\n    },\n    \"4\": {\n      \"class_type\": \"EmptyLatentImage\",\n      \"inputs\": {\n        \"batch_size\": 1,\n        \"height\": 512,\n        \"width\": 512\n      }\n    },\n    \"5\": {\n      \"class_type\": \"KSampler\",\n      \"inputs\": {\n        \"cfg\": 8,\n        \"denoise\": 1,\n        \"latent_image\": [\n          \"4\",\n          0\n        ],\n        \"model\": [\n          \"1\",\n          0\n        ],\n        \"negative\": [\n          \"3\",\n          0\n        ],\n        \"positive\": [\n          \"2\",\n          0\n        ],\n        \"sampler_name\": \"euler\",\n        \"scheduler\": \"normal\",\n        \"seed\": 192285950190335,\n        \"steps\": 20\n      }\n    },\n    \"6\": {\n      \"class_type\": \"VAEDecode\",\n      \"inputs\": {\n        \"samples\": [\n          \"5\",\n          0\n        ],\n        \"vae\": [\n          \"1\",\n          2\n        ]\n      }\n    },\n    \"7\": {\n      \"class_type\": \"SaveImage\",\n      \"inputs\": {\n        \"filename_prefix\": \"ComfyUI\",\n        \"images\": [\n          \"6\",\n          0\n        ]\n      }\n    },\n    \"10\": {\n      \"class_type\": \"UpscaleModelLoader\",\n      \"inputs\": {\n        \"model_name\": \"4x-ClearRealityV1.pth\"\n      }\n    },\n    \"11\": {\n      \"class_type\": \"ImageUpscaleWithModel\",\n      \"inputs\": {\n        \"image\": [\n          \"6\",\n          0\n        ],\n        \"upscale_model\": [\n          \"10\",\n          0\n        ]\n      }\n    },\n    \"12\": {\n      \"class_type\": \"ImageScale\",\n      \"inputs\": {\n        \"image\": [\n          \"11\",\n          0\n        ],\n        \"scale_by\": 0.5\n      }\n    },\n    \"13\": {\n      \"class_type\": \"SaveImage\",\n      \"inputs\": {\n        \"filename_prefix\": \"lighthouse_upscaled\",\n        \"images\": [\n          \"12\",\n          0\n        ]\n      }\n    }\n  },\n  \"added_node_ids\": [\n    \"10\",\n    \"11\",\n    \"12\",\n    \"13\"\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "2S90ZfmFWeKlPMldijEu6gLuEyYyU0qI",
+          "function": {
+            "index": 0,
+            "name": "enqueue_workflow",
+            "arguments": {
+              "workflow": {
+                "1": {
+                  "class_type": "CheckpointLoaderSimple",
+                  "inputs": {
+                    "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+                  }
+                },
+                "2": {
+                  "_meta": {
+                    "title": "Positive Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": "a lighthouse at dusk, cinematic lighting, highly detailed, 8k resolution"
+                  }
+                },
+                "3": {
+                  "_meta": {
+                    "title": "Negative Prompt"
+                  },
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "clip": [
+                      "1",
+                      1
+                    ],
+                    "text": "blurry, distorted, low quality, watermark, text, signature, ugly, deformed"
+                  }
+                },
+                "4": {
+                  "class_type": "EmptyLatentImage",
+                  "inputs": {
+                    "batch_size": 1,
+                    "height": 512,
+                    "width": 512
+                  }
+                },
+                "5": {
+                  "class_type": "KSampler",
+                  "inputs": {
+                    "cfg": 8,
+                    "denoise": 1,
+                    "latent_image": [
+                      "4",
+                      0
+                    ],
+                    "model": [
+                      "1",
+                      0
+                    ],
+                    "negative": [
+                      "3",
+                      0
+                    ],
+                    "positive": [
+                      "2",
+                      0
+                    ],
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "seed": 192285950190335,
+                    "steps": 20
+                  }
+                },
+                "6": {
+                  "class_type": "VAEDecode",
+                  "inputs": {
+                    "samples": [
+                      "5",
+                      0
+                    ],
+                    "vae": [
+                      "1",
+                      2
+                    ]
+                  }
+                },
+                "7": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_orig",
+                    "images": [
+                      "6",
+                      0
+                    ]
+                  }
+                },
+                "10": {
+                  "class_type": "UpscaleModelLoader",
+                  "inputs": {
+                    "model_name": "4x-ClearRealityV1.pth"
+                  }
+                },
+                "11": {
+                  "class_type": "ImageUpscaleWithModel",
+                  "inputs": {
+                    "image": [
+                      "6",
+                      0
+                    ],
+                    "upscale_model": [
+                      "10",
+                      0
+                    ]
+                  }
+                },
+                "12": {
+                  "class_type": "ImageScale",
+                  "inputs": {
+                    "image": [
+                      "11",
+                      0
+                    ],
+                    "scale_by": 0.5
+                  }
+                },
+                "13": {
+                  "class_type": "SaveImage",
+                  "inputs": {
+                    "filename_prefix": "lighthouse_upscaled",
+                    "images": [
+                      "12",
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "enqueue_workflow",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"7486c925-0148-4081-a5be-f437b163bc63\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "Wq3FlUVxAZkyKvFmRt9t0rvBJUam4Y1m",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "7486c925-0148-4081-a5be-f437b163bc63"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 1368,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The workflow has been successfully built and executed. It generates a 512x512 image of \"a lighthouse at dusk,\" saves it as `lighthouse_orig`, then upscales that same image by 4x (to 2048x2048) using the `4x-ClearRealityV1` model, downscales it back to 1024x1024 via `ImageScale`, and saves this second version as `lighthouse_upscaled`.\n\n**Prompt ID:** `7486c925-0148-4081-a5be-f437b163bc63`"
+    }
+  ]
+}

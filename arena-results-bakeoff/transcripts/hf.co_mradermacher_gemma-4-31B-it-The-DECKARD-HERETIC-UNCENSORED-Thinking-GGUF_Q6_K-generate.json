@@ -1,0 +1,88 @@
+{
+  "model": "hf.co/mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF:Q6_K",
+  "task": "generate",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Generate a 512x512 image of a red apple on a wooden table. The generation runs asynchronously — after starting it, check its job status until it has finished, then tell me the output filename or asset id."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to generate an image with specific parameters: 512x512 resolution and a prompt \"a red apple on a wooden table\". I should use the `generate_image` tool for this task.\n\nPlan:\n1. Call `generate_image` with the specified prompt, width=512, height=512.\n2. The tool returns a `prompt_id`.\n3. Use `get_job_status` repeatedly (polling) until the job is finished (`done` is true).\n4. Once done, I'll get the result from the completion notification or by calling `get_history` with that `prompt_id`. The prompt says \"tell me the output filename or asset id\".\n\nLet's start by generating the image.",
+      "tool_calls": [
+        {
+          "id": "r6eZx0Q71Rmx3bP0o535HWium0QVPrDK",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "height": 512,
+              "prompt": "a red apple on a wooden table",
+              "width": 512
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"a3e530a4-9bc3-48f0-a1a0-50e06d51d6e9\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The image generation has been enqueued with `prompt_id: \"a3e530a4-9bc3-48f0-a1a0-50e06d51d6e9\"`. I need to poll its status until it's finished.",
+      "tool_calls": [
+        {
+          "id": "uv4G9fWYYsp431KpjEq8zhgI0RPzqAKH",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "a3e530a4-9bc3-48f0-a1a0-50e06d51d6e9"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 3068,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The job is done. Now I need to find the asset ID or filename of the generated image. The `get_job_status` response doesn't include it; I should use `list_assets` or `get_history`. Since this was a simple generation, `list_assets` (which shows recent assets) is usually fastest.",
+      "tool_calls": [
+        {
+          "id": "4E2SsQsU2SRD6wMueyfnPpPFqISUwtg5",
+          "function": {
+            "index": 0,
+            "name": "list_assets",
+            "arguments": {
+              "limit": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_assets",
+      "content": "{\n  \"count\": 1,\n  \"assets\": [\n    {\n      \"asset_id\": \"a_5901ab5d\",\n      \"prompt_id\": \"a3e530a4-9bc3-48f0-a1a0-50e06d51d6e9\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_01168_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01168_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:25:36.726Z\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The image of a red apple on a wooden table has been generated successfully.\n\n**Asset ID:** `a_5901ab5d`\n**Filename:** `ComfyUI_01168_.png`",
+      "thinking": "The image generation is complete and the asset has been registered in the MCP server's internal registry. I have both the `asset_id` (`a_5901ab5d`) and the filename (`ComfyUI_01168_.png`). The user asked for either, so providing both is best."
+    }
+  ]
+}

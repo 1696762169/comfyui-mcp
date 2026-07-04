@@ -20,7 +20,10 @@ size_ladder:
   e2b:  { base_model: huihui-ai/Huihui-gemma-4-E2B-it-abliterated, max_seq_length: 32768 }
   e4b:  { base_model: huihui-ai/Huihui-gemma-4-E4B-it-abliterated, max_seq_length: 32768 }
   12b:  { base_model: huihui-ai/Huihui-gemma-4-12B-it-abliterated, max_seq_length: 49152 }
-  31b:  { base_model: huihui-ai/Huihui-gemma-4-31B-it-abliterated, max_seq_length: 49152 }
+  # 31B base picked by bake-off (2026-07-04, full-surface arena, Q6_K on A100):
+  # huihui v2 17/20 vs DavidAU DECKARD-HERETIC 16/20 — DECKARD also no-tool-call
+  # FAILED `health` and wandered 18 rounds on `multiout` (creative-tuning tax).
+  31b:  { base_model: huihui-ai/Huihui-gemma-4-31B-it-abliterated-v2, max_seq_length: 49152 }
 
 # Overridden per-size from size_ladder above; left here as the resolved default.
 base_model: huihui-ai/Huihui-gemma-4-12B-it-abliterated

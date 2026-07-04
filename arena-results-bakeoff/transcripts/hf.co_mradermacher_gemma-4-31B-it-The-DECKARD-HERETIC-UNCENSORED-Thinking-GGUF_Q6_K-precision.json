@@ -1,0 +1,68 @@
+{
+  "model": "hf.co/mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-GGUF:Q6_K",
+  "task": "precision",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Render a txt2img image with the checkpoint v1-5-pruned-emaonly-fp16.safetensors, EXACTLY 12 sampling steps, EXACTLY 384x384 pixels, positive prompt 'a green pear on a table'. Wait until it finishes, then report the prompt_id."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to generate an image using `generate_image` with specific parameters:\n- Checkpoint: `v1-5-pruned-emaonly-fp16.safetensors`\n- Steps: 12\n- Width: 384\n- Height: 384\n- Positive prompt: 'a green pear on a table'\n\nI need to call `generate_image` with these arguments, then poll `get_job_status` until the job is finished. Finally, I will report the `prompt_id`.",
+      "tool_calls": [
+        {
+          "id": "F2SCIvKANkWh3zM5vtk8JIao3FpS5iW6",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "checkpoint": "v1-5-pruned-emaonly-fp16.safetensors",
+              "height": 384,
+              "prompt": "a green pear on a table",
+              "steps": 12,
+              "width": 384
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"f0fd7f93-27de-45f5-99a8-a79009ddc0b5\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The image generation has been enqueued with `prompt_id: \"f0fd7f93-27de-45f5-99a8-a79009ddc0b5\"`. I need to poll `get_job_status` until it is finished.",
+      "tool_calls": [
+        {
+          "id": "EMzKyebK3V44fT0E6QeSy6OtoMz9l5K2",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "f0fd7f93-27de-45f5-99a8-a79009ddc0b5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 1207,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The image generation has completed successfully.\n\n**Prompt ID:** `f0fd7f93-27de-45f5-99a8-a79009ddc0b5`",
+      "thinking": "The job is done. I have the prompt_id from the initial `generate_image` call and confirmed its completion with `get_job_status`. The user wants me to report the prompt_id."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "model": "hf.co/mradermacher/Huihui-gemma-4-31B-it-abliterated-v2-GGUF:Q6_K",
+  "task": "models",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Find out which checkpoint models are installed on the ComfyUI server and tell me the name of one of them."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to know which checkpoint models are installed on the ComfyUI server and specifically needs the name of at least one of them.\n\nI should use the `list_local_models` tool, filtering for `model_type='checkpoints'`.",
+      "tool_calls": [
+        {
+          "id": "W5EPSyGc6mmxRizrHP7siaKgz0ilSYDw",
+          "function": {
+            "index": 0,
+            "name": "list_local_models",
+            "arguments": {
+              "model_type": "checkpoints"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_local_models",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "The ComfyUI server has 3 checkpoint models installed:\n- `ltx-2.3-22b-dev.safetensors`\n- `sam3.1_multiplex_fp16.safetensors`\n- `v1-5-pruned-emaonly-fp16.safetensors`\n\nOne of them is **v1-5-pruned-emaonly-fp16.safetensors**.",
+      "thinking": "The `list_local_models` tool returned three checkpoint models: `ltx-2.3-22b-dev.safetensors`, `sam3.1_multiplex_fp16.safetensors`, and `v1-5-pruned-emaonly-fp16.safetensors`. I can now answer the user's request."
+    }
+  ]
+}

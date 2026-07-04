@@ -1,0 +1,179 @@
+{
+  "model": "hf.co/mradermacher/Huihui-gemma-4-31B-it-abliterated-v2-GGUF:Q6_K",
+  "task": "provenance",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Render a 512x512 image of 'a red bicycle' and wait for it to complete. Then find the ASSET it produced (the asset registry lists recent assets), and regenerate that asset with a steps=8 override, waiting for the second render to complete too. Report both prompt_ids."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to perform two sequential image generations in ComfyUI:\n1.  **First Render**: A 512x512 image of 'a red bicycle'.\n2.  **Second Render**: Regenerate the first asset with `steps=8`.\n\nPlan:\n1.  Call `generate_image` with `prompt='a red bicycle'`, `width=512`, and `height=512`. This returns a `prompt_id`.\n2.  Poll `get_job_status` using that `prompt_id` until it is done.\n3.  Call `list_assets` to find the `asset_id` produced by the first render (it should be the most recent one).\n4.  Call `regenerate` with that `asset_id` and an override of `{\"steps\": 8}`. This returns a new `prompt_id`.\n5.  Poll `get_job_status` using the second `prompt_id` until it is done.\n6.  Report both `prompt_ids`.",
+      "tool_calls": [
+        {
+          "id": "5FIaQLF4AUe08ICs4wSvaOTSdjQinZFq",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "height": 512,
+              "prompt": "a red bicycle",
+              "width": 512
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"e2fbbe45-a908-4f00-9f23-18787052627d\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first image has been enqueued. Now I need to poll `get_job_status` until it is done to ensure the asset is produced.",
+      "tool_calls": [
+        {
+          "id": "l24sI9JwDdtJjBvdYUDk3lsx4EkHCMpT",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "e2fbbe45-a908-4f00-9f23-18787052627d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first job is still pending (or just started). I need to poll `get_job_status` until it's done. Since the previous response said `done: false`, I will call it again.",
+      "tool_calls": [
+        {
+          "id": "sZU1IQMfA5DdhQMlCrerULKsJFaX32tE",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "e2fbbe45-a908-4f00-9f23-18787052627d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": true,\n  \"done\": false\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first `get_job_status` call showed it was still pending. I'll poll again until it is done. (Actually, since the server might be fast or slow, polling once more is good, but let's assume it moves to 'running' then 'done'). Wait, in the previous response it said `pending: true`, so it hadn't even started running yet. Let me poll again.",
+      "tool_calls": [
+        {
+          "id": "iiYOaDWWauU8BuyRUzjLxBnK3cfhLPud",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "e2fbbe45-a908-4f00-9f23-18787052627d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 1370,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first render is complete. Now I need to find the asset it produced. Since `generate_image` was used, an asset should have been registered in the registry upon completion. I'll list assets to find the one corresponding to \"a red bicycle\".",
+      "tool_calls": [
+        {
+          "id": "DSUn3Qgua0Ww9r06WTs7tLPjdE3lw8H6",
+          "function": {
+            "index": 0,
+            "name": "list_assets",
+            "arguments": {
+              "limit": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_assets",
+      "content": "{\n  \"count\": 5,\n  \"assets\": [\n    {\n      \"asset_id\": \"a_e30db71e\",\n      \"prompt_id\": \"e2fbbe45-a908-4f00-9f23-18787052627d\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_01179_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01179_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:42:22.177Z\"\n    },\n    {\n      \"asset_id\": \"a_6bd2e28c\",\n      \"prompt_id\": \"e1192b21-baa3-4951-bee0-a200290f2505\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_01178_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01178_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:41:40.909Z\"\n    },\n    {\n      \"asset_id\": \"a_4f479ba7\",\n      \"prompt_id\": \"bd21d2ae-fa9e-4766-9906-92d26bf209bf\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_01177_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01177_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:40:56.201Z\"\n    },\n    {\n      \"asset_id\": \"a_65943c15\",\n      \"prompt_id\": \"db77189c-1bc5-43b5-8cd6-5f1f4b7f60ab\",\n      \"node_id\": \"7\",\n      \"filename\": \"ComfyUI_01176_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01176_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:40:23.017Z\"\n    },\n    {\n      \"asset_id\": \"a_617aa756\",\n      \"prompt_id\": \"319e9132-f811-47d8-93a2-78c8ebb39ee4\",\n      \"node_id\": \"8\",\n      \"filename\": \"ComfyUI_01175_.png\",\n      \"subfolder\": \"\",\n      \"type\": \"output\",\n      \"url\": \"http://127.0.0.1:8188/view?filename=ComfyUI_01175_.png&subfolder=&type=output\",\n      \"created_at\": \"2026-07-04T20:38:26.928Z\"\n    }\n  ]\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first render is complete. The `prompt_id` was `e2fbbe45-a908-4f00-9f23-18787052627d`. Looking at the assets, the most recent one (created at 20:42:22) is `a_e30db71e`, which matches that prompt_id. Now I need to regenerate this asset with `steps=8`.",
+      "tool_calls": [
+        {
+          "id": "5QVUWbg05BL3saMETbgvnehVP6dmrcdq",
+          "function": {
+            "index": 0,
+            "name": "regenerate",
+            "arguments": {
+              "asset_id": "a_e30db71e",
+              "overrides": {
+                "steps": 8
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "regenerate",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"dcd7ba60-d9bf-4066-a71d-206071c4abc7\",\n  \"source_asset_id\": \"a_e30db71e\",\n  \"overrides_applied\": {\n    \"steps\": 8\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The first render is complete and the second one has been enqueued. I need to poll `get_job_status` for the second prompt_id until it's done.",
+      "tool_calls": [
+        {
+          "id": "FHjkP0rcyYPPQv6mVv9KVamNKTLwoATo",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "dcd7ba60-d9bf-4066-a71d-206071c4abc7"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 807,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The first render of 'a red bicycle' (512x512) was completed with prompt_id `e2fbbe45-a908-4f00-9f23-18787052627d`. \n\nAfter identifying the resulting asset (`a_e30db71e`), I regenerated it with a `steps=8` override, which completed with prompt_id `dcd7ba60-d9bf-4066-a71d-206071c4abc7`.",
+      "thinking": "The first render of 'a red bicycle' is complete. The second render (regeneration with `steps=8`) is also complete.\n\n- First prompt_id: `e2fbbe45-a908-4f00-9f23-18787052627d`\n- Second prompt_id: `dcd7ba60-d9bf-4066-a71d-206071c4abc7`"
+    }
+  ]
+}
