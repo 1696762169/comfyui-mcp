@@ -21,6 +21,23 @@ import { logger } from "../utils/logger.js";
 
 export const DEFAULT_BRIDGE_PORT = 9101;
 
+/**
+ * The subset of the `ws` WebSocket surface `handleConnection` actually needs.
+ * A real `ws.WebSocket` satisfies this structurally. It also lets a non-network
+ * pseudo-socket plug in — the relay client (see relay-client.ts) wraps each
+ * relay-multiplexed panel connection in an object satisfying this interface so
+ * it can be handed to `attachRelayConnection` and treated identically to a
+ * directly-connected loopback socket by all of this class's routing/reply logic.
+ */
+export interface BridgeSocket {
+  readyState: number;
+  send(data: string): void;
+  close(): void;
+  terminate(): void;
+  ping(): void;
+  on(event: string, listener: (...args: unknown[]) => void): void;
+}
+
 export interface PanelEvent {
   type: string;
   text?: string;
@@ -44,7 +61,7 @@ type Pending = {
 };
 
 interface Conn {
-  sock: WebSocket;
+  sock: BridgeSocket;
   tabId: string;
   title: string;
   connectedAt: string;
@@ -84,6 +101,10 @@ export class UiBridge {
    *  cloudflared tunnel, where the endpoint is publicly reachable. null in the
    *  default loopback-only mode (no auth needed — not reachable off-box). */
   private token: string | null;
+  /** Bind host. Default loopback; a LAN/all-interfaces bind (0.0.0.0, a LAN IP)
+   *  is allowed ONLY together with a token — panel #54: browsers on OTHER
+   *  machines reaching a 24/7 server-side orchestrator. */
+  private host: string;
   /** Tab the user most recently typed in — the default command target. */
   private lastActiveTabId: string | null = null;
   /** Resolves true once the port is bound, false if binding ultimately fails. */
@@ -93,9 +114,18 @@ export class UiBridge {
   /** Called for panel-initiated frames (no rid): user messages, hellos. */
   onPanelMessage: ((event: PanelEvent) => void) | null = null;
 
-  constructor(port = DEFAULT_BRIDGE_PORT, token: string | null = null) {
+  constructor(port = DEFAULT_BRIDGE_PORT, token: string | null = null, host = "127.0.0.1") {
     this.port = port;
     this.token = token;
+    this.host = host;
+    if (!isLoopbackBindHost(host) && !token) {
+      // The bridge drives the live canvas + agent; exposing it beyond loopback
+      // without auth is never acceptable — refuse loudly at construction.
+      throw new Error(
+        `UiBridge: refusing to bind the panel bridge on non-loopback host "${host}" without a token. ` +
+          `Set COMFYUI_MCP_BRIDGE_TOKEN (or let the orchestrator generate one).`,
+      );
+    }
   }
 
   /** Constant-time token check for the WS upgrade. Always true when no token is
@@ -168,13 +198,14 @@ export class UiBridge {
    * MCP stdio startup, which is what matters for the client's init timeout.
    */
   private attemptListen(attempt: number): void {
-    // Loopback only — this drives the user's live editor and must never be
-    // reachable from the LAN. When a token is set (secure mode), the endpoint is
-    // additionally fronted by a cloudflared tunnel and reachable from the public
-    // internet, so every upgrade must carry the matching `?token=`.
+    // Loopback by default — this drives the user's live editor. Two ways it can
+    // be reachable off-box, BOTH token-gated on the WS upgrade:
+    //   • secure mode: loopback bind fronted by a cloudflared wss:// tunnel
+    //   • LAN mode (panel #54): a non-loopback bind host, for a 24/7 server-side
+    //     orchestrator; the constructor enforces token-with-non-loopback.
     const wss = new WebSocketServer({
       port: this.port,
-      host: "127.0.0.1",
+      host: this.host,
       verifyClient: this.token
         ? (info, cb) => {
             let provided = "";
@@ -194,7 +225,9 @@ export class UiBridge {
     wss.on("listening", () => {
       this.portInUse = false;
       this.wss = wss;
-      logger.info(`[ui-bridge] listening on ws://127.0.0.1:${this.port}`);
+      logger.info(
+        `[ui-bridge] listening on ws://${this.host}:${this.port}${this.token ? " (token-gated)" : ""}`,
+      );
       this.startHeartbeat();
       this.readyResolve?.(true);
       this.readyResolve = null;
@@ -244,19 +277,33 @@ export class UiBridge {
       }
     });
 
-    wss.on("connection", (sock) => this.handleConnection(sock));
+    wss.on("connection", (sock) => {
+      // Keepalive bookkeeping for the SERVER-LEVEL heartbeat loop, which only
+      // iterates real wss.clients (relay-mediated shim connections aren't real
+      // sockets bound by this server, so they're intentionally excluded — see
+      // relay-client.ts / the relay README for why that's believed low-risk).
+      this.missedPongs.set(sock, 0);
+      sock.on("pong", () => this.missedPongs.set(sock, 0));
+      this.handleConnection(sock);
+    });
   }
 
-  private handleConnection(sock: WebSocket): void {
+  /**
+   * Attach a non-loopback panel connection — used by the relay client
+   * (relay-client.ts) to feed a relay-multiplexed panel-tab connection into the
+   * exact same hello/rid/tab-routing logic a direct loopback socket gets. From
+   * here on the relay shim is indistinguishable from a real connection.
+   */
+  attachRelayConnection(sock: BridgeSocket): void {
+    this.handleConnection(sock);
+  }
+
+  private handleConnection(sock: BridgeSocket): void {
     // The connection is anonymous until its hello frame names a tab id.
     let tabId: string | null = null;
 
-    // Keepalive bookkeeping: fresh socket is alive; each pong resets its miss count.
-    this.missedPongs.set(sock, 0);
-    sock.on("pong", () => this.missedPongs.set(sock, 0));
-
-    sock.on("message", (buf) => {
-      const raw = buf.toString();
+    sock.on("message", (buf: unknown) => {
+      const raw = String(buf);
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(raw) as Record<string, unknown>;
@@ -334,7 +381,7 @@ export class UiBridge {
       }
       // Reject any in-flight commands that were bound to this socket.
       for (const [rid, p] of this.pending) {
-        if ((p as Pending & { sock?: WebSocket }).sock === sock) {
+        if ((p as Pending & { sock?: BridgeSocket }).sock === sock) {
           clearTimeout(p.timer);
           p.reject(new Error("panel tab disconnected mid-command"));
           this.pending.delete(rid);
@@ -423,7 +470,7 @@ export class UiBridge {
           ),
         );
       }, timeoutMs);
-      const pending: Pending & { sock?: WebSocket } = { resolve, reject, timer, sock: conn.sock };
+      const pending: Pending & { sock?: BridgeSocket } = { resolve, reject, timer, sock: conn.sock };
       this.pending.set(rid, pending);
       try {
         conn.sock.send(JSON.stringify({ rid, ...cmd }));
@@ -493,15 +540,23 @@ export class UiBridge {
   }
 }
 
+/** Bind-host classification for the guard above. `0.0.0.0`/`::` are exposure
+ *  (all interfaces), so they are NOT loopback for this purpose. */
+export function isLoopbackBindHost(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === "127.0.0.1" || h === "localhost" || h === "::1";
+}
+
 // Module-level singleton (the last bridge started in this process).
 let bridgeInstance: UiBridge | null = null;
 
-export function startUiBridge(port?: number, token?: string | null): UiBridge {
+export function startUiBridge(port?: number, token?: string | null, host?: string): UiBridge {
   if (!bridgeInstance) {
     bridgeInstance = new UiBridge(
       port ??
         (Number(process.env.COMFYUI_MCP_BRIDGE_PORT) || DEFAULT_BRIDGE_PORT),
       token ?? null,
+      host ?? "127.0.0.1",
     );
     bridgeInstance.start();
   }

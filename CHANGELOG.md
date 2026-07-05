@@ -6,6 +6,39 @@ All notable changes to this project are documented here. This project adheres to
 
 ## Unreleased
 
+### Added
+
+- **`--force-remote` flag** (`COMFYUI_MCP_FORCE_REMOTE=1`) — classify a loopback
+  `--comfyui-url` as remote, for dstack/RunPod-style port-forwards where a remote
+  ComfyUI is reachable at `localhost:8188`. The orchestrator forwards it to spawned
+  agents.
+- **Interactive bridge-port reclaim**: when `--panel-orchestrator` (or `connect`)
+  can't bind its port because a previous session still holds it, it now reads that
+  session's lockfile and — when run in a real terminal — offers to stop it and take
+  over (`Stop pid <pid> and take over this port with the current version? [y/N]`),
+  naming its version/pid instead of just logging that panel tools are unavailable
+  until you go find and kill it yourself.
+
+### Fixed
+
+- **Secure bridge (RunPod/remote pod) token going stale after a ComfyUI restart** —
+  the orchestrator only re-advertised its `wss://` bridge URL/token to the pod when
+  the reported ComfyUI URL actually changed, so a same-pod reconnect never retried a
+  failed advertise (which routinely raced the pod's HTTP server still booting after a
+  ComfyUI restart). Once that race was lost, the pod was left with a stale token for
+  the rest of the session — any *fresh* browser page load would fail with
+  `rejected a bridge connection with a missing/invalid token` and never recover
+  without a full orchestrator restart. Now the orchestrator re-advertises on every
+  panel `hello` (cheap, idempotent), so the next tab connect self-heals it.
+
+### Changed
+
+- **`generations.db` for remote/cloud/undetected targets** now lives under
+  `~/.comfyui-mcp/instances/<host_port>/` (override with `COMFYUI_MCP_DATA_DIR`)
+  instead of the current working directory. Loopback hosts share one
+  `localhost_<port>` slug. Existing remote users' CWD `generations.db` is not
+  migrated — the history restarts empty at the new location.
+
 ## [0.22.0] - 2026-06-29
 
 ### Added

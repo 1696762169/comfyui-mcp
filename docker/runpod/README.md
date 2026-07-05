@@ -92,9 +92,11 @@ venv still boot fast from the immutable image.
 ARG BASE_IMAGE = runpod/pytorch:1.0.7-cu1281-torch280-ubuntu2404   (lean, recent)
 ARG RUNPOD_SRC_IMAGE = aitrepreneur/comfyui:2.3.5                  (donor only)
 
-┌─ STAGE A: runpod-src ───────────────────────────────────────────────┐
+┌─ STAGE A: runpod-donor ── ARG-gated (INCLUDE_RUNPOD_EXTRAS) ─────────┐
 │  FROM aitrepreneur/comfyui:2.3.5                                     │
-│  (built only so the final stage can COPY service artifacts out of it)│
+│  (built only so runpod-extras-1 can COPY service artifacts out of it;│
+│   INCLUDE_RUNPOD_EXTRAS=0 -> runpod-extras-0 (empty), and BuildKit   │
+│   never builds/pulls this stage at all)                             │
 └─────────────────────────────────────────────────────────────────────┘
 ┌─ spotcheck-0 / spotcheck-1 (alpine) ─ ARG-gated SDXL model carrier ──┐
 │  spotcheck-1 = ADD sd_xl_base_1.0.safetensors ; spotcheck-0 = empty  │
@@ -110,7 +112,7 @@ ARG RUNPOD_SRC_IMAGE = aitrepreneur/comfyui:2.3.5                  (donor only)
 │  COPY extra_model_paths.yaml -> /opt/ComfyUI/extra_model_paths.yaml │
 │  COPY config.ini -> /opt/ComfyUI/config.ini.seed  (Manager gate)   │
 │  COPY --from=spotcheck-src  -> /opt/ComfyUI-seed-models             │
-│  COPY --from=runpod-src  runpod-uploader, croc, /app-manager        │
+│  COPY --from=runpod-extras /extras/ /  (uploader, croc, app-manager)│
 │  COPY nginx.conf (:3000->:3001), starting.html, post_start.sh       │
 │  (no ENTRYPOINT/CMD override — keep the base's /start.sh chain)     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -237,6 +239,40 @@ Notes:
 * `/post_start.sh` pre-creates the matching subfolders under `/workspace/models`
   so they exist on a cold volume.
 
+### Warm model volume (skip the cold HF pull)
+
+A **fresh** network volume has an empty `models/` tree — the first time the
+agent (or you) needs a checkpoint, it's a cold download from HuggingFace, which
+can be tens of GB and the slowest part of getting a new pod usable.
+
+The fix is the same idea as the image itself: **build once, reuse many times.**
+
+1. **Build a seed volume once.** Spin up a pod with this image + a network
+   volume, download the checkpoints/LoRAs/VAEs you use most (the exact same
+   files the [installer packs](../../packs) already fetch — `packs/*/install-runpod.sh`
+   lists the HF URLs per pack) into that volume's `models/<category>/` tree
+   matching the layout in `extra_model_paths.yaml` above, then stop the pod.
+   That volume is now your **warm seed** — keep it around, don't delete it.
+2. **Reuse it for new pods**, by whichever mechanism your RunPod plan supports:
+   - **Volume snapshot/clone** (if available on your account) — instantly fork
+     a new volume from the seed's current contents instead of attaching the
+     same volume serially.
+   - **Attach the seed volume directly** to a new pod deployment (stop any pod
+     currently using it first) — simplest, but one pod at a time.
+   - **A shared object store + boot-time sync** — the most portable option, and
+     the only one that supports many pods pulling concurrently: keep the seed
+     models in an S3-compatible bucket (RunPod's own network storage, or any
+     S3-compatible provider) and add an `rclone sync` (or `aws s3 sync`) step to
+     `post_start.sh` before the model-subfolder `mkdir -p` block, pulling only
+     what's missing on that pod's volume. This also composes cleanly with
+     `PANEL_AUTO_UPDATE` above — both are "pull what's missing/changed at boot,
+     skip what's already there" patterns.
+
+None of this requires a new mechanism in the image itself — `extra_model_paths.yaml`
+already treats `/workspace/models` as the single source of truth regardless of
+*how* files got there, so a warm volume (or a boot-time sync into one) is
+transparent to ComfyUI and the agent.
+
 ---
 
 ## Manager (remote-install gate)
@@ -330,6 +366,7 @@ Create a **Pod template** (or fill these on a one-off GPU pod):
 | **Expose HTTP ports** | **`3000`** (nginx → ComfyUI). Optionally `8081` (code-server), `8001` (app-manager), `8888` (Jupyter). |
 | **Expose TCP ports** | `22` (SSH) |
 | **GPU** | RTX 5090 / any Blackwell or Ada card (cu128 covers both) |
+| **Host driver** | >= 570 (CUDA 12.8) for the default image; >= 580 (CUDA 13) for the `:cu130` perf variant. The entrypoint preflights this (`MIN_DRIVER`) and holds the pod open with a clear message instead of crash-looping. |
 
 **Environment variables** (Pod → Environment):
 
@@ -342,6 +379,7 @@ Create a **Pod template** (or fill these on a one-off GPU pod):
 | `COMFY_EXTRA_ARGS` | *(empty)* | extra ComfyUI flags appended verbatim by the entrypoint |
 | `COMFY_HOME` | `/opt/ComfyUI` | baked ComfyUI path (rarely overridden) |
 | `WORKSPACE` | `/workspace` | network-volume mount (rarely overridden) |
+| `PANEL_AUTO_UPDATE` | `1` | fast-forward the Agent Panel to its latest release on every boot (git fetch + reset --hard, before ComfyUI launches) — reaches pods without a new image build. Automatically a no-op on a `PANEL_REF`-pinned build (detached HEAD). Set `0` to disable. |
 
 > **First boot vs warm restart:** both are fast. First boot additionally creates
 > the volume data dirs and copies the spotcheck model (if baked); warm restart
@@ -379,12 +417,24 @@ docker build \
 
 ### The 63 GB donor pull (and how to drop it)
 
-`STAGE A` (`runpod-src`) pulls `aitrepreneur/comfyui:2.3.5` (~63 GB) **at build
-time** purely to COPY out `runpod-uploader`, `croc` and `/app-manager`. It does
+`STAGE A` (`runpod-donor`) pulls `aitrepreneur/comfyui:2.3.5` (~63 GB) **at build
+time** purely to copy out `runpod-uploader`, `croc` and `/app-manager`. It does
 **not** ship in the final image, but it is a heavy one-time pull on your build
-host. If you don't need those extras, **comment out STAGE A and the three
-`COPY --from=runpod-src` lines** — the entrypoint already treats them as
-best-effort, and `croc` can instead be installed from its official release.
+host — and won't fit on a disk-constrained CI runner. If you don't need those
+extras:
+
+```bash
+docker build --build-arg INCLUDE_RUNPOD_EXTRAS=0 \
+  -t <your-registry>/comfyui-mcp-runpod:cu128-lean .
+```
+
+BuildKit only builds a stage the final target's dependency graph actually
+reaches, so `INCLUDE_RUNPOD_EXTRAS=0` skips the donor pull **entirely** — not
+just its `COPY` (see `runpod-extras-0`/`runpod-extras-1` in the Dockerfile,
+which mirror the `BAKE_SPOTCHECK_MODEL` selector pattern below). The entrypoint
+already treats `runpod-uploader`/`croc`/`app-manager` as best-effort and skips
+them cleanly when absent; `croc` can instead be installed from its official
+release if you want it back without the donor pull.
 
 ### Image size note (the duplicate-torch tradeoff)
 

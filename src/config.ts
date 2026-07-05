@@ -144,7 +144,8 @@ const LOOPBACK_HOSTS = new Set([
   "0.0.0.0",
 ]);
 
-function isLoopbackHost(host: string | undefined): boolean {
+/** True when a hostname is loopback (or absent → assume local). */
+export function isLoopbackHost(host: string | undefined): boolean {
   if (!host) return true; // No URL → assume local
   return LOOPBACK_HOSTS.has(host.toLowerCase());
 }
@@ -261,6 +262,14 @@ function resolveUrlOverride(): ComfyUITarget | undefined {
   }
 }
 
+/** Force remote classification for a loopback --comfyui-url (dstack/RunPod port-forwards). */
+function resolveForceRemote(): boolean {
+  const argv = process.argv.slice(2);
+  if (argv.includes("--force-remote")) return true;
+  const env = process.env.COMFYUI_MCP_FORCE_REMOTE;
+  return env === "1" || env === "true";
+}
+
 const configSchema = z.object({
   comfyuiHost: z.string().default("127.0.0.1"),
   comfyuiPort: z.coerce.number().int().positive().optional(),
@@ -286,11 +295,20 @@ export type Config = z.infer<typeof configSchema> & { resolvedPort: number };
 const urlOverride = resolveUrlOverride();
 const cloudApiKey = process.env.COMFYUI_API_KEY?.trim() || undefined;
 const cloudActive = Boolean(cloudApiKey);
-const remoteUrlActive = Boolean(urlOverride) && !isLoopbackHost(urlOverride?.host);
+const forceRemote = resolveForceRemote();
+const remoteUrlActive =
+  Boolean(urlOverride) && (forceRemote || !isLoopbackHost(urlOverride?.host));
 
 if (cloudActive) {
   console.error(
     `[comfyui-mcp] Comfy Cloud mode enabled (COMFYUI_API_KEY set) — local FS/process tools will throw.`,
+  );
+}
+
+if (forceRemote && !urlOverride) {
+  console.error(
+    `[comfyui-mcp] WARNING: --force-remote/COMFYUI_MCP_FORCE_REMOTE set but no ` +
+      `--comfyui-url/COMFYUI_URL given — there's no target to force remote, so this has no effect.`,
   );
 }
 
@@ -350,6 +368,20 @@ export function isRemoteMode(): boolean {
 
 export function isLocalMode(): boolean {
   return !isCloudMode() && !isRemoteMode();
+}
+
+/** For env-capabilities.ts, which classifies a URL independently of urlOverride. */
+export function isForceRemoteFlagSet(): boolean {
+  return forceRemote;
+}
+
+/** Filesystem-safe id for the target instance — scopes per-instance data (e.g. generations DB). */
+export function getInstanceSlug(): string {
+  if (isCloudMode()) return "comfy-cloud";
+  const host = isLoopbackHost(config.comfyuiHost) ? "localhost" : config.comfyuiHost;
+  const raw = `${host}_${config.resolvedPort}`;
+  const slug = raw.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^-+|-+$/g, "");
+  return slug || "comfyui";
 }
 
 export function getCloudUrl(): string {

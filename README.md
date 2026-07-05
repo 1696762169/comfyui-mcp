@@ -14,7 +14,7 @@
 
 Works on **macOS**, **Linux**, and **Windows**. Auto-detects your ComfyUI installation and port.
 
-**108 MCP tools** | **29 AI skills** (Flux · WAN · LTX 2.3 video · Qwen · Z-Image · Ideogram 4 · ERNIE · ANIMA · model registry · Civitai · node authoring) | **13 installer packs** | **11 slash commands** | **4 autonomous agents** | **4 hooks**
+**108 MCP tools** | **32 AI skills** (Flux · WAN · LTX 2.3 video · Qwen · Z-Image · Ideogram 4 · ERNIE · ANIMA · model registry · Civitai · node authoring · launch/perf flags) | **13 installer packs** | **11 slash commands** | **4 autonomous agents** | **4 hooks**
 
 The plugin ships **expert skills that grow with every release** — model-specific generation guides with curated download URLs, workflow recipes, troubleshooting, and custom-node authoring — so Claude knows the right sampler, CFG, resolution, and model files for each architecture without trial and error.
 
@@ -117,7 +117,7 @@ This package also ships as a **Claude Code plugin**, providing slash commands, s
 
 ### Built-in skills
 
-29 skills total — model-family guides (Flux, WAN, LTX 2.3, Qwen, Z-Image, Ideogram 4, ERNIE, ANIMA + anime / WAN / Z-Image LoRA training), the **model-registry** (curated download URLs), the **civitai** pairing skill, node authoring, and the core four below. Full list on the [plugin docs page](https://comfyui-mcp.artokun.io/docs/plugin).
+32 skills total — model-family guides (Flux, WAN, LTX 2.3, Qwen, Z-Image, Ideogram 4, ERNIE, ANIMA + anime / WAN / Z-Image LoRA training), the **model-registry** (curated download URLs), the **civitai** pairing skill, node authoring, the **launch/performance-flags** matrix, and the core four below. Full list on the [plugin docs page](https://comfyui-mcp.artokun.io/docs/plugin).
 
 > **Installer packs.** [`packs/`](packs/) bundles 13 one-command ComfyUI setups — ANIMA, Ideogram 4, LTX-2.3, ERNIE, WAN (animate / longer-videos / transparent), Qwen (image / image-edit), Z-Image (turbo / base / xy-plot) and artokun-flow (WAN Animate — replace / animate). Each is a manifest of custom nodes + model URLs + workflow that drives both `apply_manifest` and generated `install-windows.bat` / `install-runpod.sh`, with CI that validates every model link + payload size. See [`packs/README.md`](packs/README.md).
 
@@ -553,15 +553,30 @@ The server auto-detects your ComfyUI installation and port. Override with enviro
 | Mode | Trigger | Local FS / process tools? |
 |------|---------|----------------------------|
 | **Local** | default | yes |
-| **Remote** | `--comfyui-url` / `COMFYUI_URL` points at a non-loopback host | no — server skips `COMFYUI_PATH` auto-detection so stale local installs can't silently absorb uploads |
+| **Remote** | `--comfyui-url` / `COMFYUI_URL` points at a non-loopback host, or `--force-remote` is set | no — server skips `COMFYUI_PATH` auto-detection so stale local installs can't silently absorb uploads |
 | **Cloud** | `COMFYUI_API_KEY` is set (targets [Comfy Cloud](https://cloud.comfy.org)) | no — HTTP primitives route via `cloud.comfy.org` over `X-API-Key`; WebSocket and local-only tools throw `CLOUD_UNSUPPORTED` |
+
+Some setups (e.g. [dstack](https://dstack.ai) driving ComfyUI on RunPod) port-forward
+a remote ComfyUI back to `localhost:8188`, so the loopback check above gets it
+wrong — the install isn't actually local. Pass `--force-remote` (or set
+`COMFYUI_MCP_FORCE_REMOTE=1`) alongside `--comfyui-url`/`COMFYUI_URL` to force
+remote mode regardless of hostname:
+
+```bash
+npx -y comfyui-mcp@latest --comfyui-url http://localhost:8188 --force-remote
+```
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COMFYUI_URL` | | Full ComfyUI URL, e.g. `https://comfy.example.com:8443` — overrides `COMFYUI_HOST`/`PORT`/`SSL` and skips auto-detection. A **path prefix is preserved** (e.g. `https://host/comfyapi`) for reverse-proxied instances. Non-loopback hosts opt into **remote mode**. |
+| `COMFYUI_MCP_FORCE_REMOTE` | | Set to `1`/`true` (or pass `--force-remote`) to force **remote mode** even when `COMFYUI_URL`/`--comfyui-url` resolves to a loopback host — for port-forwarded remote installs (e.g. dstack/RunPod) that are reachable at `localhost`. No effect without a `COMFYUI_URL`/`--comfyui-url`. |
 | `COMFYUI_HOST` | `127.0.0.1` | ComfyUI server address |
 | `COMFYUI_PORT` | *(auto-detect)* | ComfyUI server port (tries 8188, then 8000) |
 | `COMFYUI_PATH` | *(auto-detect)* | Path to ComfyUI data directory. Auto-detection suppressed in remote/cloud modes. |
+| `COMFYUI_PYTHON` | `python` | Python interpreter for cm-cli subprocess operations (`useCmCli`, `sync_node_dependencies`) — point it at your ComfyUI venv's python. cm-cli needs the local filesystem, so these are **local-mode only**; on remote targets use the Manager HTTP path (the default). |
+| `COMFYUI_MCP_BRIDGE_HOST` | `127.0.0.1` | Panel-bridge bind host. Set `0.0.0.0` (or a LAN IP) to run the orchestrator on a 24/7 server and connect panels from other machines — **requires a token** (below); the orchestrator prints a ready-to-paste `ws://…/?token=…` Bridge URL. |
+| `COMFYUI_MCP_BRIDGE_TOKEN` | *(generated when needed)* | Shared secret gating every bridge connection (checked constant-time on the WS upgrade). Mandatory for a non-loopback `COMFYUI_MCP_BRIDGE_HOST`; pin it so the Bridge URL survives restarts. Never logged beyond the startup banner. |
+| `COMFYUI_MCP_DATA_DIR` | `~/.comfyui-mcp` | Base dir for per-instance data (the `generations.db` used by `suggest_settings`) when there's no local `COMFYUI_PATH` (remote/cloud/undetected). Scoped per target under `instances/<host_port>/`. |
 | `COMFYUI_API_KEY` | | Comfy Cloud API key. When set, **cloud mode** is active and the server talks to `cloud.comfy.org`. Never logged. |
 | `COMFYUI_CLOUD_URL` | `https://cloud.comfy.org` | Override the Comfy Cloud endpoint (testing/staging). |
 | `COMFYUI_AUTH_TOKEN` | | Generic auth token for a **self-hosted ComfyUI behind a reverse proxy / API gateway** (distinct from Comfy Cloud). When set, attached to every ComfyUI request. Never logged. |
@@ -598,6 +613,40 @@ npx -y comfyui-mcp@latest --http --host 0.0.0.0 --port 9100   # bind/port overri
 | `--host <h>` | `MCP_HOST` | `127.0.0.1` | HTTP bind host (use `0.0.0.0` to expose) |
 | `--port <n>` | `MCP_PORT` | `9100` | HTTP port |
 | `--comfyui-url <url>` | `COMFYUI_URL` | *(auto-detect)* | Target a specific (incl. remote) ComfyUI |
+| `--force-remote` | `COMFYUI_MCP_FORCE_REMOTE` | `false` | Force remote mode for a loopback `--comfyui-url` (e.g. dstack/RunPod port-forwards to `localhost`) |
+
+### Other agents & local LLMs (Hermes, OpenClaw, Copilot CLI, Ollama)
+
+comfyui-mcp has **first-class support for non-Claude harnesses**. One command
+writes the server entry into the harness's own config (merging, not
+clobbering):
+
+```bash
+npx -y comfyui-mcp setup hermes     # → ~/.hermes/config.yaml      (compact by default)
+npx -y comfyui-mcp setup openclaw   # → ~/.openclaw/openclaw.json  (compact by default)
+npx -y comfyui-mcp setup copilot    # → ~/.copilot/mcp-config.json (full by default)
+# flags: --compact | --full, --comfyui-url <url>, --dry-run
+```
+
+**Model requirements**: tool calling is a hard requirement (no tool calling =
+doesn't work). Thinking and vision are strongly recommended — without
+thinking, multi-step tool chains degrade; without vision the agent can
+generate but can't see its own outputs.
+
+For small/local models, **compact tool mode** (`--compact` /
+`COMFYUI_MCP_TOOL_MODE=compact`) registers 3 meta-tools
+(`list_tools` → `describe_tool` → `call_tool`) instead of the full ~200-schema
+surface, pulling schemas into context one tool at a time. Validated
+end-to-end via Ollama with `gemma4:e4b`, `gemma4:e2b`, and `qwen3:4b`
+(`npm run test:local-llm`); gemma3 has no native tool calling and is
+unsupported. Full guide — hosted-model guidance (DeepSeek/MiMo/GLM class),
+per-harness setup, troubleshooting:
+**[Local LLMs & other agents](https://comfyui-mcp.artokun.io/docs/local-llms)**.
+
+| Flag | Env | Default | Description |
+|------|-----|---------|-------------|
+| `setup <agent>` | | | Write the comfyui entry into hermes / openclaw / copilot config, then exit |
+| `--compact` / `--tool-mode compact` | `COMFYUI_MCP_TOOL_MODE=compact` | `full` | Register 3 meta-tools instead of the full ~200-schema surface |
 
 ### Other agents & local LLMs (Hermes, OpenClaw, Copilot CLI, Ollama)
 

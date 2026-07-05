@@ -1,6 +1,6 @@
 {
   "name": "comfyui-mcp",
-  "version": "0.24.0",
+  "version": "0.24.5",
   "mcpName": "io.github.artokun/comfyui-mcp",
   "description": "Local-first, agent-native control plane for ComfyUI — MCP server + autonomous sidebar agent that drives your live graph in natural language on ANY LLM: Claude/ChatGPT/Gemini on your subscription (no API key), free local models via Ollama (fully offline), or any hosted model via an OpenAI-compatible endpoint (DeepSeek, GLM, MiMo, OpenRouter). Generate images, video & audio, author and run workflows, manage models and custom nodes; a compact tool-router mode keeps even 4B models effective, and a built-in LLM Arena benchmarks them on real ComfyUI tasks. Also a Claude Code plugin with skills, slash commands, and installer packs. Local, LAN, VPS, or Comfy Cloud.",
   "homepage": "https://comfyui-mcp.artokun.io/docs",
@@ -38,6 +38,7 @@
     "ft:tasks": "node finetune/datagen/synth-tasks.mjs",
     "arena:full": "npm run build && node scripts/llm-arena-full.mjs",
     "arena:panel": "npm run build && node scripts/panel-arena.mjs",
+    "runpod:release": "node scripts/runpod-release.mjs",
     "packs:gen": "node scripts/gen-pack-installers.mjs",
     "packs:validate": "node scripts/validate-manifests.mjs",
     "packs:test": "bash scripts/test-packs.sh",

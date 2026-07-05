@@ -20,10 +20,13 @@
 #
 # WHAT PERSISTS / WHAT DOESN'T:
 #   * PERSIST (on /workspace): user/ (workflows+settings+Manager config),
-#     models/ (incl. Manager downloads), input/, output/.
-#   * EPHEMERAL (in the container): custom_nodes, the venv, all caches. Nodes the
-#     agent/Manager install at runtime DO NOT survive a restart — bake them into
-#     the Dockerfile to keep them. Models DO survive (they land on the volume).
+#     models/ (incl. Manager downloads), input/, output/, and — since §4.5 below —
+#     custom_nodes/ too (symlinked onto the volume; nodes the agent/Manager
+#     install at runtime NOW SURVIVE a restart). The image's baked nodes (incl.
+#     the Agent Panel) are seeded/refreshed onto the volume every boot without
+#     clobbering nodes the user installed themselves.
+#   * EPHEMERAL (in the container): the ComfyUI install + venv + all caches —
+#     still baked/fast per the fast-restart design above.
 #
 # IMPORTANT: this script must end alive-and-non-fatal. The base runs it with
 # `set -e`, so if we returned non-zero the pod would die. We launch ComfyUI in
@@ -41,9 +44,19 @@ SEED_MODELS="${SEED_MODELS:-/opt/ComfyUI-seed-models}" # baked spotcheck model(s
 WORKSPACE="${WORKSPACE:-/workspace}"                   # network volume (USER DATA)
 COMFY_PORT="${COMFY_PORT:-3001}"                        # nginx :3000 -> here
 COMFY_NETWORK_MODE="${COMFY_NETWORK_MODE:-personal_cloud}"
-COMFY_SECURITY_LEVEL="${COMFY_SECURITY_LEVEL:-normal-}"
+# "weak" so the Agent Panel can install custom nodes from ARBITRARY git URLs
+# (Manager classes those high-risk and silently skips them at "normal-", while
+# registry-id installs pass — a confusing half-working state). This is a
+# single-user pod whose entire premise is agent-driven installs; set
+# COMFY_SECURITY_LEVEL=normal- to restore the guardrails.
+COMFY_SECURITY_LEVEL="${COMFY_SECURITY_LEVEL:-weak}"
 COMFY_EXTRA_ARGS="${COMFY_EXTRA_ARGS:-}"              # extra ComfyUI flags
 EXTRA_MODEL_PATHS="${EXTRA_MODEL_PATHS:-${COMFY_HOME}/extra_model_paths.yaml}"
+# Pull the latest Agent Panel release on every boot (git fetch + reset --hard,
+# BEFORE ComfyUI launches — see §4.5b) instead of waiting for a new pod image.
+# Automatically a no-op for a PANEL_REF-pinned build (detached HEAD — pinning
+# means the user wants reproducibility, not drift). Set to 0 to disable outright.
+PANEL_AUTO_UPDATE="${PANEL_AUTO_UPDATE:-1}"
 
 # Volume user-data dirs (the ONLY things on /workspace).
 USER_DIR="${WORKSPACE}/user"
@@ -57,11 +70,12 @@ OUTPUT_DIR="${WORKSPACE}/output"
 LOG_DIR="${COMFY_LOG_DIR:-/var/log/comfyui-mcp}"
 mkdir -p "${LOG_DIR}"
 
-# Minimum host NVIDIA driver for this image. It ships the CUDA 13 stack (cu130
-# torch 2.9.1), and a Blackwell GPU (RTX 50xx / sm_120) additionally needs a
-# Blackwell-aware driver — CUDA 13.0 requires driver >= ~580. Override for a
-# different image/GPU, or set MIN_DRIVER=0 to disable the check.
-MIN_DRIVER="${MIN_DRIVER:-580}"
+# Minimum host NVIDIA driver. Baked per image variant by the Dockerfile
+# (MIN_DRIVER_DEFAULT env: 570 for the default cu128 build — the same CUDA 12.8
+# bar the runpod/pytorch base's container-start gate already enforces — 580 for
+# the cu130 perf variant, which needs CUDA 13). Override at runtime with
+# MIN_DRIVER, or set MIN_DRIVER=0 to disable the check.
+MIN_DRIVER="${MIN_DRIVER:-${MIN_DRIVER_DEFAULT:-570}}"
 
 # -----------------------------------------------------------------------------
 # 0. GPU DRIVER PREFLIGHT. The host NVIDIA driver is NOT upgradable from inside the
@@ -74,13 +88,13 @@ if [ "${MIN_DRIVER}" != "0" ] && command -v nvidia-smi >/dev/null 2>&1; then
   GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
   DRV="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)"
   DRV_MAJOR="${DRV%%.*}"
-  log "GPU: ${GPU_NAME:-unknown} | driver: ${DRV:-unknown} (this CUDA 13 image needs driver >= ${MIN_DRIVER})"
+  log "GPU: ${GPU_NAME:-unknown} | driver: ${DRV:-unknown} (this image needs driver >= ${MIN_DRIVER})"
   if [ -n "${DRV_MAJOR}" ] && [ "${DRV_MAJOR}" -lt "${MIN_DRIVER}" ] 2>/dev/null; then
     log "============================================================================"
     log "FATAL: host NVIDIA driver ${DRV} is TOO OLD for this image (needs >= ${MIN_DRIVER})."
     log "  Your ${GPU_NAME:-GPU} (esp. RTX 50xx / Blackwell) needs a newer driver, and the"
     log "  HOST driver CANNOT be upgraded from inside a pod — torch would fail to init CUDA."
-    log "  FIX: TERMINATE this pod and REDEPLOY on a host with CUDA >= 13 / driver >= ${MIN_DRIVER}"
+    log "  FIX: TERMINATE this pod and REDEPLOY on a host with driver >= ${MIN_DRIVER}"
     log "       (filter by 'CUDA Version' on the RunPod deploy screen). Verify with: nvidia-smi"
     log "  Holding the pod open (no crash-loop) so you can inspect it. Set MIN_DRIVER=0 to bypass."
     log "============================================================================"
@@ -232,6 +246,9 @@ export HF_TOKEN="${HF_TOKEN:-${HUGGINGFACE_TOKEN:-}}"
 #           ComfyUI AND Manager read/write the volume with zero path changes;
 #       (b) seed/refresh the image's baked nodes (panel + ComfyUI builtins) into it
 #           every boot — image upgrades push a fresh panel while USER nodes persist;
+#       (b.1) fast-forward the Agent Panel specifically to its latest release via
+#           git, independent of the baked image (see below) — so a panel release
+#           reaches pods without waiting for a new image build;
 #       (c) reinstall each node's Python deps into the (ephemeral, image) venv from
 #           a PERSISTENT pip cache on the volume — required because the venv is in
 #           the image: node CODE persists on the volume, its DEPS must be
@@ -258,6 +275,39 @@ if [ -d "${CN_SEED}" ]; then
   cp -rf "${CN_SEED}/." "${CN_VOL}/" 2>/dev/null \
     && log "seeded/refreshed baked custom_nodes (panel + builtins) onto the volume" \
     || log "WARN: custom_nodes seed refresh had errors (continuing)"
+fi
+
+# (b.1) PANEL AUTO-UPDATE — decouples "get the latest Agent Panel" from "wait for
+#     a new pod image". (a)+(b) above only refresh the volume from what THIS
+#     IMAGE baked at build time; a panel release between image builds otherwise
+#     needs a full image rebuild to reach a pod. Since the panel's checkout is a
+#     plain git clone (see the Dockerfile), fast-forward it in place before
+#     ComfyUI launches (so no restart is needed for the update to take effect —
+#     unlike driving this through Manager's install/update API, which only
+#     applies on ComfyUI's NEXT launch).
+#
+#     Skips itself (git symbolic-ref fails) when HEAD is DETACHED — i.e. a build
+#     pinned PANEL_REF to a tag/commit for reproducibility, which we must not
+#     silently override. Best-effort: any failure (offline pod, rate limit, a
+#     force-pushed history) logs a warning and keeps the existing checkout.
+PANEL_DIR="${CN_VOL}/comfyui-mcp-panel"
+if [ "${PANEL_AUTO_UPDATE}" = "1" ] && [ -d "${PANEL_DIR}/.git" ]; then
+  PANEL_BRANCH="$(git -C "${PANEL_DIR}" symbolic-ref -q --short HEAD 2>/dev/null || true)"
+  if [ -n "${PANEL_BRANCH}" ]; then
+    log "checking for a newer Agent Panel release (branch: ${PANEL_BRANCH})…"
+    if git -C "${PANEL_DIR}" fetch --depth 1 origin "${PANEL_BRANCH}" \
+         >>"${LOG_DIR}/panel-update.log" 2>&1 \
+       && git -C "${PANEL_DIR}" reset --hard "origin/${PANEL_BRANCH}" \
+         >>"${LOG_DIR}/panel-update.log" 2>&1; then
+      log "Agent Panel up to date: $(git -C "${PANEL_DIR}" rev-parse --short HEAD 2>/dev/null)"
+    else
+      log "WARN: Agent Panel update check failed — keeping the existing copy (see panel-update.log)"
+    fi
+  else
+    log "Agent Panel checkout is pinned (detached HEAD) — skipping auto-update, as intended"
+  fi
+elif [ "${PANEL_AUTO_UPDATE}" != "1" ]; then
+  log "Agent Panel auto-update disabled (PANEL_AUTO_UPDATE=${PANEL_AUTO_UPDATE})"
 fi
 
 # (c) Reinstall custom-node Python deps into the venv from the persistent cache.
@@ -312,12 +362,21 @@ mkdir -p "${COMFY_HOME}/user"
 # the whole UI ("won't render") even though curl (no Sec-Fetch headers) works.
 # --enable-cors-header swaps that middleware for the CORS one, letting the
 # proxied browser through.
-# PERF: --use-sage-attention (SageAttention 2.2, baked) + --enable-triton-backend
-# (comfy-kitchen Triton, available in the image). The RTX 5090 wants these on cu130.
-# Override via COMFY_EXTRA_ARGS / edit here to fall back to --use-pytorch-cross-attention.
+# PERF: attention backend PROBED, not assumed — the cu130 perf variant bakes
+# SageAttention 2.2 (+ triton backend) but the default cu128 build ships neither
+# (no linux cu128 wheels exist for this torch line). Passing --use-sage-attention
+# without the package would crash ComfyUI at startup, so import-check the venv
+# and pick the matching flags. Override either way via COMFY_EXTRA_ARGS.
+if "${COMFY_HOME}/venv/bin/python" -c "import sageattention" >/dev/null 2>&1; then
+  ATTN_ARGS=(--use-sage-attention --enable-triton-backend)
+  log "SageAttention baked in this image — launching with --use-sage-attention"
+else
+  ATTN_ARGS=(--use-pytorch-cross-attention)
+  log "no SageAttention in this image (cu128 broad-compat build) — using PyTorch cross-attention"
+fi
 ARGS=(--listen 0.0.0.0 --port "${COMFY_PORT}"
       --enable-manager --enable-cors-header
-      --use-sage-attention --enable-triton-backend
+      "${ATTN_ARGS[@]}"
       --user-directory  "${USER_DIR}"
       --input-directory "${INPUT_DIR}"
       --output-directory "${OUTPUT_DIR}")

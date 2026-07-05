@@ -44,15 +44,35 @@ ARG BASE_IMAGE=runpod/pytorch:1.0.7-cu1281-torch280-ubuntu2404
 # image). NOTE: this is a ~63 GB build-time pull — see README "Build" for how to
 # drop it for a faster/leaner build.
 ARG RUNPOD_SRC_IMAGE=aitrepreneur/comfyui:2.3.5
+# 0 skips the ~63 GB donor pull ENTIRELY (BuildKit only builds a stage the final
+# target's graph actually reaches — see the runpod-extras-0/1 selector below).
+# Use this for CI / small-disk build hosts; the runpod-uploader/croc/app-manager
+# extras are then simply absent (the entrypoint already treats them as
+# best-effort and skips them cleanly).
+ARG INCLUDE_RUNPOD_EXTRAS=1
 # Bake the SDXL base checkpoint (~6.9 GB) for a GPU spotcheck. Set to 0 to omit
 # the baked copy entirely (the model layer is then never downloaded).
 ARG BAKE_SPOTCHECK_MODEL=1
 
 # =============================================================================
-# STAGE A — runpod-src: donor for RunPod service binaries/apps not in the lean
-# base. Nothing is built here; the final stage does COPY --from=runpod-src.
+# STAGE A — runpod-donor: donor for RunPod service binaries/apps not in the lean
+# base (runpod-uploader, croc, app-manager). ARG-gated exactly like the
+# spotcheck-model stages below: INCLUDE_RUNPOD_EXTRAS=0 selects runpod-extras-0
+# (an empty carrier), so BuildKit never reaches (or pulls) runpod-donor at all.
 # =============================================================================
-FROM ${RUNPOD_SRC_IMAGE} AS runpod-src
+FROM ${RUNPOD_SRC_IMAGE} AS runpod-donor
+
+FROM alpine:3 AS runpod-extras-0
+RUN mkdir -p /extras
+
+FROM alpine:3 AS runpod-extras-1
+RUN mkdir -p /extras/usr/local/bin /extras/app-manager
+COPY --from=runpod-donor /usr/local/bin/runpod-uploader /extras/usr/local/bin/runpod-uploader
+COPY --from=runpod-donor /usr/local/bin/croc            /extras/usr/local/bin/croc
+COPY --from=runpod-donor /app-manager/                  /extras/app-manager/
+
+# Selector: runpod-extras = runpod-extras-0 (empty) or runpod-extras-1 (donor artifacts).
+FROM runpod-extras-${INCLUDE_RUNPOD_EXTRAS} AS runpod-extras
 
 # =============================================================================
 # Spotcheck-model carrier stages — ARG-gated so the 6.9 GB download is SKIPPED
@@ -90,19 +110,35 @@ ARG COMFYUI_MANAGER_VERSION=4.2.2
 ARG PANEL_REPO=https://github.com/artokun/comfyui-mcp-panel.git
 # Optional panel tag/branch for reproducible images (empty = default branch).
 ARG PANEL_REF=
-# cu128 PyTorch wheels (sm_120 kernels). The fresh venv gets a clean cu128 torch
-# regardless of what the base ships (no cu121 leftovers). See README for the
-# leaner "reuse the base's cu128 torch" alternative.
-# PERF stack (mirrors the proven SECourses "CU13" 5090 setup): CUDA 13 / cu130 +
-# torch 2.9.1 + prebuilt SageAttention + xformers wheels. Launch uses
-# --use-sage-attention + --enable-triton-backend. We KEEP the base's Python 3.12
-# and use the `abi3` (py3.9+) sage/xformers wheels — flash_attn's wheel is cp310
-# only (would force py3.10 via deadsnakes) and is redundant with SageAttention, so
-# it's omitted. All wheels require torch 2.9.1 + cuda13.1 at runtime.
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
+# Torch pin — DEFAULT = BROAD COMPATIBILITY (cu128). cu128 has sm_120 kernels
+# (Blackwell / RTX 5090) AND runs on host driver >= 570 — the same CUDA 12.8 bar
+# the runpod/pytorch base already advertises via NVIDIA_REQUIRE_CUDA, so any host
+# that can START the container can also RUN torch. The cu130 stack we shipped
+# briefly raised the real bar to driver >= 580 (CUDA 13), which almost no RunPod
+# host meets — pods scheduled fine and then died in the driver preflight (#118).
+# The fresh venv gets a clean pinned torch regardless of what the base ships.
+#
+# No prebuilt SageAttention/xformers in the default build: no linux cu128 wheels
+# exist for this torch line, so WHEEL_SAGE/WHEEL_XFORMERS default EMPTY (the perf-
+# wheel step below skips itself) and post_start.sh detects the absence and
+# launches with --use-pytorch-cross-attention.
+#
+# CU13 PERF VARIANT (the SECourses 5090 recipe: SageAttention + xformers, abi3
+# wheels, fine on the base's py3.12; flash_attn omitted — cp310-only + redundant
+# with Sage). Needs host driver >= 580 — RARE on the fleet; tag it separately
+# (e.g. :cu130), never :latest. Build with:
+#   --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130 \
+#   --build-arg WHEEL_SAGE=https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/sageattention-2.2.0+torch2.9.1.cuda13.1-cp39-abi3-linux_x86_64.whl \
+#   --build-arg WHEEL_XFORMERS=https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/xformers-0.0.34+41531cee.d20260109-cp39-abi3-linux_x86_64.whl \
+#   --build-arg MIN_DRIVER_DEFAULT=580
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
 ARG TORCH_SPEC="torch==2.9.1 torchvision torchaudio==2.9.1"
-ARG WHEEL_SAGE=https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/sageattention-2.2.0+torch2.9.1.cuda13.1-cp39-abi3-linux_x86_64.whl
-ARG WHEEL_XFORMERS=https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/xformers-0.0.34+41531cee.d20260109-cp39-abi3-linux_x86_64.whl
+ARG WHEEL_SAGE=
+ARG WHEEL_XFORMERS=
+# Host-driver floor enforced by post_start.sh's preflight (override at runtime
+# with MIN_DRIVER; 0 disables). 570 == CUDA 12.8 (matches the cu128 default and
+# the base's own container-start gate); the cu130 variant passes 580.
+ARG MIN_DRIVER_DEFAULT=570
 # Fixed IMAGE path for the baked ComfyUI + its venv. RUN FROM HERE — never copied
 # to the volume. Immutable software.
 ARG COMFY_HOME=/opt/ComfyUI
@@ -119,7 +155,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COMFY_HOME=${COMFY_HOME} \
     SEED_MODELS=${SEED_MODELS} \
     COMFY_NETWORK_MODE=${COMFY_NETWORK_MODE} \
-    COMFY_SECURITY_LEVEL=${COMFY_SECURITY_LEVEL}
+    COMFY_SECURITY_LEVEL=${COMFY_SECURITY_LEVEL} \
+    MIN_DRIVER_DEFAULT=${MIN_DRIVER_DEFAULT}
 
 # -----------------------------------------------------------------------------
 # 0. OS deps the lean base may not ship.
@@ -149,7 +186,7 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git "${COMFY_HOME}" \
  && git --no-pager log -1 --format='ComfyUI baked at %h %ci'
 
 # -----------------------------------------------------------------------------
-# 3. Dedicated venv + cu128 torch + ComfyUI requirements + Manager v2.
+# 3. Dedicated venv + pinned torch (default cu128) + ComfyUI requirements + Manager v2.
 #    The venv lives at ${COMFY_HOME}/venv and is invoked by absolute path. It is
 #    NEVER copied to the volume — ComfyUI runs straight from the image, so import
 #    is a fast local read and boot does zero sync.
@@ -160,14 +197,13 @@ ENV VPY=${VENV}/bin/python
 RUN python3 -m venv "${VENV}" \
  && "${VPY}" -m pip install --no-cache-dir --upgrade pip wheel
 
-# cu130 torch 2.9.1 FIRST (pinned) so the requirements resolver below can't pull a
-# different torch and break the SageAttention/xformers wheel ABI. This is the
-# CUDA-13 build the RTX 5090 (Blackwell) wants for optimized ops.
+# Pinned torch FIRST so the requirements resolver below can't pull a different
+# torch (and, on the cu130 perf variant, break the sage/xformers wheel ABI).
 # shellcheck disable=SC2086
 RUN "${VPIP}" install --no-cache-dir \
       ${TORCH_SPEC} --index-url "${TORCH_INDEX_URL}"
 
-# ComfyUI runtime requirements (cu128 index passed as a safety net so nothing
+# ComfyUI runtime requirements (the torch index passed as a safety net so nothing
 # re-resolves torch off PyPI).
 RUN "${VPIP}" install --no-cache-dir --extra-index-url "${TORCH_INDEX_URL}" \
       -r "${COMFY_HOME}/requirements.txt"
@@ -178,14 +214,19 @@ RUN "${VPIP}" install --no-cache-dir "comfyui_manager==${COMFYUI_MANAGER_VERSION
  && rm -rf "${COMFY_HOME}/custom_nodes/ComfyUI-Manager" \
            "${COMFY_HOME}/custom_nodes/comfyui-manager"
 
-# PERF wheels: SageAttention 2.2.0 (used via --use-sage-attention) + xformers,
-# both prebuilt for torch2.9.1+cuda13.1 (abi3 → fine on py3.12). Uninstall any
-# requirements-pulled xformers first (SECourses does the same) so the pinned wheel
-# wins. A failure here must NOT break the image — Sage is a speedup, not required
-# (launch falls back to pytorch attention if the flag can't load).
-RUN "${VPIP}" uninstall -y xformers >/dev/null 2>&1 || true; \
-    "${VPIP}" install --no-cache-dir "${WHEEL_XFORMERS}" "${WHEEL_SAGE}" \
-      || echo "WARN: perf wheels (sage/xformers) failed to install — will run without SageAttention"
+# PERF wheels (cu130 variant only — see the ARG block above): SageAttention
+# (used via --use-sage-attention) + xformers. The DEFAULT build pins neither, so
+# this step is a no-op and post_start launches with PyTorch cross-attention.
+# When set: uninstall any requirements-pulled xformers first (SECourses does the
+# same) so the pinned wheel wins. A failure here must NOT break the image — Sage
+# is a speedup, not required (post_start detects whether it actually imports).
+RUN if [ -n "${WHEEL_SAGE}${WHEEL_XFORMERS}" ]; then \
+      "${VPIP}" uninstall -y xformers >/dev/null 2>&1 || true; \
+      "${VPIP}" install --no-cache-dir ${WHEEL_XFORMERS} ${WHEEL_SAGE} \
+        || echo "WARN: perf wheels (sage/xformers) failed to install — will run without SageAttention"; \
+    else \
+      echo "broad-compat build: no perf wheels pinned — PyTorch cross-attention at launch"; \
+    fi
 
 # -----------------------------------------------------------------------------
 # 4. comfyui-mcp Agent Panel custom node (registry id: comfyui-agent-panel).
@@ -232,11 +273,11 @@ COPY --from=spotcheck-src /seed-models/ ${SEED_MODELS}/
 #    base). These let us replicate the aitrepreneur service set without
 #    reinstalling them: a file uploader, croc (P2P transfer) and the app-manager
 #    web app (:8000). The entrypoint launches them best-effort (skipped if
-#    absent), so removing these COPYs for a leaner build is safe.
+#    absent) — with INCLUDE_RUNPOD_EXTRAS=0, /extras/ is empty and this COPY is a
+#    no-op, so a leaner build (or CI, where the 63 GB donor pull won't fit) is
+#    just a build-arg, not a hand-edit of this file.
 # -----------------------------------------------------------------------------
-COPY --from=runpod-src /usr/local/bin/runpod-uploader /usr/local/bin/runpod-uploader
-COPY --from=runpod-src /usr/local/bin/croc            /usr/local/bin/croc
-COPY --from=runpod-src /app-manager                   /app-manager
+COPY --from=runpod-extras /extras/ /
 
 # -----------------------------------------------------------------------------
 # 9. nginx (public HTTP :3000 -> ComfyUI :3001, websocket-aware, "starting"
