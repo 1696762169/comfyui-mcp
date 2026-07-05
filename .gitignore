@@ -48,3 +48,5 @@ arena-results-gen-b/
 arena-results*/panel-arena-results.json
 # stray ComfyUI render outputs that leak into the repo root
 /*.png
+arena-results-local-batch/
+arena-results*/transcripts/
