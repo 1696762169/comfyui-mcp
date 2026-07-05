@@ -1151,9 +1151,28 @@ export async function runPanelOrchestrator(): Promise<void> {
       const isCx = backend === "codex";
       const isGm = backend === "gemini";
       const isOl = backend === "ollama";
+      const isOr = backend === "openrouter";
       // TRUTHFUL "connected": only claim ready after PROVING the SELECTED backend
       // can run, by probing its model list. If the probe fails — the "connected
       // but dead" wedge — send a degraded ack so the panel shows the real state.
+      // OpenRouter needs an explicit key check FIRST: its /models endpoint is
+      // PUBLIC, so the probe "succeeds" keyless and the tab would greet ready —
+      // then 401 on the first real message. Degrade up front instead.
+      if (isOr && !openrouterApiKey()) {
+        bridge.push(
+          {
+            type: "say",
+            text:
+              "⚠️ OpenRouter has no API key — the connection would fail on your first message. " +
+              "Set it in Settings → OpenRouter → “Set API key…” (masked, stored by the orchestrator — takes effect immediately, no reconnect needed), " +
+              "or set the OPENROUTER_API_KEY environment variable and restart the orchestrator. Keys: https://openrouter.ai/keys",
+          },
+          panelTab,
+        );
+        bridge.push({ type: "ack", ok: false, kind: "degraded" }, panelTab);
+        logger.warn(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} connected (openrouter) but no API key — degraded ack`);
+        return;
+      }
       void ensureModels(backend)
         .then((models) => {
           if (models.length) {
@@ -1163,7 +1182,9 @@ export async function runPanelOrchestrator(): Promise<void> {
                 ? (geminiModel ?? (models[0] as { value?: string }).value ?? "Gemini")
                 : isOl
                   ? (ollamaModel ?? (models[0] as { value?: string }).value ?? "Ollama")
-                  : model;
+                  : isOr
+                    ? (openrouterModel ?? (models[0] as { value?: string }).value ?? "OpenRouter")
+                    : model;
             // Greet only on a FRESH session (a resume/reconnect already has the thread).
             if (!resume) {
               const readyText = isCx
@@ -1172,7 +1193,9 @@ export async function runPanelOrchestrator(): Promise<void> {
                   ? `🟢 comfyui-mcp agent ready — ${agentLabel} on your Google account (Gemini Code Assist). Ask away.`
                   : isOl
                     ? `🟢 comfyui-mcp agent ready — ${agentLabel} running locally via Ollama (no account, no API key). Small local models are slower and simpler than frontier ones — expect fewer frills. Ask away.`
-                    : `🟢 comfyui-mcp agent ready — ${agentLabel} on your Claude subscription. Ask away.`;
+                    : isOr
+                      ? `🟢 comfyui-mcp agent ready — ${agentLabel} via OpenRouter (hosted API, your OPENROUTER_API_KEY). Ask away.`
+                      : `🟢 comfyui-mcp agent ready — ${agentLabel} on your Claude subscription. Ask away.`;
               bridge.push({ type: "say", text: readyText }, panelTab);
             }
             bridge.push({ type: "ack", ok: true, kind: "ready", agent: agentLabel, backend }, panelTab);
