@@ -41,3 +41,10 @@ cnl.json
 # fine-tune datagen intermediates (keep trajectories.jsonl, drop raw dumps/logs)
 arena-results*/raw/
 arena-results*/orchestrator-*.log
+
+# active generation data (regenerated; snapshot committed separately when training)
+arena-results-gen/
+arena-results-gen-b/
+arena-results*/panel-arena-results.json
+# stray ComfyUI render outputs that leak into the repo root
+/*.png
