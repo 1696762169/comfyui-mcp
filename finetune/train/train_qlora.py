@@ -74,10 +74,18 @@ def main() -> None:
 
     def normalize_messages(messages: list[dict]) -> list[dict]:
         """Coerce OpenAI-shaped messages into what the Gemma 4 Jinja template
-        expects: content is always a string (assistant-with-tool_calls has
-        content=None in OpenAI form, but the template concatenates it), and
-        tool-call arguments are a dict (we store them as a JSON string)."""
+        expects:
+        - content is always a string (assistant-with-tool_calls has content=None
+          in OpenAI form, but the template concatenates it → TypeError);
+        - tool-call arguments are a dict (we store them as a JSON string);
+        - every tool-RESULT message carries an explicit `name` (the function it
+          answers). The template otherwise resolves the name by matching
+          tool_call_id back to the assistant's tool-call id, and Jinja's
+          `default('unknown')` does NOT replace a Python None from a failed
+          match, so `tool_name` stays None and crashes. Setting `name` directly
+          sidesteps that fragile lookback."""
         out = []
+        id_to_name: dict[str, str] = {}
         for m in messages:
             m = dict(m)
             if m.get("content") is None:
@@ -90,6 +98,10 @@ def main() -> None:
                         fn["arguments"] = json.loads(args) if args.strip() else {}
                     except json.JSONDecodeError:
                         fn["arguments"] = {}
+                if tc.get("id") and fn.get("name"):
+                    id_to_name[tc["id"]] = fn["name"]
+            if m.get("role") == "tool" and not m.get("name"):
+                m["name"] = id_to_name.get(m.get("tool_call_id"), "unknown")
             out.append(m)
         return out
 
