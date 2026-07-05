@@ -72,9 +72,30 @@ def main() -> None:
         for t in tools_full["tools"]
     ]
 
+    def normalize_messages(messages: list[dict]) -> list[dict]:
+        """Coerce OpenAI-shaped messages into what the Gemma 4 Jinja template
+        expects: content is always a string (assistant-with-tool_calls has
+        content=None in OpenAI form, but the template concatenates it), and
+        tool-call arguments are a dict (we store them as a JSON string)."""
+        out = []
+        for m in messages:
+            m = dict(m)
+            if m.get("content") is None:
+                m["content"] = ""
+            for tc in m.get("tool_calls") or []:
+                fn = tc.get("function") or {}
+                args = fn.get("arguments")
+                if isinstance(args, str):
+                    try:
+                        fn["arguments"] = json.loads(args) if args.strip() else {}
+                    except json.JSONDecodeError:
+                        fn["arguments"] = {}
+            out.append(m)
+        return out
+
     def to_text(rec: dict) -> str:
         tools = comfyui_tools if rec["tools"] == "comfyui" else rec.get("inline_tools") or None
-        return tokenizer.apply_chat_template(rec["messages"], tools=tools, tokenize=False)
+        return tokenizer.apply_chat_template(normalize_messages(rec["messages"]), tools=tools, tokenize=False)
 
     # Load JSONL with plain Python and render to text BEFORE building the
     # Dataset — the HF json loader (pyarrow) chokes on our nested/variable
