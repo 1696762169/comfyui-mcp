@@ -37,6 +37,7 @@ import {
   onComfyuiSecretsChanged,
   hydrateAgentSecretsIntoEnv,
   onAgentSecretsChanged,
+  setAgentSecret,
 } from "../services/panel-secrets.js";
 import { CodexBackend } from "./codex-backend.js";
 import { GeminiBackend, GEMINI_DEFAULT_MODEL } from "./gemini-backend.js";
@@ -1272,6 +1273,34 @@ export async function runPanelOrchestrator(): Promise<void> {
         pushModels(event.tab_id);
       }
       bridge.push({ type: "ack", ok: true, kind: "config" }, event.tab_id);
+      return;
+    }
+
+    // Panel-initiated provider secret (Settings › "Set API key…") — NO agent, no
+    // chat: the panel paints its own masked input and ships the value here
+    // directly, over the same loopback/token-gated bridge the agent-initiated
+    // request_secret reply already rides. setAgentSecret enforces the allowlist
+    // (OPENROUTER_API_KEY), persists 0600, and hydrates process.env immediately,
+    // so the refreshed readiness frame flips the provider picker live — a user
+    // can enable OpenRouter before ANY backend is ready (no chicken-and-egg).
+    if (event.type === "set_secret" && event.tab_id) {
+      const rawKey = (event as { key?: unknown }).key;
+      const rawValue = (event as { value?: unknown }).value;
+      const key = typeof rawKey === "string" ? rawKey : "";
+      const value = typeof rawValue === "string" ? rawValue : "";
+      let error: string | undefined;
+      try {
+        if (!value.trim()) throw new Error("No token entered — nothing was saved.");
+        setAgentSecret(key, value.trim());
+        logger.info(`[panel-orchestrator] provider secret set from panel Settings: ${key} (redacted)`);
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err);
+      }
+      bridge.push(
+        { type: "secret_saved", key, ok: !error, ...(error ? { error } : {}) },
+        event.tab_id,
+      );
+      if (!error) pushReadiness(event.tab_id);
       return;
     }
 
