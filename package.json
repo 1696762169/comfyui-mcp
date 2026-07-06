@@ -57,13 +57,13 @@
     "zod": "^4.0.0"
   },
   "optionalDependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.197",
-    "@openai/codex": "~0.141.0",
     "@ai-sdk/anthropic": "^3.0.79",
     "@ai-sdk/google": "^3.0.79",
     "@ai-sdk/openai": "^3.0.65",
-    "@aws-sdk/client-s3": "^3.1053.0",
-    "@azure/storage-blob": "^12.31.0",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.197",
+    "@aws-sdk/client-s3": "^3.1079.0",
+    "@azure/storage-blob": "^12.33.0",
+    "@openai/codex": "~0.141.0",
     "ai": "^6.0.191",
     "cloudflared": "^0.7.1"
   },
