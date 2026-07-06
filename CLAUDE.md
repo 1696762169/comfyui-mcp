@@ -50,27 +50,26 @@ bd close <id>         # Complete work
 
 ## Session Completion
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+**When ending a work session**, you MUST complete ALL steps below. Pushing to remote is the **user's responsibility** — do not push on their behalf unless they have explicitly authorized it.
 
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+4. **Prepare for push** - Ensure the branch is clean and ready:
    ```bash
    git pull --rebase
    bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
+   git status  # MUST show working tree clean
    ```
 5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+6. **Verify** - All changes committed locally and ready to push
+7. **Hand off** - Provide context for next session, including the exact `git push` command for the user to run
 
 **CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+- Do NOT push to remote without explicit user authorization
+- If the user asks you to push and it fails, report the failure clearly and ask them to push manually
+- When handing off, always include the current branch name and the exact command the user should run to publish commits
+- Work is considered complete locally once commits are made and quality gates pass; remote publication is the user's choice
 <!-- END BEADS INTEGRATION -->
