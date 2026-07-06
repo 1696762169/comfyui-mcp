@@ -285,6 +285,10 @@ const configSchema = z.object({
   comfyuiAuthScheme: z.string().optional(),
   comfyuiAuthToken: z.string().optional(),
   huggingfaceToken: z.string().optional(),
+  // Base URL for HuggingFace Hub API and model downloads. Override to use a
+  // regional mirror (e.g. https://hf-mirror.com). Matches the HF_ENDPOINT
+  // convention used by huggingface_hub.
+  huggingfaceMirror: z.string().default("https://huggingface.co"),
   githubToken: z.string().optional(),
   civitaiApiToken: z.string().optional(),
   comfyApiKey: z.string().optional(),
@@ -328,6 +332,7 @@ const parsedConfig = configSchema.parse({
   comfyuiAuthScheme: process.env.COMFYUI_AUTH_SCHEME,
   comfyuiAuthToken: process.env.COMFYUI_AUTH_TOKEN,
   huggingfaceToken: process.env.HUGGINGFACE_TOKEN,
+  huggingfaceMirror: process.env.HF_ENDPOINT,
   githubToken: process.env.GITHUB_TOKEN,
   civitaiApiToken: process.env.CIVITAI_API_TOKEN,
   comfyApiKey: process.env.COMFY_API_KEY,
@@ -386,6 +391,12 @@ export function getInstanceSlug(): string {
 
 export function getCloudUrl(): string {
   return config.comfyuiCloudUrl;
+}
+
+/** Normalized HuggingFace Hub base URL (no trailing slash). Defaults to the
+ *  official endpoint; override with HF_ENDPOINT for regional mirrors. */
+export function getHuggingFaceMirror(): string {
+  return config.huggingfaceMirror.replace(/\/+$/, "");
 }
 
 export function getApiKey(): string {

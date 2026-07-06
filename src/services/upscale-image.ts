@@ -1,6 +1,7 @@
 import type { WorkflowJSON } from "../comfyui/types.js";
 import { createWorkflow } from "./workflow-composer.js";
 import { DefaultsManager } from "./defaults-manager.js";
+import { getHuggingFaceMirror } from "../config.js";
 import { ValidationError } from "../utils/errors.js";
 import { assertSafeInputFilename } from "../utils/input-paths.js";
 
@@ -62,7 +63,7 @@ export async function upscaleImage(
     throw new ValidationError(
       "No upscale model specified or found in models/upscale_models/. Pass `model`, " +
         "or download one, e.g. download_model url=" +
-        "https://huggingface.co/Aitrepreneur/FLX/resolve/main/4x-ClearRealityV1.pth " +
+        `${getHuggingFaceMirror()}/Aitrepreneur/FLX/resolve/main/4x-ClearRealityV1.pth ` +
         "target_subfolder=upscale_models. The anima/ernie packs also provide upscale " +
         "models via apply_manifest.",
     );

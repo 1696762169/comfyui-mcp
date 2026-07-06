@@ -18,6 +18,10 @@ All notable changes to this project are documented here. This project adheres to
   over (`Stop pid <pid> and take over this port with the current version? [y/N]`),
   naming its version/pid instead of just logging that panel tools are unavailable
   until you go find and kill it yourself.
+- **`HF_ENDPOINT` support** — override the HuggingFace Hub base URL used for model
+  search (`search_models`) and downloads (`download_model`), e.g.
+  `HF_ENDPOINT=https://hf-mirror.com`. The official `https://huggingface.co`
+  endpoint remains the default.
 
 ### Fixed
 

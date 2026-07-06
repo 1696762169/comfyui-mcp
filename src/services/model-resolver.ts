@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { readdir, stat, mkdir } from "node:fs/promises";
 import { join, basename, resolve, relative, sep, isAbsolute } from "node:path";
-import { config, isRemoteMode } from "../config.js";
+import { config, getHuggingFaceMirror, isRemoteMode } from "../config.js";
 import { getClient } from "../comfyui/client.js";
 import { getExtraModelRoots } from "./extra-paths.js";
 import { installModelViaManager } from "./node-management.js";
@@ -136,7 +136,7 @@ export async function searchHuggingFaceModels(
     headers["Authorization"] = `Bearer ${config.huggingfaceToken}`;
   }
 
-  const url = `https://huggingface.co/api/models?${params}`;
+  const url = `${getHuggingFaceMirror()}/api/models?${params}`;
   logger.debug("HuggingFace API request", { url });
 
   const res = await fetch(url, { headers });
@@ -244,6 +244,37 @@ function isCivitaiUrl(url: string): boolean {
     return host === "civitai.com" || host.endsWith(".civitai.com");
   } catch {
     return false;
+  }
+}
+
+/** True when `url`'s host is huggingface.co (or a subdomain) or the configured
+ *  HuggingFace mirror endpoint. Parsed safely so malformed URLs don't throw. */
+function isHuggingFaceUrl(url: string): boolean {
+  try {
+    const host = new URL(url).host.toLowerCase();
+    const mirrorHost = new URL(getHuggingFaceMirror()).host.toLowerCase();
+    return (
+      host === "huggingface.co" ||
+      host.endsWith(".huggingface.co") ||
+      host === mirrorHost
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Rewrite a huggingface.co URL to use the configured HF_ENDPOINT mirror,
+ *  preserving path, query, and fragment. Non-HF URLs are returned unchanged. */
+function resolveHuggingFaceUrl(url: string): string {
+  if (!isHuggingFaceUrl(url)) return url;
+  try {
+    const parsed = new URL(url);
+    const mirror = new URL(getHuggingFaceMirror());
+    parsed.protocol = mirror.protocol;
+    parsed.host = mirror.host;
+    return parsed.toString();
+  } catch {
+    return url;
   }
 }
 
@@ -511,6 +542,11 @@ export async function downloadModel(
   filename?: string,
   auth?: DownloadAuth,
 ): Promise<string> {
+  // Rewrite any HuggingFace URL to the configured mirror (HF_ENDPOINT) before
+  // filename extraction, auth resolution, or remote dispatch. Non-HF URLs pass
+  // through unchanged.
+  const resolvedUrl = resolveHuggingFaceUrl(url);
+
   // REMOTE mode: the MCP has no local filesystem, so a local-disk download is
   // impossible. Dispatch the download to the connected ComfyUI host through
   // ComfyUI-Manager's `install-model` task instead — it fetches the file
@@ -521,7 +557,7 @@ export async function downloadModel(
   // Manager, so those are surfaced as a clear warning rather than reported as a
   // clean success.
   if (isRemoteMode()) {
-    return downloadModelViaManagerRemote(url, targetSubfolder, filename, auth);
+    return downloadModelViaManagerRemote(resolvedUrl, targetSubfolder, filename, auth);
   }
 
   const targetDir = resolveModelSubfolder(targetSubfolder);
@@ -530,7 +566,7 @@ export async function downloadModel(
   await mkdir(targetDir, { recursive: true });
 
   const rawFilename =
-    filename ?? (basename(new URL(url).pathname) || "model.safetensors");
+    filename ?? (basename(new URL(resolvedUrl).pathname) || "model.safetensors");
   // Guard against path traversal: the filename must be a bare basename so it
   // cannot escape targetDir via separators or "..".
   const resolvedFilename = basename(rawFilename);
@@ -554,11 +590,11 @@ export async function downloadModel(
     );
   }
 
-  const request = applyDownloadAuth(url, auth);
+  const request = applyDownloadAuth(resolvedUrl, auth);
   const headers: Record<string, string> = { ...request.headers };
-  if (!auth && config.huggingfaceToken && url.includes("huggingface.co")) {
+  if (!auth && config.huggingfaceToken && isHuggingFaceUrl(resolvedUrl)) {
     headers["Authorization"] = `Bearer ${config.huggingfaceToken}`;
-  } else if (!auth && config.civitaiApiToken && isCivitaiUrl(url)) {
+  } else if (!auth && config.civitaiApiToken && isCivitaiUrl(resolvedUrl)) {
     // CivitAI auth travels as a request header (never in the URL/query) so the
     // token can't leak into logs, errors, or redirect URLs. fetch drops the
     // header on the cross-origin redirect to the already-signed download host.

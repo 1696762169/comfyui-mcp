@@ -1,15 +1,20 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-// Control config (comfyuiPath + tokens) per test.
+// Control config (comfyuiPath + tokens + mirror) per test.
 vi.mock("../../config.js", () => {
   const config = {
     comfyuiPath: "/comfy" as string | undefined,
     huggingfaceToken: undefined as string | undefined,
     civitaiApiToken: undefined as string | undefined,
+    huggingfaceMirror: "https://huggingface.co" as string,
   };
   // downloadModel routes to the Manager install-model path in remote mode
   // (comfyuiPath unset). Most tests set comfyuiPath, so this is false for them.
-  return { config, isRemoteMode: () => !config.comfyuiPath };
+  return {
+    config,
+    isRemoteMode: () => !config.comfyuiPath,
+    getHuggingFaceMirror: () => config.huggingfaceMirror.replace(/\/+$/, ""),
+  };
 });
 
 // Stub the Manager install-model dispatch so remote-mode downloadModel can be
@@ -36,7 +41,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { config } from "../../config.js";
-import { downloadModel } from "../../services/model-resolver.js";
+import { downloadModel, searchHuggingFaceModels } from "../../services/model-resolver.js";
 import { ModelError } from "../../utils/errors.js";
 import { logger } from "../../utils/logger.js";
 
@@ -60,6 +65,7 @@ beforeEach(() => {
   config.comfyuiPath = "/comfy";
   config.huggingfaceToken = undefined;
   config.civitaiApiToken = undefined;
+  config.huggingfaceMirror = "https://huggingface.co";
 });
 
 afterEach(() => {
@@ -277,9 +283,150 @@ describe("downloadModel — auth headers (token never in URL)", () => {
   });
 });
 
+describe("downloadModel — HuggingFace mirror (HF_ENDPOINT)", () => {
+  function failingFetch() {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: "err" });
+  }
+
+  beforeEach(() => {
+    config.huggingfaceMirror = "https://hf-mirror.com";
+  });
+
+  it("rewrites a huggingface.co download URL to the mirror", async () => {
+    failingFetch();
+
+    await expect(
+      downloadModel(
+        "https://huggingface.co/org/repo/resolve/main/m.safetensors",
+        "checkpoints",
+        "m.safetensors",
+      ),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://hf-mirror.com/org/repo/resolve/main/m.safetensors");
+  });
+
+  it("still attaches the HF token when fetching through the mirror", async () => {
+    config.huggingfaceToken = "hf";
+    failingFetch();
+
+    await expect(
+      downloadModel(
+        "https://huggingface.co/org/repo/resolve/main/m.safetensors",
+        "checkpoints",
+        "m.safetensors",
+      ),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    expect(headersOf().Authorization).toBe("Bearer hf");
+  });
+
+  it("does NOT rewrite non-HF URLs", async () => {
+    failingFetch();
+
+    await expect(
+      downloadModel("https://example.com/model.safetensors", "checkpoints", "model.safetensors"),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://example.com/model.safetensors");
+  });
+
+  it("does NOT send the HF token to a non-HF host", async () => {
+    config.huggingfaceToken = "hf";
+    failingFetch();
+
+    await expect(
+      downloadModel("https://evil.example.com/path/huggingface.co/x.safetensors", "checkpoints", "x.safetensors"),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    expect(headersOf().Authorization).toBeUndefined();
+  });
+
+  it("uses explicit bearer auth instead of the default HF token", async () => {
+    config.huggingfaceToken = "default-hf";
+    failingFetch();
+
+    await expect(
+      downloadModel(
+        "https://huggingface.co/org/repo/resolve/main/m.safetensors",
+        "checkpoints",
+        "m.safetensors",
+        { type: "bearer", token: "explicit" },
+      ),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    expect(headersOf().Authorization).toBe("Bearer explicit");
+  });
+
+  it("normalizes a mirror URL with trailing slash", async () => {
+    config.huggingfaceMirror = "https://hf-mirror.com/";
+    failingFetch();
+
+    await expect(
+      downloadModel(
+        "https://huggingface.co/org/repo/resolve/main/m.safetensors",
+        "checkpoints",
+        "m.safetensors",
+      ),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://hf-mirror.com/org/repo/resolve/main/m.safetensors");
+  });
+});
+
+describe("searchHuggingFaceModels — HF_ENDPOINT mirror", () => {
+  beforeEach(() => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+  });
+
+  it("uses the default huggingface.co base when no mirror is configured", async () => {
+    await searchHuggingFaceModels("flux", { limit: 5 });
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://huggingface.co/api/models?search=flux&limit=5");
+  });
+
+  it("uses the configured mirror base for the search API", async () => {
+    config.huggingfaceMirror = "https://hf-mirror.com";
+    await searchHuggingFaceModels("flux", { limit: 5 });
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://hf-mirror.com/api/models?search=flux&limit=5");
+  });
+
+  it("attaches the HF token when searching through the mirror", async () => {
+    config.huggingfaceMirror = "https://hf-mirror.com";
+    config.huggingfaceToken = "hf";
+    await searchHuggingFaceModels("flux", { limit: 5 });
+
+    expect(headersOf().Authorization).toBe("Bearer hf");
+  });
+});
+
 describe("downloadModel — remote mode (Manager install-model dispatch)", () => {
   beforeEach(() => {
     config.comfyuiPath = undefined; // remote mode
+  });
+
+  it("dispatches a HuggingFace URL rewritten to the configured mirror", async () => {
+    config.huggingfaceMirror = "https://hf-mirror.com";
+    await downloadModel(
+      "https://huggingface.co/org/repo/resolve/main/m.safetensors",
+      "checkpoints",
+      "m.safetensors",
+    );
+
+    expect(installModelViaManagerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://hf-mirror.com/org/repo/resolve/main/m.safetensors",
+      }),
+    );
   });
 
   it("dispatches a top-level download via installModelViaManager (no save_path) and never touches disk", async () => {

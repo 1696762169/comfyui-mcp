@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
+import { getHuggingFaceMirror } from "../../config.js";
 import { ModelError, ValidationError } from "../../utils/errors.js";
 import type { StorageUploadResult, StorageUploadSource } from "./types.js";
 import { withPrefix } from "./utils.js";
@@ -71,7 +72,7 @@ export async function uploadHfFile(
     const prefix = repoType === "dataset" ? "datasets/" : repoType === "space" ? "spaces/" : "";
     return {
       provider: "hf",
-      url: `https://huggingface.co/${prefix}${destination.repo}/blob/main/${remotePath}`,
+      url: `${getHuggingFaceMirror()}/${prefix}${destination.repo}/blob/main/${remotePath}`,
     };
   } catch (err) {
     if (err instanceof ValidationError) throw err;
