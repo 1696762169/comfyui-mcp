@@ -290,7 +290,7 @@ export function registerWorkflowLibraryTools(server: McpServer): void {
 
   server.tool(
     "save_workflow",
-    "Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI. Requires a running ComfyUI server; this writes to that server's userdata and overwrites any existing file with the same filename without confirmation. Accepts API-format or UI-format JSON. Returns a confirmation message, or the HTTP status and error text on failure.",
+    "Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI. Requires a running ComfyUI server; this writes to that server's userdata and overwrites any existing file with the same filename without confirmation. **For a workflow that should be readable and editable in the ComfyUI canvas, pass Web UI format (`{ nodes: [], links: [] }`).** API-format graphs are accepted but will not be editable in the frontend. Returns a confirmation message, or the HTTP status and error text on failure.",
     {
       filename: z
         .string()
@@ -299,7 +299,7 @@ export function registerWorkflowLibraryTools(server: McpServer): void {
         ),
       workflow: z
         .record(z.string(), z.any())
-        .describe("Workflow JSON to save (API or UI format). Stored verbatim; not validated before saving."),
+        .describe("Workflow JSON to save. **Prefer Web UI format** (`{ nodes: [], links: [] }`) so it opens in ComfyUI's canvas. API format is accepted but not editable in the frontend. Stored verbatim; not validated before saving."),
     },
     async (args) => {
       try {
