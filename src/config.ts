@@ -291,6 +291,16 @@ const configSchema = z.object({
   huggingfaceMirror: z.string().default("https://huggingface.co"),
   githubToken: z.string().optional(),
   civitaiApiToken: z.string().optional(),
+  // Enable CivitAI-related tools and URL handling. Set to false/0/no/off to
+  // disable all CivitAI network access (useful when civitai.com is unreachable).
+  civitaiEnabled: z
+    .union([
+      z.enum(["true", "1", "yes", "on", "false", "0", "no", "off"]).transform((v) =>
+        ["true", "1", "yes", "on"].includes(v),
+      ),
+      z.boolean(),
+    ])
+    .default(true),
   comfyApiKey: z.string().optional(),
 });
 
@@ -335,6 +345,7 @@ const parsedConfig = configSchema.parse({
   huggingfaceMirror: process.env.HF_ENDPOINT,
   githubToken: process.env.GITHUB_TOKEN,
   civitaiApiToken: process.env.CIVITAI_API_TOKEN,
+  civitaiEnabled: process.env.CIVITAI_ENABLED,
   comfyApiKey: process.env.COMFY_API_KEY,
 });
 
@@ -397,6 +408,12 @@ export function getCloudUrl(): string {
  *  official endpoint; override with HF_ENDPOINT for regional mirrors. */
 export function getHuggingFaceMirror(): string {
   return config.huggingfaceMirror.replace(/\/+$/, "");
+}
+
+/** Whether CivitAI tools and URL handling are enabled. Defaults to true;
+ *  set CIVITAI_ENABLED=false/0/no/off to disable all CivitAI access. */
+export function isCivitaiEnabled(): boolean {
+  return config.civitaiEnabled;
 }
 
 export function getApiKey(): string {

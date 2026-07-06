@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { readdir, stat, mkdir } from "node:fs/promises";
 import { join, basename, resolve, relative, sep, isAbsolute } from "node:path";
-import { config, getHuggingFaceMirror, isRemoteMode } from "../config.js";
+import { config, getHuggingFaceMirror, isCivitaiEnabled, isRemoteMode } from "../config.js";
 import { getClient } from "../comfyui/client.js";
 import { getExtraModelRoots } from "./extra-paths.js";
 import { installModelViaManager } from "./node-management.js";
@@ -546,6 +546,15 @@ export async function downloadModel(
   // filename extraction, auth resolution, or remote dispatch. Non-HF URLs pass
   // through unchanged.
   const resolvedUrl = resolveHuggingFaceUrl(url);
+
+  // If CivitAI is disabled, reject CivitAI URLs early so no network request is
+  // made and no token is attached.
+  if (isCivitaiUrl(resolvedUrl) && !isCivitaiEnabled()) {
+    throw new ModelError(
+      "CivitAI downloads are disabled. Set CIVITAI_ENABLED=true to enable, or use a HuggingFace URL.",
+      { url: redactUrlForLogs(resolvedUrl) },
+    );
+  }
 
   // REMOTE mode: the MCP has no local filesystem, so a local-disk download is
   // impossible. Dispatch the download to the connected ComfyUI host through

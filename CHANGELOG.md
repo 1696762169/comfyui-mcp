@@ -22,6 +22,10 @@ All notable changes to this project are documented here. This project adheres to
   search (`search_models`) and downloads (`download_model`), e.g.
   `HF_ENDPOINT=https://hf-mirror.com`. The official `https://huggingface.co`
   endpoint remains the default.
+- **`CIVITAI_ENABLED` toggle** — set to `false`/`0`/`no`/`off` to disable all
+  CivitAI tools and URL handling. When disabled, `download_civitai_model` is not
+  registered and `download_model` rejects CivitAI URLs, so agents fall back to
+  HuggingFace for model downloads.
 
 ### Fixed
 

@@ -583,6 +583,7 @@ npx -y comfyui-mcp@latest --comfyui-url http://localhost:8188 --force-remote
 | `COMFYUI_AUTH_HEADER` | `Authorization` | Header name for `COMFYUI_AUTH_TOKEN` (e.g. `X-API-Key`). |
 | `COMFYUI_AUTH_SCHEME` | `Bearer` for `Authorization`, else none | Scheme prefix on the token value (e.g. `Bearer`, `Token`). |
 | `CIVITAI_API_TOKEN` | | CivitAI API token for model downloads |
+| `CIVITAI_ENABLED` | `true` | Set to `false`/`0`/`no`/`off` to disable all CivitAI tools and URL handling |
 | `HUGGINGFACE_TOKEN` | | HuggingFace token for higher API rate limits |
 | `HF_ENDPOINT` | `https://huggingface.co` | Override the HuggingFace Hub base URL for API calls and downloads, e.g. `https://hf-mirror.com` |
 | `GITHUB_TOKEN` | | GitHub token for skill generation (avoids rate limits) |

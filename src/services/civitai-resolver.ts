@@ -1,8 +1,17 @@
-import { config } from "../config.js";
+import { config, isCivitaiEnabled } from "../config.js";
 import { ModelError, ValidationError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 
 const CIVITAI_API_BASE = "https://civitai.com/api/v1";
+
+/** Throws if CivitAI integration is disabled via CIVITAI_ENABLED. */
+function assertCivitaiEnabled(): void {
+  if (!isCivitaiEnabled()) {
+    throw new ModelError(
+      "CivitAI is disabled via CIVITAI_ENABLED. Set it to true to use CivitAI features.",
+    );
+  }
+}
 
 /**
  * Subset of the CivitAI model-version file object.
@@ -53,6 +62,7 @@ function authHeaders(): Record<string, string> {
 }
 
 async function civitaiGet<T>(path: string): Promise<T> {
+  assertCivitaiEnabled();
   const url = `${CIVITAI_API_BASE}${path}`;
   logger.debug("CivitAI API request", { url });
 
@@ -105,6 +115,7 @@ function resolveFromVersion(
 export async function resolveCivitaiModelVersion(
   versionId: number,
 ): Promise<CivitaiResolved> {
+  assertCivitaiEnabled();
   const version = await civitaiGet<CivitaiModelVersion>(
     `/model-versions/${versionId}`,
   );
@@ -121,6 +132,7 @@ export async function resolveCivitaiModel(
   modelId: number,
   versionId?: number,
 ): Promise<CivitaiResolved> {
+  assertCivitaiEnabled();
   const model = await civitaiGet<CivitaiModel>(`/models/${modelId}`);
   const versions = model.modelVersions ?? [];
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { unlink } from "node:fs/promises";
-import { isLocalMode } from "../config.js";
+import { isLocalMode, isCivitaiEnabled } from "../config.js";
 import {
   downloadModel,
   resolveExistingModelFile,
@@ -73,6 +73,10 @@ export function registerModelExtrasTools(server: McpServer): void {
       }
     },
   );
+
+  if (!isCivitaiEnabled()) {
+    return; // skip CivitAI-specific tool when disabled
+  }
 
   server.tool(
     "download_civitai_model",

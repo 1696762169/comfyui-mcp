@@ -7,11 +7,13 @@ vi.mock("../../config.js", () => {
   const config = {
     comfyuiPath: "/comfy" as string | undefined,
     civitaiApiToken: undefined as string | undefined,
+    civitaiEnabled: true as boolean,
   };
   return {
     config,
     isLocalMode: () => Boolean(config.comfyuiPath),
     isRemoteMode: () => !config.comfyuiPath,
+    isCivitaiEnabled: () => config.civitaiEnabled,
   };
 });
 
@@ -90,6 +92,7 @@ beforeEach(() => {
   resolveCivitaiModelVersionMock.mockReset();
   config.comfyuiPath = "/comfy";
   config.civitaiApiToken = undefined;
+  config.civitaiEnabled = true;
 });
 
 describe("remove_model path safety", () => {
@@ -272,5 +275,21 @@ describe("download_civitai_model", () => {
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toContain("model_id");
     expect(downloadModelMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("CivitAI tool registration", () => {
+  it("does NOT register download_civitai_model when CIVITAI_ENABLED=false", () => {
+    config.civitaiEnabled = false;
+    const handlers = new Map<string, ToolHandler>();
+    const server = {
+      tool: (name: string, _desc: string, _schema: unknown, handler: ToolHandler) => {
+        handlers.set(name, handler);
+      },
+    };
+    registerModelExtrasTools(server as never);
+
+    expect(handlers.has("download_civitai_model")).toBe(false);
+    expect(handlers.has("remove_model")).toBe(true);
   });
 });

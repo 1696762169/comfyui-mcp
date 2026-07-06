@@ -1,9 +1,13 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-// Mock config so civitaiApiToken is controllable per test.
-vi.mock("../../config.js", () => ({
-  config: { civitaiApiToken: undefined as string | undefined },
-}));
+// Mock config so civitaiApiToken and the CivitAI toggle are controllable per test.
+vi.mock("../../config.js", () => {
+  const config = { civitaiApiToken: undefined as string | undefined, civitaiEnabled: true as boolean };
+  return {
+    config,
+    isCivitaiEnabled: () => config.civitaiEnabled,
+  };
+});
 
 import { config } from "../../config.js";
 import {
@@ -28,6 +32,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
   config.civitaiApiToken = undefined;
+  config.civitaiEnabled = true;
 });
 
 afterEach(() => {
@@ -175,5 +180,25 @@ describe("resolveCivitaiModel", () => {
   it("throws ModelError when the model has no versions", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: 100, modelVersions: [] }));
     await expect(resolveCivitaiModel(100)).rejects.toBeInstanceOf(ModelError);
+  });
+});
+
+describe("CivitAI disabled via CIVITAI_ENABLED", () => {
+  beforeEach(() => {
+    config.civitaiEnabled = false;
+  });
+
+  it("resolveCivitaiModelVersion throws before fetching", async () => {
+    await expect(resolveCivitaiModelVersion(12345)).rejects.toMatchObject({
+      message: expect.stringMatching(/CivitAI is disabled/i),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("resolveCivitaiModel throws before fetching", async () => {
+    await expect(resolveCivitaiModel(100)).rejects.toMatchObject({
+      message: expect.stringMatching(/CivitAI is disabled/i),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

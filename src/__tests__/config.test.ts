@@ -277,3 +277,45 @@ describe("COMFYUI_PATH nested/wrapper self-heal (doubled-path bug)", () => {
     expect(mod.descendToNestedRoot(nested)).toBe(nested);
   });
 });
+
+describe("CIVITAI_ENABLED parsing", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env = { ...OLD_ENV };
+    process.argv = [...OLD_ARGV];
+    process.env.COMFYUI_API_KEY = "";
+    process.env.COMFYUI_URL = "";
+    process.env.COMFYUI_PATH = "";
+    process.env.COMFYUI_HOST = "";
+    process.env.COMFYUI_PORT = "8188";
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+    process.argv = OLD_ARGV;
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["true", true],
+    ["1", true],
+    ["yes", true],
+    ["on", true],
+    ["false", false],
+    ["0", false],
+    ["no", false],
+    ["off", false],
+  ])("CIVITAI_ENABLED=%s → %s", async (value, expected) => {
+    process.env.CIVITAI_ENABLED = value;
+    const mod = await import("../config.js");
+    expect(mod.config.civitaiEnabled).toBe(expected);
+    expect(mod.isCivitaiEnabled()).toBe(expected);
+  });
+
+  it("defaults to true when CIVITAI_ENABLED is unset", async () => {
+    delete process.env.CIVITAI_ENABLED;
+    const mod = await import("../config.js");
+    expect(mod.config.civitaiEnabled).toBe(true);
+    expect(mod.isCivitaiEnabled()).toBe(true);
+  });
+});

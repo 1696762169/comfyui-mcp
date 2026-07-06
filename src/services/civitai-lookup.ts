@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { config, isCivitaiEnabled } from "../config.js";
 import { logger } from "../utils/logger.js";
 import type { FileHasher } from "./file-hasher.js";
 
@@ -21,6 +21,9 @@ export async function lookupByHash(
   filename: string,
   autov2: string,
 ): Promise<CivitaiModelVersion | null> {
+  if (!isCivitaiEnabled()) {
+    return null;
+  }
   const url = `https://civitai.com/api/v1/model-versions/by-hash/${autov2}`;
 
   const headers: Record<string, string> = {
@@ -75,6 +78,10 @@ export async function batchLookup(
   hasher: FileHasher,
   files: Array<{ filename: string; autov2: string }>,
 ): Promise<Map<string, CivitaiModelVersion | null>> {
+  if (!isCivitaiEnabled()) {
+    return new Map(files.map((f) => [f.filename, null]));
+  }
+
   const results = new Map<string, CivitaiModelVersion | null>();
 
   for (const file of files) {

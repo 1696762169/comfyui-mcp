@@ -156,7 +156,12 @@ SetLatentNoiseMask (samples, mask) → LATENT → KSampler.latent_image
 2. If missing, search HuggingFace via `search_models` or CivitAI via their REST API
 3. Use `download_model` to install it directly to the correct subfolder
 
-**CivitAI API** (when `CIVITAI_API_TOKEN` env var is available):
+**CIVITAI_ENABLED toggle**: If the `CIVITAI_ENABLED` environment variable is set to `false`/`0`/`no`/`off`, CivitAI tools and URL handling are disabled. In that case:
+- Do not call CivitAI endpoints or construct CivitAI download URLs.
+- Rely on HuggingFace (`search_models` + `download_model` with a HuggingFace URL) for all model downloads.
+- The `download_civitai_model` tool will not be registered, and passing a CivitAI URL to `download_model` will fail with a clear error.
+
+**CivitAI API** (when `CIVITAI_API_TOKEN` env var is available and `CIVITAI_ENABLED` is not false):
 - Search: `GET https://civitai.com/api/v1/models?query={query}&types=Checkpoint&sort=Most+Downloaded&limit=5`
 - Details: `GET https://civitai.com/api/v1/models/{modelId}`
 - Download: `GET https://civitai.com/api/download/models/{modelVersionId}?token={token}`

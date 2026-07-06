@@ -1,18 +1,20 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-// Control config (comfyuiPath + tokens + mirror) per test.
+// Control config (comfyuiPath + tokens + mirror + civitai) per test.
 vi.mock("../../config.js", () => {
   const config = {
     comfyuiPath: "/comfy" as string | undefined,
     huggingfaceToken: undefined as string | undefined,
     civitaiApiToken: undefined as string | undefined,
     huggingfaceMirror: "https://huggingface.co" as string,
+    civitaiEnabled: true as boolean,
   };
   // downloadModel routes to the Manager install-model path in remote mode
   // (comfyuiPath unset). Most tests set comfyuiPath, so this is false for them.
   return {
     config,
     isRemoteMode: () => !config.comfyuiPath,
+    isCivitaiEnabled: () => config.civitaiEnabled,
     getHuggingFaceMirror: () => config.huggingfaceMirror.replace(/\/+$/, ""),
   };
 });
@@ -66,6 +68,7 @@ beforeEach(() => {
   config.huggingfaceToken = undefined;
   config.civitaiApiToken = undefined;
   config.huggingfaceMirror = "https://huggingface.co";
+  config.civitaiEnabled = true;
 });
 
 afterEach(() => {
@@ -406,6 +409,42 @@ describe("searchHuggingFaceModels — HF_ENDPOINT mirror", () => {
     await searchHuggingFaceModels("flux", { limit: 5 });
 
     expect(headersOf().Authorization).toBe("Bearer hf");
+  });
+});
+
+describe("downloadModel — CivitAI disabled", () => {
+  beforeEach(() => {
+    config.civitaiEnabled = false;
+  });
+
+  it("rejects a CivitAI URL before fetching", async () => {
+    await expect(
+      downloadModel("https://civitai.com/api/download/models/42", "checkpoints", "m.safetensors"),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/CivitAI downloads are disabled/i),
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT reject a HuggingFace URL", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: "err" });
+
+    await expect(
+      downloadModel("https://huggingface.co/org/repo/resolve/main/m.safetensors", "checkpoints", "m.safetensors"),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT reject a generic non-CivitAI URL", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, statusText: "err" });
+
+    await expect(
+      downloadModel("https://example.com/model.safetensors", "checkpoints", "model.safetensors"),
+    ).rejects.toBeInstanceOf(ModelError);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

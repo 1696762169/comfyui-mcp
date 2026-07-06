@@ -102,6 +102,9 @@ error. Architecture and `cloud-client` dispatcher originally contributed by
 <ParamField path="CIVITAI_API_TOKEN" type="string">
   CivitAI API token. Used for gated/early-access downloads. Sent as a bearer header (never in URLs).
 </ParamField>
+<ParamField path="CIVITAI_ENABLED" type="boolean" default="true">
+  Set to `false`/`0`/`no`/`off` to disable all CivitAI tools and URL handling. Useful when `civitai.com` is unreachable; the agent will then rely on HuggingFace for model downloads.
+</ParamField>
 <ParamField path="HUGGINGFACE_TOKEN" type="string">
   HuggingFace token for higher search/download rate limits.
 </ParamField>
