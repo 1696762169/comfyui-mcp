@@ -62,9 +62,8 @@ one cache flag (e.g. `--novram --use-sage-attention --cache-none`).
 | `--gpu-only` | Keep everything (incl. text encoders) on GPU | 48GB+ card, single model, max speed |
 | `--highvram` | Keep models resident in VRAM after use | High-VRAM card, repeated runs of one model |
 | *(default)* | ComfyUI's smart offload | Most setups — try this first |
-| `--lowvram` | Offload text encoders / parts to CPU | Mid card OOMing on load |
+| `--lowvram` | Offload text encoders / parts to system RAM | Mid card OOMing on load |
 | `--novram` | Extreme offload — minimal VRAM footprint | OOM on long video / huge models; pair with `--cache-none` |
-| `--cpu` | Everything on CPU (very slow) | No usable CUDA GPU only |
 
 Modifiers (combine with the above):
 

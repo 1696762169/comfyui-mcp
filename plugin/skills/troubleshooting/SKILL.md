@@ -91,9 +91,8 @@ tier from there). Set them on the process that launches ComfyUI (or the
 | `--gpu-only` | 16GB+ | Everything (CLIP/VAE/UNet) stays on GPU — fastest, max VRAM |
 | `--highvram` | 12–16GB | Models stay resident in GPU after use, no CPU offload |
 | `--normalvram` | 8–12GB | Default balance — unload to CPU RAM when idle |
-| `--lowvram` | 6–8GB | Split the UNet, aggressive CPU offload — slower |
+| `--lowvram` | 6–8GB | Split the UNet, aggressive offload to system RAM — slower |
 | `--novram` | 4–6GB | Extreme split/offload — for OOM even on lowvram, or long videos |
-| `--cpu` | <4GB / no GPU | CPU only (very slow) |
 
 `--reserve-vram N` (GB) leaves headroom for the OS/other apps — bump it if you OOM
 intermittently mid-run (VAE decode / audio round-trips spike).
@@ -152,7 +151,7 @@ A tensor on the CPU is being combined with a tensor on the GPU. This usually hap
 ### Fixes
 
 1. Check if the error occurs with a specific custom node — update or replace that node
-2. If using `--lowvram` or `--cpu`, some nodes may not support CPU offloading
+2. If using `--lowvram`, some custom nodes may not support the aggressive offload path
 3. Restart ComfyUI to reset device state
 4. Check if a custom node has a newer version that fixes device handling
 

@@ -69,7 +69,7 @@ export function registerWorkflowComposeTools(server: McpServer): void {
   // 1. create_workflow
   server.tool(
     "create_workflow",
-    `Create a ready-to-run ComfyUI API-format workflow from a built-in template (${TEMPLATE_NAMES.join(", ")}). Pure local generation — does not contact ComfyUI and has no side effects. Returns the complete workflow JSON; pass it to validate_workflow or enqueue_workflow. Unsupplied params fall back to template defaults, so the result may reference checkpoints/models that must exist on your ComfyUI server before it will execute.`,
+    `Create a ready-to-run ComfyUI API-format workflow from a built-in template (${TEMPLATE_NAMES.join(", ")}). Pure local generation — does not contact ComfyUI and has no side effects. Returns the complete workflow JSON; pass it to validate_workflow or enqueue_workflow. Unsupplied params fall back to template defaults, so the result may reference checkpoints/models that must exist on your ComfyUI server before it will execute. GPU execution is assumed; do not create nodes or choose settings that run on CPU.`,
     {
       template: z
         .enum(TEMPLATE_NAMES as [string, ...string[]])
@@ -104,7 +104,7 @@ export function registerWorkflowComposeTools(server: McpServer): void {
   // 2. modify_workflow
   server.tool(
     "modify_workflow",
-    "Apply modification operations to an existing ComfyUI workflow. Supports: set_input, add_node, remove_node, connect, insert_between. Returns the modified workflow JSON and IDs of any newly added nodes.",
+    "Apply modification operations to an existing ComfyUI workflow. Supports: set_input, add_node, remove_node, connect, insert_between. Returns the modified workflow JSON and IDs of any newly added nodes. Keep GPU execution in mind — do not add nodes or set widget values that force CPU mode.",
     {
       workflow: z
         .union([z.string(), z.record(z.string(), z.any())])
