@@ -634,6 +634,13 @@ export class PanelAgent {
    */
   async start(resumeSessionId?: string): Promise<void> {
     let quickRestarts = 0;
+    // Set once a resume target proves PERMANENTLY gone ("No conversation found
+    // with session ID" from the SDK). The stale id can come from the panel's
+    // persisted localStorage (re-sent as resumeSessionId) OR our session store,
+    // and resuming it will NEVER succeed — so retrying it just loops until the
+    // agent gives up and self-exits the whole bridge (killing sibling tabs too).
+    // Once poisoned, we force a FRESH session instead of re-resuming the corpse.
+    let resumePoisoned = false;
     // Preflight the backend (e.g. lazy-load the optional SDK) OUTSIDE the restart
     // loop so a HARD startup failure (missing dependency, bad runtime) surfaces
     // immediately as a clear reject — instead of being caught as a "dropped
@@ -648,7 +655,8 @@ export class PanelAgent {
       // resumeSessionId start() was called with — or it silently continues the old
       // session instead of starting clean. (requestRewind(null) clears sessionId;
       // this also suppresses the resumeSessionId fallback.)
-      const resume = rewind?.anchor === null ? undefined : (this.sessionId ?? resumeSessionId);
+      const resume =
+        rewind?.anchor === null || resumePoisoned ? undefined : (this.sessionId ?? resumeSessionId);
       const startedAt = Date.now();
       // Fresh channel → reset the turn-gate counters so a restart/resume never
       // inherits a stale offset that would mis-gate the first batch.
@@ -685,7 +693,22 @@ export class PanelAgent {
         }
       } catch (err) {
         if (this.closed) break;
-        logger.error(`[panel-agent ${this.short()}] stream error: ${msgOf(err)}`);
+        const emsg = msgOf(err);
+        logger.error(`[panel-agent ${this.short()}] stream error: ${emsg}`);
+        // Self-heal a dead resume target: the conversation is gone (deleted /
+        // expired / from a prior process), so drop it and restart FRESH rather
+        // than re-resuming the corpse forever. Reset the fast-fail counter — this
+        // recovery restart must NOT count toward the give-up-and-self-exit that
+        // was taking down the whole bridge (and every sibling tab) over one tab's
+        // stale id.
+        if (!resumePoisoned && /No conversation found with session ID/i.test(emsg)) {
+          logger.warn(
+            `[panel-agent ${this.short()}] resume target is gone — starting a fresh session (was looping on a dead resume id)`,
+          );
+          this.sessionId = null;
+          resumePoisoned = true;
+          quickRestarts = 0;
+        }
       }
       // Session ended (cleanly or via error) — disarm any armed watchdog AND the
       // interrupt-release fallback so a stale timer from the dead session can't fire
