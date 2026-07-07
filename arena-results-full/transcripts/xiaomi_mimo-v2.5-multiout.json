@@ -1,0 +1,207 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "multiout",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Build and enqueue ONE single workflow that renders 'a lighthouse at dusk' at 512x512 AND, in the same graph, pipes that image through a 2x upscale so the SAME run saves TWO outputs: the 512x512 original and a 1024x1024 version. No template does this — compose the graph yourself. Wait for completion and report the prompt_id."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me check available models first to wire the graph correctly.",
+      "refusal": null,
+      "reasoning": "The user wants a single workflow that:\n1. Generates an image at 512x512 with prompt \"a lighthouse at dusk\"\n2. Upscales that image to 1024x1024 (2x)\n3. Saves both outputs in one run\n\nI need to compose this manually. Let me first check what upscale models are available, and also check what checkpoints are available. Let me also get system info to understand what we're working with.\n\nActually, let me first check available models to make sure I use the right checkpoint and upscale model names.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_192e72028ee047ae949d70bd",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_50318172fd0f4e029fba0aa6",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"upscale_models\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants a single workflow that:\n1. Generates an image at 512x512 with prompt \"a lighthouse at dusk\"\n2. Upscales that image to 1024x1024 (2x)\n3. Saves both outputs in one run\n\nI need to compose this manually. Let me first check what upscale models are available, and also check what checkpoints are available. Let me also get system info to understand what we're working with.\n\nActually, let me first check available models to make sure I use the right checkpoint and upscale model names.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_192e72028ee047ae949d70bd",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_50318172fd0f4e029fba0aa6",
+      "content": "## upscale_models (2)\n- 4x-ClearRealityV1.pth\n- 4x_foolhardy_Remacri.pth\n"
+    },
+    {
+      "role": "assistant",
+      "content": "Got the models. I'll compose a single graph: txt2img at 512×512, save it, then branch into a 4× upscale model + downscale to 1024×1024, and save that too.",
+      "refusal": null,
+      "reasoning": "Now I have the models. I'll use `v1-5-pruned-emaonly-fp16.safetensors` for txt2img (SD 1.5), and one of the 4x upscale models. Since I need 2x upscale (512→1024), I can use a 4x model and then scale down, or I can use the `ImageScale` node to resize the 4x output to 2x. Actually, the simplest approach:\n\n1. Load checkpoint → KSampler → SaveImage (512x512 original)\n2. Same latent → also pass through UpscaleModelLoader + ImageUpscaleWithModel → ImageScale to resize to 1024x1024 → SaveImage\n\nWait, `ImageUpscaleWithModel` with a 4x model will produce 2048x2048, then I need to scale down to 1024x1024.\n\nActually, let me think about this more carefully. The cleanest approach:\n\n1. `CheckpointLoaderSimple` → model, clip, vae\n2. `CLIPTextEncode` (positive) → CONDITIONING\n3. `CLIPTextEncode` (negative) → CONDITIONING\n4. `EmptyLatentImage` (512, 512) → LATENT\n5. `KSampler` → LATENT\n6. `VAEDecode` → IMAGE (512x512)\n7. `SaveImage` (512x512 original) ← IMAGE from step 6\n8. `UpscaleModelLoader` → UPSCALE_MODEL\n9. `ImageUpscaleWithModel` ← IMAGE from step 6 + UPSCALE_MODEL → IMAGE (2048x2048 with 4x model)\n10. `ImageScale` ← IMAGE from step 9, width=1024, height=1024, upscale_method='lanczos' → IMAGE (1024x1024)\n11. `SaveImage` (1024x1024 upscale) ← IMAGE from step 10\n\nLet me build this as a ComfyUI API workflow.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_16f59a4a8f9542adaafe2097",
+          "function": {
+            "name": "enqueue_workflow",
+            "arguments": "{\"workflow\": {\"1\": {\"class_type\": \"CheckpointLoaderSimple\", \"inputs\": {\"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"}}, \"2\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"a lighthouse at dusk\", \"clip\": [\"1\", 1]}}, \"3\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"blurry, low quality, deformed\", \"clip\": [\"1\", 1]}}, \"4\": {\"class_type\": \"EmptyLatentImage\", \"inputs\": {\"width\": 512, \"height\": 512, \"batch_size\": 1}}, \"5\": {\"class_type\": \"KSampler\", \"inputs\": {\"model\": [\"1\", 0], \"positive\": [\"2\", 0], \"negative\": [\"3\", 0], \"latent_image\": [\"4\", 0], \"seed\": 42, \"steps\": 20, \"cfg\": 7.0, \"sampler_name\": \"euler\", \"scheduler\": \"normal\", \"denoise\": 1.0}}, \"6\": {\"class_type\": \"VAEDecode\", \"inputs\": {\"samples\": [\"5\", 0], \"vae\": [\"1\", 2]}}, \"7\": {\"class_type\": \"SaveImage\", \"inputs\": {\"images\": [\"6\", 0], \"filename_prefix\": \"lighthouse_512\"}}, \"8\": {\"class_type\": \"UpscaleModelLoader\", \"inputs\": {\"model_name\": \"4x-ClearRealityV1.pth\"}}, \"9\": {\"class_type\": \"ImageUpscaleWithModel\", \"inputs\": {\"upscale_model\": [\"8\", 0], \"image\": [\"6\", 0]}}, \"10\": {\"class_type\": \"ImageScale\", \"inputs\": {\"image\": [\"9\", 0], \"upscale_method\": \"lanczos\", \"width\": 1024, \"height\": 1024, \"crop\": \"disabled\"}}, \"11\": {\"class_type\": \"SaveImage\", \"inputs\": {\"images\": [\"10\", 0], \"filename_prefix\": \"lighthouse_1024\"}}}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Now I have the models. I'll use `v1-5-pruned-emaonly-fp16.safetensors` for txt2img (SD 1.5), and one of the 4x upscale models. Since I need 2x upscale (512→1024), I can use a 4x model and then scale down, or I can use the `ImageScale` node to resize the 4x output to 2x. Actually, the simplest approach:\n\n1. Load checkpoint → KSampler → SaveImage (512x512 original)\n2. Same latent → also pass through UpscaleModelLoader + ImageUpscaleWithModel → ImageScale to resize to 1024x1024 → SaveImage\n\nWait, `ImageUpscaleWithModel` with a 4x model will produce 2048x2048, then I need to scale down to 1024x1024.\n\nActually, let me think about this more carefully. The cleanest approach:\n\n1. `CheckpointLoaderSimple` → model, clip, vae\n2. `CLIPTextEncode` (positive) → CONDITIONING\n3. `CLIPTextEncode` (negative) → CONDITIONING\n4. `EmptyLatentImage` (512, 512) → LATENT\n5. `KSampler` → LATENT\n6. `VAEDecode` → IMAGE (512x512)\n7. `SaveImage` (512x512 original) ← IMAGE from step 6\n8. `UpscaleModelLoader` → UPSCALE_MODEL\n9. `ImageUpscaleWithModel` ← IMAGE from step 6 + UPSCALE_MODEL → IMAGE (2048x2048 with 4x model)\n10. `ImageScale` ← IMAGE from step 9, width=1024, height=1024, upscale_method='lanczos' → IMAGE (1024x1024)\n11. `SaveImage` (1024x1024 upscale) ← IMAGE from step 10\n\nLet me build this as a ComfyUI API workflow.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_16f59a4a8f9542adaafe2097",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"d192adee-0148-4402-ade0-0801b124fe17\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Workflow enqueued. Let me poll until it finishes.",
+      "refusal": null,
+      "reasoning": "Now I need to wait for it to complete.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_a7238524f6b642f680c045d8",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"d192adee-0148-4402-ade0-0801b124fe17\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Now I need to wait for it to complete.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a7238524f6b642f680c045d8",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 1826,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Done! Let me fetch both outputs so you can see them.",
+      "refusal": null,
+      "reasoning": "The job completed successfully. Let me fetch the output images to show both results.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_9a16292b0add4f3eb1c0e9f1",
+          "function": {
+            "name": "get_history",
+            "arguments": "{\"prompt_id\": \"d192adee-0148-4402-ade0-0801b124fe17\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job completed successfully. Let me fetch the output images to show both results.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9a16292b0add4f3eb1c0e9f1",
+      "content": "## Execution: d192adee-0148-4402-ade0-0801b124fe17\n**Status**: success | Completed: true\n**Duration**: 1.83s\n**Cached nodes**: 1, 4\n\n### Outputs (2 nodes)\n- Node 7: images → **lighthouse_512_00012_.png**\n- Node 11: images → **lighthouse_1024_00012_.png**"
+    },
+    {
+      "role": "assistant",
+      "content": "Both images produced. Let me display them:",
+      "refusal": null,
+      "reasoning": "Both outputs were generated successfully. Let me show both images to the user.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2bca8f05169844b69ac8ffe5",
+          "function": {
+            "name": "get_image",
+            "arguments": "{\"filename\": \"lighthouse_512_00012_.png\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_8b9b77d685d14b4a95a4c8ba",
+          "function": {
+            "name": "get_image",
+            "arguments": "{\"filename\": \"lighthouse_1024_00012_.png\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Both outputs were generated successfully. Let me show both images to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2bca8f05169844b69ac8ffe5",
+      "content": "Saved to: C:\\Users\\Artokun\\code\\comfyui-mcp\\lighthouse_512_00012_.png"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8b9b77d685d14b4a95a4c8ba",
+      "content": "Saved to: C:\\Users\\Artokun\\code\\comfyui-mcp\\lighthouse_1024_00012_.png"
+    },
+    {
+      "role": "assistant",
+      "content": "Both outputs rendered in a single pass. Here's the summary:\n\n---\n\n**Prompt ID:** `d192adee-0148-4402-ade0-0801b124fe17`  \n**Duration:** 1.83 s\n\n| Output | Filename | Size |\n|---|---|---|\n| Original | `lighthouse_512_00012_.png` | 512 × 512 |\n| Upscaled | `lighthouse_1024_00012_.png` | 1024 × 1024 |\n\n### Graph design (single run, no templates)\n\n```\nCheckpointLoader → CLIP × 2 (pos/neg) + EmptyLatent(512²)\n        │\n     KSampler\n        │\n     VAEDecode →────────────────────── SaveImage #7  (512 original)\n        │\n     UpscaleModelLoader (4x-ClearRealityV1)\n        │\n   ImageUpscaleWithModel (4x → 2048²)\n        │\n     ImageScale (lanczos → 1024²)\n        │\n     SaveImage #11 (1024 upscaled)\n```\n\nThe graph branches after `VAEDecode`: one path goes straight to SaveImage for the 512×512 original, the other pipes through a 4× ESRGAN model and downscales to 1024×1024 for the upscaled version — both saved in the same ComfyUI run.",
+      "refusal": null,
+      "reasoning": "Both images were fetched. Let me provide a summary.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Both images were fetched. Let me provide a summary.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

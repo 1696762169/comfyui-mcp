@@ -1,0 +1,1807 @@
+{
+  "count": 65,
+  "tools": [
+    {
+      "name": "panel_get_graph",
+      "category": "panel",
+      "description": "Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget values, connections, and each node's MODE ('active', 'bypass', or 'mute'). Subgraph nodes are summarized shallowly — drill in with panel_get_subgraph. ALWAYS call this before your first edit so ids and slot names are accurate. CHECK THE MODE of every node on the path you care about: a node with mode 'bypass' is skipped (it just passes its input through) and one with mode 'mute' does not execute (and kills everything downstream) — so a BYPASSED/MUTED node means that part of the graph is OFF and may be why a render uses the wrong prompt/branch. If the path you intend to use is bypassed or muted, enable it with panel_set_node_mode before running. This is the user's live graph — they watch your edits happen. When you are VIEWING A SUBGRAPH (after panel_enter_subgraph), the response also includes `rails`: the input/output boundary rail node ids and their slots — read these to know exactly what's exposed on the boundary, and which interior outputs/inputs still need exposing (panel_expose_subgraph_output / panel_expose_subgraph_input) or repositioning (panel_move_rail). Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_graph_outline",
+      "category": "panel",
+      "description": "Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template) before you touch it. Returns one `outline` string built for you to read top→down: nodes are topologically sorted (sources first, sinks last), each shown on its own block as `id Type \"title\" [bypass/mute] [OUTPUT] · group:X  widget=value …` with `← inputs` (as source_node.output_name) and `→ outputs` (as target_node.input_name), preceded by a GROUPS index (title → member node ids). Far cheaper and clearer than panel_get_graph's full JSON, and it shows the WIRING you'd otherwise have to reconstruct. Use this FIRST to get oriented; then panel_find_nodes to pinpoint a node, or panel_get_graph for one node's exact slot/widget detail. Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_get_subgraph",
+      "category": "panel",
+      "description": "Read INSIDE a subgraph node on the user's open graph: ids, types, widget values, and connections of its inner nodes. Use after panel_get_graph shows a node with is_subgraph=true. Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Subgraph node id (is_subgraph=true)."
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_find_nodes",
+      "category": "panel",
+      "description": "SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a LARGE graph instead of dumping the whole thing with panel_get_graph and scanning it. This searches the LIVE graph ON THE CANVAS — NOT the installable node registry (that's panel_search_nodes). Unlike panel_get_graph it scans EVERY node (no truncation). Give a free-text `query` (matched case-insensitively across node type, title, description, widget NAMES, widget VALUES, and input/output port names+types — a node hits if ANY of those contain it) and/or targeted filters: type, title, input, output, widget (name), widget_value (contents), is_output, is_subgraph, mode. Targeted filters are ANDed together; the free `query` ORs across fields. Each match is the SAME rich summary as panel_get_graph (id, type, title, widgets, inputs WITH their connected_from sources, outputs, mode, is_output, …) PLUS the node's description and a `matched_on` list saying WHY it matched. Read-only. Examples — the video loader: {query:'tiktok'} or {type:'LoadVideo'} or {input:'video'}; every output node: {is_output:true}; the node whose widget holds a file: {widget_value:'.png'}; a bypassed switch: {type:'Switch', mode:'bypass'}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "Free text matched (case-insensitive substring) across type, title, description, widget names, widget values, and port names/types. A node matches if ANY field contains it.",
+            "type": "string"
+          },
+          "type": {
+            "description": "Node class_type contains this (e.g. 'KSampler', 'LoadImage').",
+            "type": "string"
+          },
+          "title": {
+            "description": "Node title contains this.",
+            "type": "string"
+          },
+          "input": {
+            "description": "Has an INPUT port whose name or type contains this (e.g. 'image', 'LATENT').",
+            "type": "string"
+          },
+          "output": {
+            "description": "Has an OUTPUT port whose name or type contains this.",
+            "type": "string"
+          },
+          "widget": {
+            "description": "Has a widget whose NAME contains this (e.g. 'seed', 'ckpt_name').",
+            "type": "string"
+          },
+          "widget_value": {
+            "description": "Has a widget whose VALUE contains this (e.g. a filename or prompt fragment).",
+            "type": "string"
+          },
+          "is_output": {
+            "description": "true = only output nodes (SaveImage/PreviewImage/…); false = exclude them.",
+            "type": "boolean"
+          },
+          "is_subgraph": {
+            "description": "true = only subgraph nodes.",
+            "type": "boolean"
+          },
+          "mode": {
+            "description": "Only nodes in this execution mode.",
+            "type": "string",
+            "enum": [
+              "active",
+              "bypass",
+              "mute"
+            ]
+          },
+          "limit": {
+            "description": "Max matches to return (default 40).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_add_node",
+      "category": "panel",
+      "description": "Add a node to the user's OPEN ComfyUI graph by class_type (e.g. 'KSampler', 'CheckpointLoaderSimple'). The user sees it appear live; Ctrl+Z undoes it. Returns the created node's id, slots, and default widget values.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "class_type": {
+            "type": "string",
+            "description": "Exact ComfyUI node class_type to create."
+          },
+          "pos": {
+            "description": "Canvas [x, y] (two numbers). Auto-placed beside existing nodes when omitted.",
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "title": {
+            "description": "Optional custom node title.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "class_type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_remove_node",
+      "category": "panel",
+      "description": "Remove a node (and its connections) from the user's open graph by id. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_clear",
+      "category": "panel",
+      "description": "Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'. Just CALL THIS DIRECTLY when they ask to clear: the tool itself pops a confirm card and only wipes on a yes (don't ask separately first). The wipe is a single Ctrl+Z undo. NEVER use this for a 'new workflow' — that's panel_new_workflow (a new tab, leaves this graph intact).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_strip_workflow",
+      "category": "panel",
+      "description": "Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections (the 'de-getter-setter' pass). Takes the same input as panel_load_workflow — a `pack`, a server-side `path` (absolute or relative to the ComfyUI workflows folder), or an inline `graph` — but RETURNS the de-virtualized graph plus a node-type summary for INSPECTION / REBUILD instead of loading it onto the canvas. Use this to understand or rebuild an expert workflow's real wiring without the virtual nodes (e.g. a staged 150KB graph full of GetNode/SetNode/Reroute). The resolved graph is much smaller than the raw UI JSON and is read SERVER-SIDE.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pack": {
+            "description": "Bundled pack name (from list_packs) — its UI workflow.json is read server-side.",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path to a workflow .json on the ComfyUI machine's disk — absolute, or relative to the ComfyUI workflows folder (user/default/workflows). Local ComfyUI only.",
+            "type": "string"
+          },
+          "graph": {
+            "description": "Inline UI workflow (object or JSON string) to strip instead of a pack/path.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_slice_workflow",
+      "category": "panel",
+      "description": "Slice ONE pipeline out of a toggle-template workflow (built with rgthree 'Fast Groups Bypasser/Muter' — one graph holding many pipelines, only one active at a time). Seeds from the output nodes in the named `groups`, takes their backward closure (real links + virtual Set/Get buses), un-bypasses the kept nodes and their subgraph internals, and RETURNS a standalone, activated UI graph (only the subgraph defs it uses). Reads a `pack`, server-side `path`, or inline `graph`. Pair with panel_strip_workflow to then flatten the Set/Get buses. This returns the sliced graph for inspection — it does NOT load it onto the canvas (feed the result to panel_load_workflow if you want that).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pack": {
+            "description": "Bundled pack name (its UI workflow.json is read server-side).",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path to a workflow .json on the ComfyUI machine's disk — absolute or relative to user/default/workflows.",
+            "type": "string"
+          },
+          "graph": {
+            "description": "Inline UI workflow (object or JSON string) to slice instead of a pack/path.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            ]
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Group-title substrings (case-insensitive) whose output nodes seed the slice — CSV string or array, e.g. 'TEXT TO IMAGE' or ['extend','sampler']."
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_load_workflow",
+      "category": "panel",
+      "description": "Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph). Three ways to specify it: `pack:<name>` for a bundled installer pack's local-GPU workflow; `path:<file>` to read an arbitrary workflow .json off DISK server-side (absolute, or relative to the ComfyUI workflows folder) — use this to open a staged/downloaded example without shuttling its JSON through chat; or an inline `graph` object/JSON string. `pack` and `path` are read SERVER-SIDE so a large graph never enters your context. The replaced graph is captured as an undo point (double-Esc / revert). Pack workflows are LOCAL/free; for a `path`/`graph` that may use API nodes, check the runtime first (check_workflow_runtime) and ASK the user before spending paid api credits.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pack": {
+            "description": "Bundled pack name (from list_packs, e.g. 'krea2-txt2img-manual'). Its UI workflow.json is read server-side and loaded onto the canvas. These are local-GPU/free.",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path to a workflow .json on the ComfyUI machine's disk — absolute, or relative to the ComfyUI workflows folder (user/default/workflows). Read + parsed server-side and loaded onto the canvas (keeps a large JSON out of chat). Local ComfyUI only.",
+            "type": "string"
+          },
+          "graph": {
+            "description": "A UI workflow graph (object or JSON string) to load instead of a pack/path. Must be UI/litegraph format (a `nodes` array), NOT API/prompt format.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_connect",
+      "category": "panel",
+      "description": "Connect an output slot of one node to an input slot of another in the user's open graph. Slots accept a name ('MODEL', 'samples') or numeric index. On a name mismatch the error lists available slots — re-check with panel_get_graph. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from_node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Source node id."
+          },
+          "from_output": {
+            "description": "Source output slot name or index (default 0).",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ]
+          },
+          "to_node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Target node id."
+          },
+          "to_input": {
+            "description": "Target input slot name or index (default 0).",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ]
+          }
+        },
+        "required": [
+          "from_node_id",
+          "to_node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_disconnect",
+      "category": "panel",
+      "description": "Disconnect an input slot of a node in the user's open graph. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id whose input to disconnect."
+          },
+          "input": {
+            "description": "Input slot name or index (default 0).",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ]
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_widget",
+      "category": "panel",
+      "description": "Set a widget value on a node in the user's open graph (steps, cfg, seed, ckpt_name, text prompts, …). Returns the previous and new value. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "widget": {
+            "type": "string",
+            "description": "Widget name (e.g. 'steps', 'cfg', 'text')."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "description": "New value. Must match the widget's expected type."
+          }
+        },
+        "required": [
+          "node_id",
+          "widget",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_move_node",
+      "category": "panel",
+      "description": "Move a node to a new canvas position [x, y] in the user's open graph. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "pos": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "New canvas [x, y] (two numbers)."
+          }
+        },
+        "required": [
+          "node_id",
+          "pos"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_canvas",
+      "category": "panel",
+      "description": "Control the user's canvas view: 'fit' frames the whole graph, 'center_on_node' jumps to a node (give node_id), 'pan' shifts by dx/dy, 'zoom' sets an absolute scale. View-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "fit",
+              "center_on_node",
+              "pan",
+              "zoom"
+            ]
+          },
+          "node_id": {
+            "description": "Required for center_on_node.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "dx": {
+            "description": "Pan delta x.",
+            "type": "number"
+          },
+          "dy": {
+            "description": "Pan delta y.",
+            "type": "number"
+          },
+          "scale": {
+            "description": "Absolute zoom for 'zoom' (0.05–4, 1 = 100%).",
+            "type": "number"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_run",
+      "category": "panel",
+      "description": "Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see). Returns queued:true, or queued:false with node_errors when frontend validation fails. Pass to_node_id to RUN ONLY ONE BRANCH ('run to node'): ComfyUI renders just that output node plus everything upstream of it and SKIPS every other output branch — handy for previewing or debugging part of a big graph without rendering the whole thing. to_node_id MUST be an OUTPUT node (SaveImage, PreviewImage, SaveVideo, …) — pick the one at the END of the branch you want; nodes are tagged is_output:true in panel_get_graph. Omit it to run the whole graph. Use this so the render runs on THEIR canvas and they see the result.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "batch_count": {
+            "description": "Times to queue (default 1).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "to_node_id": {
+            "description": "Output node id to render UP TO (partial execution). Omit to run the whole graph. Must be an OUTPUT node — one with is_output:true in panel_get_graph.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_get_errors",
+      "category": "panel",
+      "description": "Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the frontend's error panel) plus the most recent runtime execution error, from the user's open tab. The validation errors are populated by ComfyUI's own validator on ANY queue attempt — the user's OR yours — so this reflects what the user is looking at. A ⚠️ GRAPH VALIDATION block is also auto-injected at your turn start when this state changes; call this to re-check on demand (e.g. after you edit widgets/links). Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_reload",
+      "category": "panel",
+      "description": "Soft-reload yourself to pick up code changes WITHOUT restarting ComfyUI — your chat session resumes automatically and you'll be nudged to continue. Use scope 'orchestrator' (default) after backend/orchestrator code changed (new tools, system prompt, services); use scope 'frontend' after the panel UI (web JS/CSS) changed. This ENDS the current turn — your tools/prompt are reloaded and you continue fresh. For custom-node or model changes that need a full ComfyUI restart, use panel_restart_comfyui instead. Only call this when code has actually changed and needs to take effect now.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "description": "'orchestrator' (default): respawn the agent for new backend code. 'frontend': reload the panel UI for new web code.",
+            "type": "string",
+            "enum": [
+              "orchestrator",
+              "frontend"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_list_mcp",
+      "category": "panel",
+      "description": "List the MCP servers available to you. Returns the user's inherited servers (from their Claude config) plus your always-present built-ins (comfyui, the live-graph panel server). Use this to check whether a capability (e.g. CivitAI model search) is already connected before offering to add it.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_add_mcp",
+      "category": "panel",
+      "description": "Connect a new MCP server by writing it to the user's Claude config (~/.claude.json) — it then loads into THIS session after you call panel_reload, and also becomes available to the user's normal Claude session. Use for capabilities you don't have yet, e.g. the official CivitAI MCP: name 'civitai', transport 'http', url 'https://mcp.civitai.com/mcp'. ALWAYS ask the user before connecting a remote (http/sse) MCP — it's an external service connection. Some servers need an auth token: pass it via headers (http/sse) or env (stdio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Server name/key, e.g. 'civitai'. Letters, digits, dot, dash, underscore."
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "http",
+              "sse",
+              "stdio"
+            ],
+            "description": "'http'/'sse' for a hosted URL server; 'stdio' for a local command."
+          },
+          "url": {
+            "description": "Server URL (required for http/sse), e.g. 'https://mcp.civitai.com/mcp'.",
+            "type": "string"
+          },
+          "command": {
+            "description": "Executable (required for stdio), e.g. 'npx'.",
+            "type": "string"
+          },
+          "args": {
+            "description": "Args for the stdio command.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "headers": {
+            "description": "HTTP headers for http/sse (e.g. an Authorization token).",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "description": "Environment variables for a stdio server.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "transport"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_remove_mcp",
+      "category": "panel",
+      "description": "Remove an MCP server from the user's Claude config by name. Call panel_reload afterward to drop it from this session. Cannot remove the built-in comfyui/panel servers.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Server name to remove (from panel_list_mcp)."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_request_secret",
+      "category": "panel",
+      "description": "Securely collect an API token / secret from the user and write it straight to config — you NEVER see the value and it is never saved to chat history. The panel shows a masked input; the pasted value goes directly to the orchestrator, which stores it on the target MCP server, then applies it. Returns only a redacted confirmation.\n\nTWO targets:\n• The BUILT-IN comfyui server (mcp_server 'comfyui', target_kind 'env') — for tokens YOUR OWN comfyui tools need. The env key MUST be one of a fixed allowlist: CIVITAI_API_TOKEN (download_civitai_model), HUGGINGFACE_TOKEN or HF_TOKEN (HuggingFace downloads). Any other key is rejected. The secret is injected into the comfyui server's env and the server is RESPAWNED automatically — NO panel_reload needed; after this turn ends the tools restart with it and you'll be nudged to retry. THIS is what fixes a download that returned HTTP 401.\n• A user-added MCP server (e.g. the 'civitai' http server you added with panel_add_mcp) — use target_kind 'header' (e.g. Authorization, value_prefix 'Bearer ') for http/sse, or 'env' for stdio; then call panel_reload to load it.\n\nFor a CivitAI DOWNLOAD 401, target 'comfyui' env CIVITAI_API_TOKEN — NOT the 'civitai' MCP server (that's only the search MCP).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Prompt shown above the masked input, e.g. 'Paste your CivitAI API token'."
+          },
+          "target_kind": {
+            "type": "string",
+            "enum": [
+              "header",
+              "env"
+            ],
+            "description": "'header' for http/sse servers (e.g. Authorization); 'env' for stdio servers and the built-in comfyui server."
+          },
+          "mcp_server": {
+            "type": "string",
+            "description": "MCP server to attach the secret to: 'comfyui' for the built-in tools (download_civitai_model etc.), or a user-added server name like 'civitai'."
+          },
+          "key": {
+            "type": "string",
+            "description": "For 'comfyui': one of CIVITAI_API_TOKEN, HUGGINGFACE_TOKEN, HF_TOKEN (others rejected). For a user-added server: env var name or header name (e.g. 'Authorization')."
+          },
+          "value_prefix": {
+            "description": "Optional string prepended to the token, e.g. 'Bearer '. Usually empty for env vars.",
+            "type": "string"
+          },
+          "hint": {
+            "description": "Optional reassurance/help text shown under the input.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "target_kind",
+          "mcp_server",
+          "key"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_get_content_mode",
+      "category": "panel",
+      "description": "Query the persistent adult-content (NSFW) consent state for this user. Returns { nsfw_allowed, decided_at }. ALWAYS check this before surfacing any adult/NSFW models, prompts, workflows, or imagery. It defaults to FALSE (SFW-only) until the user passes the consent gate (panel_request_adult_consent). Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_request_adult_consent",
+      "category": "panel",
+      "description": "Show the user the adult-content consent gate and persist their decision. Call this ONLY when a request clearly intends NSFW/adult work AND panel_get_content_mode shows it's not already allowed. It renders a card asking the user to confirm they are 18+ AND that adult content is legal in their region; an affirmative answer turns the mode ON persistently (across reloads), a negative keeps it SFW. Returns the resulting { nsfw_allowed } state. Never assume consent — this tool is the only way to enable it.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "reason": {
+            "description": "Optional one-line context shown to the user about why you're asking (e.g. 'to search Civitai for mature LoRAs').",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_disable_adult_mode",
+      "category": "panel",
+      "description": "Turn the adult-content (NSFW) consent OFF — revert to SFW-only. Use when the user asks to disable it. No gate needed to turn it off.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_todo",
+      "category": "panel",
+      "description": "Show/update a live TODO checklist in the panel's footer tray — a running view of your plan that the user watches as you work a multi-step task. Pass the FULL ordered list each call (it replaces the tray); update each step's status as you progress (pending → active → done). Pass an empty array to clear it. Use for genuinely multi-step work (3+ steps); skip it for quick one-shot replies. Mark exactly one step 'active' at a time.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "Short step description (a few words)."
+                },
+                "status": {
+                  "description": "Step state (default 'pending'). Mark the one you're on 'active'.",
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "active",
+                    "done"
+                  ]
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The full ordered checklist (replaces the current one). Empty array clears the tray."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_ask",
+      "category": "panel",
+      "description": "Ask the user to choose between options — renders an interactive question card in the panel chat and BLOCKS until they pick, returning their choice as text. Use this (NOT the AskUserQuestion tool, which never renders here) whenever you need the user to decide between options. Each option may carry a short description. The card always includes an 'Other…' free-text field, so the returned string may be a listed label or whatever the user typed (comma-joined for multi_select). Ask only when the answer genuinely changes what you do.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question to ask, e.g. 'Which sampler should I use?'"
+          },
+          "options": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "description": "Short choice text shown on the button."
+                },
+                "description": {
+                  "description": "Optional one-line explanation of this choice.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The choices (at least 2). An 'Other' free-text field is added automatically."
+          },
+          "header": {
+            "description": "Very short label/chip for the card (e.g. 'Sampler').",
+            "type": "string"
+          },
+          "multi_select": {
+            "description": "Allow selecting multiple options (default false).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_save_workflow",
+      "category": "panel",
+      "description": "Save the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops. A never-saved workflow is auto-named and persisted; pass `name` to give it (or rename it to) a specific name. Use this freely (e.g. after building a graph) — it won't interrupt the user.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Name to save/rename to (no .json needed). Omit to save in place / auto-name an unsaved workflow.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_list_workflows",
+      "category": "panel",
+      "description": "List the user's OPEN workflow tabs and which one is active (path, filename, modified, persisted). Use this to know what's open before switching/renaming/closing. Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_new_workflow",
+      "category": "panel",
+      "description": "Open a brand-new BLANK workflow in a NEW TAB. Use this whenever the user wants a 'new workflow' / 'fresh canvas' / 'start over for a new project'. This does NOT touch their current workflow — it opens a separate tab. NEVER use panel_clear for a new workflow (panel_clear wipes the CURRENT graph and is only for 'clear/reset this canvas').",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_open_workflow",
+      "category": "panel",
+      "description": "Open / switch to a workflow by path or filename (from panel_list_workflows). Switches the active tab to it.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Workflow path, filename, or key from panel_list_workflows."
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_rename_workflow",
+      "category": "panel",
+      "description": "Rename a workflow (the active one, or the one matching `path`).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "New name (no .json needed)."
+          },
+          "path": {
+            "description": "Which workflow to rename; omit for the active one.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_close_workflow",
+      "category": "panel",
+      "description": "Close a workflow tab (the active one, or the one matching `path`). Refuses if it has unsaved changes unless force:true — save first to avoid losing the user's work.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "description": "Which workflow to close; omit for the active one.",
+            "type": "string"
+          },
+          "force": {
+            "description": "Close even with unsaved changes (discards them). Default false.",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_select_nodes",
+      "category": "panel",
+      "description": "Select nodes on the user's canvas by id (highlights them, sets the multi-selection). Useful before panel_create_subgraph.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "description": "Node ids to select."
+          }
+        },
+        "required": [
+          "node_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_create_subgraph",
+      "category": "panel",
+      "description": "Group the given nodes into a SUBGRAPH (ComfyUI 'Convert to Subgraph') on the user's canvas — collapses them into one subgraph node. Returns the new subgraph node id. Undoable with Ctrl+Z. To wrap an existing GROUP, prefer panel_subgraph_group (you don't have to list the node_ids yourself).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "description": "Node ids to group into a subgraph."
+          }
+        },
+        "required": [
+          "node_ids"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_subgraph_group",
+      "category": "panel",
+      "description": "Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units. Pass the group by `group` (its title, e.g. 'REPLACEMENT MODE', or its numeric id from panel_get_graph's groups[]). LiteGraph groups don't own nodes — membership is geometric — so this computes which nodes sit inside the group box, selects them, and collapses them via ComfyUI 'Convert to Subgraph', returning the new subgraph node id + the wrapped node ids. After this you can toggle that whole region as ONE unit: panel_set_node_mode(node_id, 'bypass'/'active') on the subgraph node, then panel_run — e.g. queue one run with the region ON and one with it OFF. Undoable with Ctrl+Z. (For an arbitrary set of nodes that isn't a group, use panel_create_subgraph with explicit node_ids.)",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Group to wrap: its title (case-insensitive substring, e.g. 'replacement mode') or its numeric id from panel_get_graph groups[].id."
+          }
+        },
+        "required": [
+          "group"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_copy_nodes",
+      "category": "panel",
+      "description": "Copy nodes from the user's open graph to the clipboard. Pass node_ids to copy those nodes (they're selected first), or omit to copy the current canvas selection. The clipboard PERSISTS across workflow switches, so this is how you MERGE one workflow into another: copy here, then panel_open_workflow/panel_new_workflow to the destination, then panel_paste_nodes. Returns {copied: count}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_ids": {
+            "description": "Node ids to copy. Omit to copy the current selection.",
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_paste_nodes",
+      "category": "panel",
+      "description": "Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/compose workflows. Returns the NEW node ids so you can wire or organize them. connect_inputs:false (default) pastes a disconnected copy; pos sets where the paste lands. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pos": {
+            "description": "Canvas [x, y] anchor for the paste. Auto-placed when omitted.",
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "connect_inputs": {
+            "description": "Reconnect pasted nodes' inputs to existing nodes where they line up (default false).",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_save_subgraph",
+      "category": "panel",
+      "description": "Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later. Pass node_id to pick the subgraph node (else a single selected subgraph node is used) and name to title the blueprint (defaults to the node's title). Runs programmatically — NO save dialog pops. The blueprint becomes the addable type 'SubgraphBlueprint.<name>' (use panel_add_subgraph or panel_list_subgraphs). Returns {saved: {name, type}}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "description": "Subgraph node id to publish (is_subgraph=true). Omit to use the selected subgraph node.",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "description": "Blueprint name. Defaults to the subgraph node's title.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_list_subgraphs",
+      "category": "panel",
+      "description": "List the saved subgraph BLUEPRINTS in the user's library (from panel_save_subgraph, plus any global/bundled ones). Each entry has {name, type, display_name, description, is_global} — use name/type with panel_add_subgraph to drop it onto the canvas. Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_add_subgraph",
+      "category": "panel",
+      "description": "Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type). This is how you REUSE a built subgraph in another workflow. pos places it; auto-placed when omitted. Returns the added subgraph node. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Blueprint name or type from panel_list_subgraphs."
+          },
+          "pos": {
+            "description": "Canvas [x, y]. Auto-placed beside existing nodes when omitted.",
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_create_group",
+      "category": "panel",
+      "description": "Create a labeled GROUP box (the colored rectangle that visually frames a region) on the user's open graph. This is the lightweight organizer, DISTINCT from a subgraph (which nests/hides nodes) — a group just draws a titled box around nodes, leaving them in place. Pass node_ids to auto-size the box around those nodes, or bounds [x, y, width, height] for an explicit box. Optional color (hex like '#3f789e') and title. Returns the new group's id. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "title": {
+            "description": "Group label shown on the box header.",
+            "type": "string"
+          },
+          "node_ids": {
+            "description": "Wrap these nodes — the box is auto-sized (with padding) around them.",
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "bounds": {
+            "description": "Explicit [x, y, width, height] (four numbers). Ignored if node_ids is given.",
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "color": {
+            "description": "Box/header color, e.g. '#3f789e'.",
+            "type": "string"
+          },
+          "font_size": {
+            "description": "Title font size (default 24).",
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_move_group",
+      "category": "panel",
+      "description": "Move a group box to a new top-left [x, y] on the user's open graph. By default the nodes inside the group move with it (like dragging the group header); pass move_nodes:false to move only the box. Group id comes from panel_get_graph (the `groups` array) or panel_create_group. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Group id from panel_get_graph / panel_create_group."
+          },
+          "pos": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "New top-left [x, y] (two numbers)."
+          },
+          "move_nodes": {
+            "description": "Move the contained nodes too (default true).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "group_id",
+          "pos"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_edit_group",
+      "category": "panel",
+      "description": "Edit a group box: its title, color, font_size, and/or bounds [x, y, width, height]. Only the fields you pass are changed. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Group id from panel_get_graph / panel_create_group."
+          },
+          "title": {
+            "description": "New label.",
+            "type": "string"
+          },
+          "color": {
+            "description": "New box/header color, e.g. '#3f789e'.",
+            "type": "string"
+          },
+          "font_size": {
+            "description": "New title font size.",
+            "type": "number"
+          },
+          "bounds": {
+            "description": "Resize/reposition the box: [x, y, width, height] (four numbers).",
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_remove_group",
+      "category": "panel",
+      "description": "Remove a group box from the user's open graph. The nodes inside the group are NOT deleted — only the box. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Group id from panel_get_graph / panel_create_group."
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_node_title",
+      "category": "panel",
+      "description": "Rename a node's TITLE (the label on its header) — e.g. to label a node by its purpose. Different from panel_set_widget (which changes a value). Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "title": {
+            "type": "string",
+            "description": "New title text."
+          }
+        },
+        "required": [
+          "node_id",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_node_collapsed",
+      "category": "panel",
+      "description": "Collapse (minimize) or expand a node on the user's open graph. Collapsed nodes shrink to just their title bar — handy for tidying loaders or rarely-touched nodes. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "collapsed": {
+            "description": "true = collapse/minimize (default), false = expand.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_node_mode",
+      "category": "panel",
+      "description": "Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }. This is how you turn a node ON or OFF without deleting it. Modes:\n• 'active' — normal: the node executes.\n• 'bypass' — the node is SKIPPED and PASSES ITS INPUT THROUGH to its output (downstream still runs, just as if this node weren't there). Use to disable a single processing node (an upscaler, a LoRA, a detailer) while keeping the pipeline connected.\n• 'mute' — the node AND everything DOWNSTREAM of it do NOT execute (no pass-through). Use to fully switch off a branch/output.\nCRITICAL — modes silently change what a render produces, so they are a top cause of 'wrong output'. A BYPASSED node contributes nothing of its own and a MUTED node kills its branch. Use this tool to ENABLE the path you actually want and DISABLE the one you don't — e.g. to drive a workflow from its Ideogram/JSON prompt builder you must set the manual-prompt node to 'bypass' and the JSON-builder path to 'active' (or vice-versa); likewise to pick one branch of an rgthree 'Fast Groups Bypasser'/Muter or a prompt-source switch. ALWAYS read modes first with panel_get_graph: if the intended path is bypassed/muted, fix it HERE before running, and never assume a switch/route is already active. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "active",
+              "bypass",
+              "mute"
+            ],
+            "description": "'active' = runs normally; 'bypass' = skipped, passes input through (downstream still runs); 'mute' = node and everything downstream do not execute."
+          }
+        },
+        "required": [
+          "node_id",
+          "mode"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_set_node_color",
+      "category": "panel",
+      "description": "Set a node's title-bar and/or body color on the user's open graph. Easiest: pass a `preset` from ComfyUI's palette (red, brown, green, blue, pale_blue, cyan, purple, yellow, black) for matched colors. Or set explicit `color` (title bar) and/or `bgcolor` (body) as hex like '#3f789e'. Pass null for a field to reset it to the theme default. Great for colour-coding stages. Undoable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node id from panel_get_graph."
+          },
+          "preset": {
+            "description": "Named LiteGraph color preset (sets both title + body).",
+            "type": "string",
+            "enum": [
+              "red",
+              "brown",
+              "green",
+              "blue",
+              "pale_blue",
+              "cyan",
+              "purple",
+              "yellow",
+              "black"
+            ]
+          },
+          "color": {
+            "description": "Title-bar color hex, or null to clear. Ignored if preset given.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bgcolor": {
+            "description": "Body color hex, or null to clear. Ignored if preset given.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_screenshot",
+      "category": "panel",
+      "description": "Render the workflow the user is currently viewing (root graph, or the open subgraph) to a PNG and return it as an IMAGE so you can SEE the layout. It frames the whole graph (nodes + groups), captures, then restores the user's view. Use this to visually verify a layout you just built — overlaps, alignment, rails, colors, group bands — instead of reasoning from coordinates alone.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "padding": {
+            "description": "Margin around the graph in px (default 60).",
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_enter_subgraph",
+      "category": "panel",
+      "description": "Navigate INTO a subgraph node so you can read and EDIT its inner nodes — after this, panel_get_graph and all panel_* edit tools target the subgraph's inner graph (the user sees the canvas drill in). This is how you edit inside a subgraph (e.g. tweak a widget on an inner node). Call panel_exit_subgraph when done. Returns the new viewing scope.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Subgraph node id (is_subgraph=true)."
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_exit_subgraph",
+      "category": "panel",
+      "description": "Leave the current subgraph and return to the root graph (undo a panel_enter_subgraph). After this, panel_* tools target the root graph again.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_move_rail",
+      "category": "panel",
+      "description": "Reposition a subgraph's input or output RAIL (the boundary I/O node that the inner wires connect to). You MUST be INSIDE the subgraph first (panel_enter_subgraph). Read current rail positions from panel_get_graph's `rails` field. Use this to place the input rail just left of the first node column and the output rail just right of the last one, so a tidy interior layout doesn't leave the rails stranded. rail is 'input' or 'output'.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "rail": {
+            "type": "string",
+            "enum": [
+              "input",
+              "output"
+            ],
+            "description": "Which boundary rail to move."
+          },
+          "pos": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "New top-left [x, y] (two numbers)."
+          }
+        },
+        "required": [
+          "rail",
+          "pos"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_promote_widget",
+      "category": "panel",
+      "description": "Expose (promote) an INNER subgraph widget on the PARENT subgraph node, so it can be set from outside without opening the subgraph — e.g. surface an inner KSampler's `seed`/`steps` on the subgraph node. You MUST be inside the subgraph first (call panel_enter_subgraph): `node_id` is an inner node (from panel_get_graph while inside) and `widget` is one of its widget names. Pass demote:true to un-promote. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Inner node id (from panel_get_graph while inside the subgraph)."
+          },
+          "widget": {
+            "type": "string",
+            "description": "Name of the widget on that node to promote (e.g. 'seed', 'steps', 'text')."
+          },
+          "demote": {
+            "description": "Set true to UN-promote (remove the widget from the parent node).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node_id",
+          "widget"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_expose_subgraph_output",
+      "category": "panel",
+      "description": "Wire an interior node's OUTPUT to the subgraph's OUTPUT RAIL — i.e. expose it as a SUBGRAPH OUTPUT on the boundary so the PARENT graph can connect to the subgraph node's new output slot. You MUST be INSIDE the subgraph first (panel_enter_subgraph). This is the correct way to \"wire an internal output to the subgraph's output rail\": do NOT panel_connect to a guessed rail node id — call this with the interior node + the output you want exposed. Read panel_get_graph's `rails` to see the resulting boundary slots. `from_output` is an output slot NAME ('IMAGE', 'LATENT') or numeric index. Optional `name` titles the new boundary output (defaults from the source slot). Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from_node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Interior (inner) node id whose output to expose (from panel_get_graph while inside the subgraph)."
+          },
+          "from_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ],
+            "description": "Output slot name (e.g. 'IMAGE', 'LATENT') or numeric index on that node."
+          },
+          "name": {
+            "description": "Optional name for the new subgraph output (boundary slot). Defaults from the source slot.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_node_id",
+          "from_output"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_expose_subgraph_input",
+      "category": "panel",
+      "description": "Wire an interior node's INPUT to the subgraph's INPUT RAIL — i.e. expose it as a SUBGRAPH INPUT on the boundary so the PARENT graph can feed the subgraph node's new input slot. You MUST be INSIDE the subgraph first (panel_enter_subgraph). This is the correct way to wire an internal input to the subgraph's input rail: do NOT panel_connect to a guessed rail node id — call this with the interior node + the input you want exposed. Read panel_get_graph's `rails` to see the resulting boundary slots. `to_input` is an input slot NAME ('model', 'pixels') or numeric index. Optional `name` titles the new boundary input (defaults from the target slot). Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "to_node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Interior (inner) node id whose input to expose (from panel_get_graph while inside the subgraph)."
+          },
+          "to_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ],
+            "description": "Input slot name (e.g. 'model', 'pixels') or numeric index on that node."
+          },
+          "name": {
+            "description": "Optional name for the new subgraph input (boundary slot). Defaults from the target slot.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to_node_id",
+          "to_input"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_unpack_subgraph",
+      "category": "panel",
+      "description": "EXPAND / DISSOLVE a subgraph node on the user's open graph — inline its interior nodes back into the PARENT graph, rewire all external links to those now-inlined nodes, and remove the subgraph wrapper. This is the frontend's \"Unpack Subgraph\" (litegraph LGraph.unpackSubgraph) and the exact INVERSE of panel_create_subgraph. Use it to flatten a stage that was over-nested, or to edit interior nodes directly at the parent level. The interior nodes reappear on the parent canvas with their connections preserved. Undoable with Ctrl+Z.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Subgraph node id to unpack/dissolve (is_subgraph=true, from panel_get_graph)."
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_search_nodes",
+      "category": "panel",
+      "description": "Search installable custom-node packs via the user's BUILT-IN ComfyUI Manager (the same source the Manager UI uses). Returns matching packs {id, title, description}. Use the `id` with panel_install_node. Prefer this over the headless search_custom_nodes tool — it works against the user's actual (Desktop) Manager.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search text, e.g. 'kjnodes', 'controlnet', 'ipadapter'."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_list_nodes",
+      "category": "panel",
+      "description": "List the custom-node packs currently installed in the user's ComfyUI (via the built-in Manager). Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_install_node",
+      "category": "panel",
+      "description": "Install a custom-node pack into the user's ComfyUI via the BUILT-IN Manager (queues the install). Pass `id` (registry id like 'comfyui-kjnodes' or 'author/repo') from panel_search_nodes, or `repository` (git URL) for a nightly install. A ComfyUI restart (panel_restart_comfyui) is usually required afterward to load the nodes — poll panel_node_queue_status first. Prefer this over the headless install_custom_node tool.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Registry id or 'author/repo'.",
+            "type": "string"
+          },
+          "repository": {
+            "description": "Git URL (for a nightly/from-source install).",
+            "type": "string"
+          },
+          "version": {
+            "description": "Specific version; default 'latest' (or 'nightly' with repository).",
+            "type": "string"
+          },
+          "channel": {
+            "description": "Manager channel (default 'default').",
+            "type": "string"
+          },
+          "mode": {
+            "description": "DB source (default 'remote').",
+            "type": "string",
+            "enum": [
+              "remote",
+              "local",
+              "cache"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_update_node",
+      "category": "panel",
+      "description": "Update an ALREADY-INSTALLED custom-node pack to its latest (or nightly) code via the BUILT-IN Manager — the first thing to try when a node is broken or CRASHED ComfyUI (e.g. from a crash dump injected on resume). Pass `id` = the installed pack's name/dir (e.g. 'ComfyUI-WanVideoWrapper' from the crash culprit, or an id from panel_list_nodes). Use version 'nightly' to pull the very latest commit (good when a fix just landed upstream), else 'latest' for the newest release. Queues the update; poll panel_node_queue_status, then panel_restart_comfyui to load it. If updating doesn't fix the crash, escalate (git pull / source patch) per your steering.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Installed pack name or dir (e.g. 'ComfyUI-WanVideoWrapper'), or a registry id from panel_list_nodes."
+          },
+          "version": {
+            "description": "'latest' (default) or 'nightly' to pull the newest commit.",
+            "type": "string"
+          },
+          "channel": {
+            "description": "Manager channel (default 'default').",
+            "type": "string"
+          },
+          "mode": {
+            "description": "DB source (default 'remote').",
+            "type": "string",
+            "enum": [
+              "remote",
+              "local",
+              "cache"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_node_queue_status",
+      "category": "panel",
+      "description": "Check the built-in Manager's install/update queue status (to see if a queued install finished). Read-only.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_restart_comfyui",
+      "category": "panel",
+      "description": "Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes. CALL THIS DIRECTLY when a restart is needed: it pops a confirm card and only restarts on a yes (don't ask separately first). ComfyUI and this agent go down briefly, then the panel auto-reconnects and you resume. ⚠️ BUSY GUARD: a restart ABORTS any in-progress or queued generation — if ComfyUI is generating, this tool REFUSES and tells you (it does NOT restart). When that happens, tell the user a render is running and WAIT for it (poll panel_node_queue_status), or pass force:true ONLY if the user explicitly confirms they want to kill the running generation. Best practice: before restarting after an install, check the queue is idle first. Only call when a restart is actually needed.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_free_vram",
+      "category": "panel",
+      "description": "Unload all loaded models and free VRAM (ComfyUI /free). Use to unwedge a stuck/OOM ComfyUI when a cancel didn't free memory — before retrying or, last resort, restarting (panel_restart_comfyui). Does NOT restart ComfyUI; it just drops resident models and frees cached memory.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "panel_show_media",
+      "category": "panel",
+      "description": "Display one or more images or videos directly in the panel chat. Use this whenever the user asks to SEE or SHOW a file — a disk path you composited/downloaded/generated (absolute path on the orchestrator host) OR a ComfyUI output ref ({ filename, subfolder?, type? }). Items are rendered as media cards in the agent chat area; supply optional captions. Max 8 items per call. NEVER describe an image with emoji or text placeholders — call this tool instead.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "minItems": 1,
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "path"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "subfolder": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "filename"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

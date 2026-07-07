@@ -1,0 +1,39 @@
+{
+  "model": "hf.co/igorls/gemma-4-12B-it-heretic-GGUF:Q4_K_M",
+  "task": "queue",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "How many jobs are currently running or pending in the ComfyUI queue? Answer with the numbers."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to know the number of jobs currently running or pending in the ComfyUI queue. I should use the `get_queue` tool to fetch this information and then count the items.",
+      "tool_calls": [
+        {
+          "id": "3rRre96AUCya2cpNNGEr5Y08mU5catl9",
+          "function": {
+            "index": 0,
+            "name": "get_queue",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_queue",
+      "content": "{\n  \"running\": 0,\n  \"pending\": 0,\n  \"running_jobs\": [],\n  \"pending_jobs\": []\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "There are currently 0 jobs running and 0 jobs pending in the ComfyUI queue."
+    }
+  ]
+}

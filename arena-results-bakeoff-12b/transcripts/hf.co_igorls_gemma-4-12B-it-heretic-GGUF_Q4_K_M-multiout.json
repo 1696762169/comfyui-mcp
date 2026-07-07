@@ -1,0 +1,183 @@
+{
+  "model": "hf.co/igorls/gemma-4-12B-it-heretic-GGUF:Q4_K_M",
+  "task": "multiout",
+  "verdict": "FAIL",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "Build and enqueue ONE single workflow that renders 'a lighthouse at dusk' at 512x512 AND, in the same graph, pipes that image through a 2x upscale so the SAME run saves TWO outputs: the 512x512 original and a 1024x1024 version. No template does this — compose the graph yourself. Wait for completion and report the prompt_id."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to create a single ComfyUI workflow that:\n1.  Generates an image of \"a lighthouse at dusk\" at 512x512.\n2.  Upscales that same image by 2x (resulting in 1024x1024).\n3.  Saves *both* the original 512x512 and the 1024x1024 version in a single run.\n\nTo achieve this, I need:\n- A `CheckpointLoaderSimple` (or similar) to load a model.\n- A `CLIPTextEncode` for the prompt \"a lighthouse at dusk\".\n- A `KSampler` or `SamplerCustomFlow` to generate the 512x512 image.\n- A `VAE_Decode` to turn the latent into an image.\n- Two `SaveImage` nodes: one for the original, one for the upscaled version.\n- An `UpscaleImageWithModel` (or similar) or a simple `UpscaleImage` node between the first `VAE_Decode` and the second `SaveImage`.\n\nWait, \"same run saves TWO outputs\". In ComfyUI, if I have two `SaveImage` nodes in one graph, they will both execute.\nThe flow should be:\n1.  Load Checkpoint -> CLIP & VAE.\n2.  Prompt (Positive) -> CLIP Text Encode.\n3.  Empty Latent Image (512x512).\n4.  Sampler (using Prompt and Latent).\n5.  VAE Decode (Latent + VAE).\n6.  **Branch 1**: Save Image (Original, 512x512).\n7.  **Branch 2**: Upscale Model Loader -> Upscale Image (with model) -> Save Image (Upscaled, 1024x1024).\n\nI need to check if I have the necessary nodes or if I should use a standard `upscale_image` logic.\nActually, since I'm \"composing the graph myself\", I'll use the standard nodes:\n- `CheckpointLoaderSimple`\n- `CLIPTextEncode`\n- `EmptyLatentImage`\n- `KSampler`\n- `VAEDecode`\n- `UpscaleImage` (or `UpscaleImageWithModel`)\n- `SaveImage`\n\nI'll start by checking the system status to see what models are available, but since I'm building a custom graph, I can just use standard names. However, it's better to check if there's an upscale model or if I should just use a simple resize (though \"2x upscale\" usually implies a model).\n\nWait, the user said \"No template does this\".\nI will construct the JSON manually using `modify_workflow` or by building it from scratch. Since I need to build it from scratch and then enqueue, I'll create a list of nodes and connections.\n\nNodes needed:\n1.  `CheckpointLoaderSimple`: ID 1\n2.  `CLIPTextEncode` (Positive): ID 2\n3.  `EmptyLatentImage`: ID 3 (512x512)\n4.  `KSampler`: ID 4\n5.  `VAEDecode`: ID 5\n6.  `UpscaleImage` or `UpscaleImageWithModel`: ID 6\n7.  `SaveImage` (Original): ID 7\n8.  `SaveImage` (Upscaled): ID 8\n\nWait, I should check if there's a specific upscale model available to make it \"proper\". Let's check `list_local_models(model_type='upscale_models')`.\n\nActually, the prompt says \"compose the graph yourself\".\nI will use:\n- `CheckpointLoaderSimple` (1)\n- `CLIPTextEncode` (2)\n- `EmptyLatentImage` (3)\n- `KSampler` (4)\n- `VAEDecode` (5)\n- `UpscaleImageWithModel` (6) - I'll check if a model exists. If not, I might have to use a simpler one or just assume a default. Actually, let's see what's available first.\n\nWait, the user wants \"one single workflow\".\nI will construct the JSON and then call `enqueue_workflow`.\n\nLet's start by checking system status/models to ensure I pick valid names if possible, but standard nodes are usually safe.\n\nActually, let's just build it.\n1.  `CheckpointLoaderSimple`: outputs MODEL, CLIP, VAE.\n2.  `CLIPTextEncode`: input CLIP (from 1), text \"a lighthouse at dusk\".\n3.  `EmptyLatentImage`: width 512, height 512.\n4.  `KSampler`: inputs model (1), positive (2), latent_image (3).\n5.  `VAEDecode`: input latent (4), vae (1).\n6.  `UpscaleImageWithModel`: input image (5), model (from a loader). Wait, I need an `UpscaleModelLoader`.\n7.  `SaveImage` (Original): input image (5).\n8.  `SaveImage` (Upscaled): input image (6).\n\nWait, if I use `UpscaleImageWithModel`, I need:\n- `UpscaleModelLoader`: ID 9\n- `UpscaleImageWithModel`: ID 6 (takes image from 5 and model from 9)\n\nLet's check available upscale models first to see if I can pick one.",
+      "tool_calls": [
+        {
+          "id": "mNltCHiU8FZrJrFmuCDGT0jgy8etVjvo",
+          "function": {
+            "index": 0,
+            "name": "list_local_models",
+            "arguments": {
+              "model_type": "upscale_models"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_local_models",
+      "content": "No upscale_models models found."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants a single workflow that generates an image (512x512) and then upscales it by 2x to produce a second output (1024x1024). Both outputs should be saved in the same run.\n\nSince `list_local_models` for `upscale_models` returned nothing, I'll need to check if there are any available upscale models or if I can just use a generic one. However, the prompt says \"compose the graph yourself\".\n\nI will:\n1.  Create a base `txt2img` workflow for \"a lighthouse at dusk\" at 512x512.\n2.  Add an `UpscaleImageWithModel` node (or similar) to upscale it by 2x.\n3.  Ensure there are two `SaveImage` nodes: one after the initial generation and one after the upscale.\n\nWait, I need to know what nodes are available. I'll check for \"upscale\" related nodes first.The user wants a single workflow that generates an image (512x512) and then upscales it by 2x in the same graph, resulting in two outputs: the original and the upscaled version.\n\nSince `list_local_models` for `upscale_models` returned nothing, I'll first check if there are any upscale models available or if a specific model is needed. However, since I need to \"compose the graph myself\", I will look for standard nodes like `UpscaleImageWithModel`.\n\nActually, let me just start by creating a base `txt2img` workflow and then modifying it.\nWait, the prompt says \"No template does this\". So I should build it from scratch or modify a basic one.\n\nI'll use `create_workflow(template='txt2img')` to get a starting point for the 512x512 image, then I will add nodes to handle the upscale and the second save.\n\nWait, if there are no upscale models, I might need to tell the user or try to find one. But let's see what `get_node_info` says about \"upscale\".",
+      "tool_calls": [
+        {
+          "id": "Sqvk5F01oVmOPO7FFK59RBO6SOmSPmnc",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {
+              "node_type": "UpscaleImageWithModel"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "4b9ZF61DOePgNLXTtTqVDFg16S3ZrcvI",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {
+              "node_type": "Upscale Image (using model)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "TTfnw6oyQBk4YvWBarT3ByRpzLknZPcV",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {
+              "node_type": "UpscaleImageWithModel"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "Rjopdsw8bpXlh7pVlEVPmSN8vDWTATFS",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "kTTBNxcvVjA27ExlS8AGbfPKKFNXsY0S",
+          "function": {
+            "index": 0,
+            "name": "get_system_stats",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_system_stats",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "U3wTMposzRRjpQTBx0yJ84Nz28koOzFg",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {
+              "node_type": "UpscaleImageWithModel"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "Y16EJVFLnGvwHNqkbbjlrxHJ0MJ0Uhb3",
+          "function": {
+            "index": 0,
+            "name": "get_node_info",
+            "arguments": {}
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_node_info",
+      "content": "fetch failed"
+    },
+    {
+      "role": "assistant",
+      "content": "The system is currently having trouble communicating with the ComfyUI server to fetch node information or system stats. This often happens if the server isn't reachable or is undergoing a brief hiccup.\n\nHowever, I can still attempt to construct and enqueue the workflow for you by using standard node names. Since your request requires two outputs from one run (the original 512x512 and a 1024x1024 upscale), I will build a graph that:\n1.  **Loads a Checkpoint.**\n2.  **Generates the image** at 512x512 using your prompt \"a lighthouse at dusk\".\n3.  **Branches the output**: One branch goes to a `SaveImage` node (the original).\n4.  **The second branch** passes through an `UpscaleImageWithModel` (or similar) and then into its own `SaveImage` node (the 1024x1024 version).\n\nBecause I cannot currently verify the exact local model names for upscaling, I will use a standard upscale logic. If you have a specific upscale model in mind, please let me know!\n\nI am proceeding to build and enqueue this workflow now.\n\n**Note:** Since the server is currently showing \"fetch failed\" on some metadata calls, I will attempt to enqueue using the most common node naming conventions.\n\n*Wait... before I proceed, since the `get_node_info` and `get_system_stats` are failing, it's highly likely the connection to your ComfyUI instance is unstable or the server is offline.* \n\n**Please check if your ComfyUI server is running and accessible at the configured URL.** Once confirmed, I will try again."
+    }
+  ]
+}

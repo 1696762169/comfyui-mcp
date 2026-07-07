@@ -1,0 +1,59 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "registry",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Find a tool that can search for ComfyUI custom node packs, then use it to search for 'controlnet' and tell me the name of one node pack from its results."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants me to find a tool that can search for ComfyUI custom node packs and then use it to search for 'controlnet'. \n\nI have the `search_custom_nodes` tool which does exactly this - it searches the public ComfyUI Registry for custom node packs by keyword. Let me use it to search for 'controlnet'.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_8d417d7ccab04674915ea135",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"controlnet\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants me to find a tool that can search for ComfyUI custom node packs and then use it to search for 'controlnet'. \n\nI have the `search_custom_nodes` tool which does exactly this - it searches the public ComfyUI Registry for custom node packs by keyword. Let me use it to search for 'controlnet'.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8d417d7ccab04674915ea135",
+      "content": "1. **ComfyUI YoloNasPose Tensorrt** (ComfyUI-YoloNasPose-Tensorrt)\n   This repo provides a ComfyUI Custom Node implementation of [a/YOLO-NAS-POSE](https://github.com/Deci-AI/super-gradients), powered by TensorRT for ultra fast pose estimation. It has been adapted to work with openpose controlnet (experimental)\n   Author: yuvraj108c | Installs: N/A | Version: N/A\n\n2. **Easy automatic (square) image cropper using Yolo** (ComfyUI-Yolo-Cropper)\n   A very simple and easy to use node to automaticaaly create (square) image crops and masks using YoloV8. This can be very useful when using controlnet and ip adapters\n   Author: Tool Of North america | Installs: N/A | Version: N/A"
+    },
+    {
+      "role": "assistant",
+      "content": "The tool that can search for ComfyUI custom node packs is **`search_custom_nodes`**, which queries the public ComfyUI Registry (registry.comfy.org) for node packs by keyword.\n\nFrom the search results for **\"controlnet\"**, one notable node pack is:\n\n### **ComfyUI YoloNasPose Tensorrt**\n- **Registry ID:** `ComfyUI-YoloNasPose-Tensorrt`\n- **Author:** yuvraj108c\n- **Description:** A ComfyUI custom node that provides pose estimation powered by TensorRT for ultra-fast performance. It has been adapted to work with **OpenPose ControlNet** (experimental), making it useful for generating pose-conditioned images.\n\nAnother pack that appeared is **ComfyUI Yolo Cropper** (by Tool Of North America), which helps automatically create square image crops and masks using YOLOv8 — useful for preprocessing ControlNet and IP-Adapter inputs.\n\nWould you like me to dig deeper into either of these packs (e.g., get full details, see which nodes they provide) or search for a different keyword?",
+      "refusal": null,
+      "reasoning": "The search results only show 2 nodes but they don't seem to be the most relevant controlnet results. Let me look at what we have and report to the user. The search_custom_nodes tool found custom node packs related to controlnet. One notable pack is \"ComfyUI YoloNasPose Tensorrt\" which is a custom node pack that provides pose estimation and works with openpose controlnet.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The search results only show 2 nodes but they don't seem to be the most relevant controlnet results. Let me look at what we have and report to the user. The search_custom_nodes tool found custom node packs related to controlnet. One notable pack is \"ComfyUI YoloNasPose Tensorrt\" which is a custom node pack that provides pose estimation and works with openpose controlnet.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

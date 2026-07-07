@@ -1,0 +1,110 @@
+{
+  "model": "hf.co/igorls/gemma-4-12B-it-heretic-GGUF:Q4_K_M",
+  "task": "breakfix",
+  "verdict": "PARTIAL",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames."
+    },
+    {
+      "role": "user",
+      "content": "First, try to render an image using a checkpoint named exactly 'nonexistent-model.safetensors'. That will fail — read the error and explain in ONE sentence why. Then recover: render 'a blue cube' at 512x512 with a checkpoint that IS installed, wait for it to complete, and report its prompt_id."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants me to perform two main tasks.\nFirst, I need to attempt to generate an image using a non-existent checkpoint named 'nonexistent-model.safetensors'. This is expected to fail. I need to capture the error and explain why it failed in one sentence.\nSecond, I need to \"recover\" by generating an image of 'a blue cube' at 512x512 using a valid (installed) checkpoint. I must wait for this second job to complete and then report its `prompt_id`.\n\nPlan:\n1.  Identify the available checkpoints first to know which one is \"actually installed\" for the recovery step.\n2.  Attempt the first generation with 'nonexistent-model.safetensors'.\n3.  Get the status of that job (it will fail).\n4.  Analyze the error and explain it in one sentence.\n5.  Identify a valid checkpoint from the list obtained in step 1.\n6.  Generate the \"a blue cube\" image at 512x512 using that valid checkpoint.\n7.  Poll for completion of the second job.\n8.  Report the `prompt_id` of the successful run.\n\nLet's start by listing models to see what's available.",
+      "tool_calls": [
+        {
+          "id": "dPRCGtZSm82NJDCUR1MeP1j98Ul3x3Je",
+          "function": {
+            "index": 0,
+            "name": "list_local_models",
+            "arguments": {
+              "model_type": "checkpoints"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_local_models",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to:\n1. Try to render an image with a non-existent checkpoint 'nonexistent-model.safetensors'.\n2. Explain why it failed in one sentence.\n3. Recover by rendering \"a blue cube\" at 512x512 using a valid checkpoint (I see `v1-5-pruned-emaonly-fp16.safetensors` is available).\n4. Wait for completion and report the prompt_id.\n\nPlan:\n1. Call `generate_image` with `checkpoint='nonexistent-model.safetensors'` and a dummy prompt like \"test\".\n2. Get the error from `get_job_status`.\n3. Explain why it failed (missing model).\n4. Call `generate_image` with `prompt=\"a blue cube\"`, `width=512`, `height=512`, and `checkpoint='v1-5-pruned-emaonly-fp16.safetensors'`.\n5. Poll `get_job_status` until it is done.\n6. Report the prompt_id of the successful run.",
+      "tool_calls": [
+        {
+          "id": "oVDyAhuq1BX6hFdPGiUTqukM630gYnCS",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "checkpoint": "nonexistent-model.safetensors",
+              "prompt": "test"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "Endpoint Bad Request (400 Bad Request): http://127.0.0.1:8188/prompt?clientId=comfyui-mcp"
+    },
+    {
+      "role": "assistant",
+      "content": "The first attempt failed because the specified checkpoint \"nonexistent-model.safetensors\" does not exist in the local model library.\n\nNow, I will render a blue cube at 512x512 using an available checkpoint (\"v1-5-pruned-emaonly-fp16.safetensors\").\n\n",
+      "tool_calls": [
+        {
+          "id": "yIrEfLR2MymSws3ykS0jLVNNkPDizbQ1",
+          "function": {
+            "index": 0,
+            "name": "generate_image",
+            "arguments": {
+              "checkpoint": "v1-5-pruned-emaonly-fp16.safetensors",
+              "height": 512,
+              "prompt": "a blue cube",
+              "width": 512
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "generate_image",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"17a2b59f-d2ab-4c9c-8273-074552ae0b7a\",\n  \"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\",\n  \"note\": \"asset_id will be available in the completion notification; use view_image or regenerate with it.\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "thinking": "The user wants to know the `prompt_id` of the second image after it finishes rendering. I need to poll `get_job_status` until it's done.",
+      "tool_calls": [
+        {
+          "id": "y6Uj3GfHAyTNh1UQA7kz6xeXKeK87Btd",
+          "function": {
+            "index": 0,
+            "name": "get_job_status",
+            "arguments": {
+              "prompt_id": "17a2b59f-d2ab-4c9c-8273-074552ae0b7a"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "get_job_status",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 4117,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The first attempt failed because the specified checkpoint \"nonexistent-model.safetensors\" does not exist in the local model library.\n\nThe successful render of 'a blue cube' has completed with prompt_id: `17a2b59f-d2ab-4c9c-8273-074552ae0b7a`."
+    }
+  ]
+}

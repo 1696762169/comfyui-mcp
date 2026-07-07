@@ -1,0 +1,147 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "check-errors",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Did my last run hit any errors? Check and tell me."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll check your recent run history for any errors. Let me first find the relevant tools.",
+      "tool_calls": [
+        {
+          "id": "call_7a25cc3697c64b45a4f8aa16",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"queue\"}"
+          }
+        },
+        {
+          "id": "call_d979ca6be4f74d40be135bc1",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_7a25cc3697c64b45a4f8aa16",
+      "content": "Live-canvas panel tools — 7 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…\n- panel_subgraph_group: Wrap an existing GROUP's nodes into ONE subgraph node in a single step — the clean way to refactor a big graph into readable, TOGGLEABLE units.\n- panel_install_node: Install a custom-node pack into the user's ComfyUI via the BUILT-IN Manager (queues the install).\n- panel_update_node: Update an ALREADY-INSTALLED custom-node pack to its latest (or nightly) code via the BUILT-IN Manager — the first thing to try when a node is broken or CRASHED…\n- panel_node_queue_status: Check the built-in Manager's install/update queue status (to see if a queued install finished).\n- panel_restart_comfyui: Restart the user's ComfyUI server via the built-in Manager — needed to load newly installed/updated custom nodes."
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_d979ca6be4f74d40be135bc1",
+      "content": "Live-canvas panel tools — 1 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_request_secret: Securely collect an API token / secret from the user and write it straight to config — you NEVER see the value and it is never saved to chat history."
+    },
+    {
+      "role": "assistant",
+      "content": "I found `panel_get_errors` which checks validation errors. Let me also search for any error or history related tools, and then check your errors.",
+      "tool_calls": [
+        {
+          "id": "call_d6c9dfee3eac46609bf219b9",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_get_errors\"}"
+          }
+        },
+        {
+          "id": "call_e478f0c7a2e446a89d3645ba",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"error\"}"
+          }
+        },
+        {
+          "id": "call_00e6c16383f34d3aa084ef7f",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_d6c9dfee3eac46609bf219b9",
+      "content": "# panel_get_errors\n\nRead ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the frontend's error panel) plus the most recent runtime execution error, from the user's open tab. The validation errors are populated by ComfyUI's own validator on ANY queue attempt — the user's OR yours — so this reflects what the user is looking at. A ⚠️ GRAPH VALIDATION block is also auto-injected at your turn start when this state changes; call this to re-check on demand (e.g. after you edit widgets/links). Read-only.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {},\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_get_errors\", \"args\": {...}}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_e478f0c7a2e446a89d3645ba",
+      "content": "Live-canvas panel tools — 3 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_connect: Connect an output slot of one node to an input slot of another in the user's open graph.\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_errors: Read ComfyUI's pre-run VALIDATION errors (missing models, value_not_in_list / invalid widget values, broken links — the SAME 'N ERRORS' the user sees in the fr…"
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_00e6c16383f34d3aa084ef7f",
+      "content": "comfyui-mcp tool catalog — 11 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (3)\n- enqueue_workflow: Submit a ComfyUI workflow for execution and return immediately with the prompt_id and queue position.\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n\n## diagnostics (1)\n- get_history: Get execution history for a ComfyUI prompt.\n\n## images-assets (3)\n- get_image: Fetch a generated image from ComfyUI and return it as an inline image.\n- stage_output_as_input: Stage an EXISTING ComfyUI output (or temp/preview) as an INPUT so the next stage's loader (LoadImage / VHS_LoadVideo / LoadAudio) can read it.\n- list_output_images: List recently generated image AND video files from ComfyUI's output/ directory, newest-first, with each file's kind ('image' | 'video'), subfolder, size, and m…\n\n## generation (4)\n- suggest_settings: Recommend concrete, proven sampler/scheduler/steps/CFG (and denoise/shift/LoRA) settings derived from THIS MCP server's local generation-history database (popu…\n- generation_stats: Show statistics from this MCP server's local generation-history database (populated as you run workflows; not from ComfyUI itself): total generations, count of…\n- generate_video: Generate a short video from a text prompt (text-to-video), or animate a start image (image-to-video when `image` is given) — the high-level entry point.\n- generate_with_api_node: Build a minimal single-node workflow that runs a chosen API/partner node with the provided inputs and enqueue it.\n\nThis is a FILTERED view (102 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me check both the validation errors and your recent execution history.",
+      "tool_calls": [
+        {
+          "id": "call_13b8aa9ffcbc41bb8b0c88a0",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_get_errors\"}"
+          }
+        },
+        {
+          "id": "call_1c8fdc60067c44249c69fdd5",
+          "function": {
+            "name": "describe_tool",
+            "arguments": "{\"name\": \"get_history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_13b8aa9ffcbc41bb8b0c88a0",
+      "content": "{\n  \"last_execution_error\": null,\n  \"node_errors\": null,\n  \"note\": \"no errors\"\n}"
+    },
+    {
+      "role": "tool",
+      "tool_name": "describe_tool",
+      "tool_call_id": "call_1c8fdc60067c44249c69fdd5",
+      "content": "# get_history  (category: diagnostics)\n\nGet execution history for a ComfyUI prompt. Returns status, timing, cached nodes, output details, and full error information including Python tracebacks. Use after a failed enqueue_workflow to diagnose what went wrong.\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {\n  \"prompt_id\": {\n   \"description\": \"Specific prompt ID to look up (returned by enqueue_workflow). If omitted, returns the most recent COMMITTED execution (chosen by ComfyUI's queue number, not dict order). Note: immediately after a run finishes it can briefly lag by one until ComfyUI commits the new entry — pass the prompt_id from enqueue_workflow to get that exact run, and prefer the run-finished event for naming a just-produced output.\",\n   \"type\": \"string\"\n  }\n }\n}\n\nRun it with: call_tool {\"name\": \"get_history\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me also check the actual execution history to catch any runtime errors that might have occurred.",
+      "tool_calls": [
+        {
+          "id": "call_c5d649bd00334f11a8e5e031",
+          "function": {
+            "name": "call_tool",
+            "arguments": "{\"name\": \"get_history\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "call_tool",
+      "tool_call_id": "call_c5d649bd00334f11a8e5e031",
+      "content": "## Execution: fb3bda7a-d995-4fcb-9ea3-bafa3f47ee01\n**Status**: success | Completed: true\n**Duration**: 3.64s\n**Cached nodes**: 1, 4\n\n### Outputs (1 nodes)\n- Node 7: images → **ComfyUI_01166_.png**"
+    },
+    {
+      "role": "assistant",
+      "content": "Great news! **Your last run completed successfully with no errors.** ✅\n\nHere's the summary:\n\n| Detail | Value |\n|---|---|\n| **Status** | ✅ Success |\n| **Prompt ID** | `fb3bda7a-...47ee01` |\n| **Duration** | 3.64 seconds |\n| **Cached nodes** | Nodes 1 & 4 (skipped recomputation) |\n| **Output** | 1 image → `ComfyUI_01166_.png` |\n\nNo validation errors (missing models, broken links, invalid widget values) and no runtime errors — everything ran clean!"
+    }
+  ]
+}

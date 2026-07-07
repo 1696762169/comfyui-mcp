@@ -1,0 +1,307 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "custom-nodes-atomic-0012",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Find node packs on the registry for upscaling images."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The user wants to find node packs for upscaling images. I'll search the ComfyUI registry for upscaling-related packs.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_eba5757801944fe7a6f2cb65",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"upscale image\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_aa70043a26414385bd4feb08",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"super resolution\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants to find node packs for upscaling images. I'll search the ComfyUI registry for upscaling-related packs.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_eba5757801944fe7a6f2cb65",
+      "content": "No custom nodes found for \"upscale image\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_aa70043a26414385bd4feb08",
+      "content": "No custom nodes found for \"super resolution\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Let me try broader search terms:",
+      "refusal": null,
+      "reasoning": "The searches didn't return results. Let me try broader terms.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_148f57f3a65f492daaab78f0",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"upscale\", \"limit\": 15}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_8c96f58dbdb74346ac471a8c",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"upscaler\", \"limit\": 15}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The searches didn't return results. Let me try broader terms.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_148f57f3a65f492daaab78f0",
+      "content": "1. **ComfyUI Impact Pack** (comfyui-impact-pack)\n   This node pack offers various detector nodes and detailer nodes that allow you to configure a workflow that automatically enhances facial details. And provide iterative upscaler.\n   Author:  | Installs: N/A | Version: 8.28.3"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8c96f58dbdb74346ac471a8c",
+      "content": "1. **ComfyUI Impact Pack** (comfyui-impact-pack)\n   This node pack offers various detector nodes and detailer nodes that allow you to configure a workflow that automatically enhances facial details. And provide iterative upscaler.\n   Author:  | Installs: N/A | Version: 8.28.3"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The registry search returned limited results. Let me also check for specific well-known upscaling packs.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_19577dc2d8314470bcfa336e",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"ESRGAN\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_4e821ad7e5f54c629f4113a7",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"SRFormer\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_7d008d5f0ee14b9894722e4f",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"enhance detail\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The registry search returned limited results. Let me also check for specific well-known upscaling packs.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_19577dc2d8314470bcfa336e",
+      "content": "No custom nodes found for \"ESRGAN\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_4e821ad7e5f54c629f4113a7",
+      "content": "No custom nodes found for \"SRFormer\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_7d008d5f0ee14b9894722e4f",
+      "content": "No custom nodes found for \"enhance detail\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me get more details on the Impact Pack which came up, and also try a few more searches.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_4a9e749b5eb94dd895122d9e",
+          "function": {
+            "name": "get_node_pack_details",
+            "arguments": "{\"id\": \"comfyui-impact-pack\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_9a6181fbab4040e9a4cc5c8a",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"face restore\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_964d08778e5d4025ab32cfba",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"magnify\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me get more details on the Impact Pack which came up, and also try a few more searches.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_4a9e749b5eb94dd895122d9e",
+      "content": "# ComfyUI Impact Pack\n\nThis node pack offers various detector nodes and detailer nodes that allow you to configure a workflow that automatically enhances facial details. And provide iterative upscaler.\n\n- **Author**: \n- **License**: {\"file\": \"LICENSE.txt\"}\n- **Repository**: https://github.com/ltdrdata/ComfyUI-Impact-Pack\n- **Total Installs**: N/A\n- **Latest Version**: 8.28.3\n- **Created**: 2024-05-22T16:14:34.460285Z\n- **Updated**: N/A"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9a6181fbab4040e9a4cc5c8a",
+      "content": "No custom nodes found for \"face restore\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_964d08778e5d4025ab32cfba",
+      "content": "No custom nodes found for \"magnify\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "The registry search is limited. Let me try some other common names.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c11c237396b543638efedff7",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"tile upscale\", \"limit\": 10}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_fb4c26dc4e43405ab63adc01",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"UltimateSDUpscale\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The registry search is limited. Let me try some other common names.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c11c237396b543638efedff7",
+      "content": "No custom nodes found for \"tile upscale\"."
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_fb4c26dc4e43405ab63adc01",
+      "content": "No custom nodes found for \"UltimateSDUpscale\"."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me try one more broad search.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_7fcf2908d98e4d2facc70afe",
+          "function": {
+            "name": "search_custom_nodes",
+            "arguments": "{\"query\": \"image enhance\", \"limit\": 10}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me try one more broad search.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_7fcf2908d98e4d2facc70afe",
+      "content": "No custom nodes found for \"image enhance\"."
+    },
+    {
+      "role": "assistant",
+      "content": "Here's what I found from searching the [ComfyUI Registry](registry.comfy.org):\n\n---\n\n### Registry Results for Upscaling Node Packs\n\n| # | Pack | ID | Description | Latest Version |\n|---|------|----|-------------|----------------|\n| 1 | **ComfyUI Impact Pack** | `comfyui-impact-pack` | Offers detector nodes, detailer nodes, and an **iterative upscaler** for automatic enhancement (including facial detail refinement). | 8.28.3 |\n\n- **Repository**: https://github.com/ltdrdata/ComfyUI-Impact-Pack\n- **License**: Custom (LICENSE.txt)\n\n---\n\n### Notes\n\nThe ComfyUI registry search returned only **one dedicated upscaling pack**. However, many popular upscaling tools are **built into ComfyUI core** or bundled differently:\n\n1. **ComfyUI Core** ships with these built-in upscale nodes (no extra pack needed):\n   - `UpscaleModelLoader` — loads ESRGAN/NAST/RealESRGAN `.pth` models\n   - `ImageUpscaleWithModel` — applies the loaded upscale model\n   - `ImageScale` / `ImageScaleBy` — basic resize with various interpolation methods\n\n2. **ComfyUI Impact Pack** adds:\n   - Iterative upscaling (tile-based, for large images)\n   - Face detailer upscaling\n   - Regional conditioning for upscaling\n\n3. Other well-known upscaling packs (e.g., **Ultimate SD Upscale**, **SUPIR**, **NMKD Siax**) may exist on GitHub but aren't indexed in the public registry yet.\n\n---\n\n### What I Can Help With\n\nWould you like me to:\n- **Set up an upscale workflow** using the built-in nodes or Impact Pack?\n- **Check which upscale models** you already have installed locally?\n- **Download an ESRGAN upscale model** (like 4x-UltraSharp or RealESRGAN)?",
+      "refusal": null,
+      "reasoning": "The registry search seems to have limited results. Let me compile what I found and also mention the built-in upscale capabilities.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The registry search seems to have limited results. Let me compile what I found and also mention the built-in upscale capabilities.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

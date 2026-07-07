@@ -1,0 +1,237 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "custom-nodes-multi-step-0015",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "Save a snapshot of the current custom nodes. Then, start a binary search to find which custom node is causing a workflow to fail. Perform the bisect steps by marking the current set as good or bad until the problem node is isolated. Then, reset the bisect session and restore the snapshot to the previously saved state."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll start by saving a snapshot of your current custom node state, then begin the bisect process.",
+      "refusal": null,
+      "reasoning": "The user wants me to:\n1. Save a snapshot of the current custom nodes\n2. Start a binary search (bisect) to find a problematic custom node\n3. Perform bisect steps until the problem node is isolated\n4. Reset the bisect session\n5. Restore the previously saved snapshot\n\nLet me start by saving a snapshot first.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2e5d61a045af4f6384d4ed2e",
+          "function": {
+            "name": "save_node_snapshot",
+            "arguments": "{\"name\": \"pre-bisect-backup\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants me to:\n1. Save a snapshot of the current custom nodes\n2. Start a binary search (bisect) to find a problematic custom node\n3. Perform bisect steps until the problem node is isolated\n4. Reset the bisect session\n5. Restore the previously saved snapshot\n\nLet me start by saving a snapshot first.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2e5d61a045af4f6384d4ed2e",
+      "content": "{\"error\":\"NODE_SNAPSHOT_ERROR\",\"message\":\"Saving a named snapshot requires a local ComfyUI install path, which is unavailable in remote (--comfyui-url) mode. Omit the name to let ComfyUI-Manager assign a timestamped snapshot instead.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Named snapshots need local access. Let me save a timestamped one via Manager, and also check what snapshots exist already:",
+      "refusal": null,
+      "reasoning": "Named snapshots require local access. Let me try without a name - Manager can assign a timestamped name.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_bd5f3cfa4ec64a7f968b3a1a",
+          "function": {
+            "name": "save_node_snapshot",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_fc67e6904b8a473585b183e4",
+          "function": {
+            "name": "list_node_snapshots",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Named snapshots require local access. Let me try without a name - Manager can assign a timestamped name.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_bd5f3cfa4ec64a7f968b3a1a",
+      "content": "{\n  \"name\": \"\",\n  \"method\": \"http\",\n  \"message\": \"Node snapshots aren't supported on this ComfyUI-Manager build — its HTTP API doesn't expose the /snapshot/* endpoints (common on the bundled ComfyUI Desktop Manager). Update ComfyUI-Manager to a build that supports snapshots, or manage snapshots from the ComfyUI-Manager UI / comfy-cli instead.\",\n  \"unsupported\": true\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_fc67e6904b8a473585b183e4",
+      "content": "Node snapshots aren't supported on this ComfyUI-Manager build — its HTTP API doesn't expose the /snapshot/* endpoints (common on the bundled ComfyUI Desktop Manager). Update ComfyUI-Manager to a build that supports snapshots, or manage snapshots from the ComfyUI-Manager UI / comfy-cli instead."
+    },
+    {
+      "role": "assistant",
+      "content": "It looks like the ComfyUI-Manager build on this server doesn't expose the snapshot HTTP endpoints. That said, let me still proceed with the full bisect process. Here's what I'll do:\n\n---\n\n### Step 1: Start the Bisect Session",
+      "refusal": null,
+      "reasoning": "The snapshot feature isn't supported on this ComfyUI-Manager build. Let me inform the user and proceed with the bisect process anyway. The bisect tools don't require snapshots - they have their own enable/disable mechanism.\n\nLet me proceed with the bisect process. I'll:\n1. Note the snapshot limitation\n2. Start the bisect\n3. Walk through the bisect steps\n4. Reset when done",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_c7b8eedf116f4fefbdeeaef3",
+          "function": {
+            "name": "bisect_start",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The snapshot feature isn't supported on this ComfyUI-Manager build. Let me inform the user and proceed with the bisect process anyway. The bisect tools don't require snapshots - they have their own enable/disable mechanism.\n\nLet me proceed with the bisect process. I'll:\n1. Note the snapshot limitation\n2. Start the bisect\n3. Walk through the bisect steps\n4. Reset when done",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_c7b8eedf116f4fefbdeeaef3",
+      "content": "{\"error\":\"NODE_BISECT_ERROR\",\"message\":\"ComfyUI-Manager API is unavailable and no local ComfyUI path is configured (remote mode). Cannot toggle custom nodes via the filesystem. Set COMFYUI_PATH or ensure ComfyUI-Manager is installed and reachable.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me check the workspace and environment to understand the setup better:",
+      "refusal": null,
+      "reasoning": "The bisect tools also require a local ComfyUI installation. Let me check what the workspace situation is.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6f336544769146298a8d18db",
+          "function": {
+            "name": "get_workspace",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_04a1d24f5614453ca99b9b5c",
+          "function": {
+            "name": "get_environment",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The bisect tools also require a local ComfyUI installation. Let me check what the workspace situation is.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6f336544769146298a8d18db",
+      "content": "{\n  \"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"workspace_source\": \"default-config\",\n  \"default_workspace\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"api_target\": \"https://l0xfaimbq622gy-3000.proxy.runpod.net:443\"\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_04a1d24f5614453ca99b9b5c",
+      "content": "{\n  \"running_instance\": {\n    \"reachable\": true,\n    \"api_target\": \"https://l0xfaimbq622gy-3000.proxy.runpod.net:443\",\n    \"os\": \"linux\",\n    \"python_version\": \"3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]\",\n    \"embedded_python\": false,\n    \"comfyui_version\": \"0.27.0\",\n    \"devices\": [\n      {\n        \"name\": \"cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync\",\n        \"type\": \"cuda\",\n        \"vram_total_mb\": 24124,\n        \"vram_free_mb\": 23859\n      }\n    ]\n  },\n  \"local\": {\n    \"workspace_path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n    \"note\": \"Using saved default workspace \\\"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\" (COMFYUI_PATH not set).\",\n    \"python\": {\n      \"executable\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\.venv\\\\Scripts\\\\python.exe\",\n      \"version\": \"3.13.12\"\n    },\n    \"packages\": {\n      \"torch\": \"2.10.0+cu130\",\n      \"torchvision\": \"0.25.0+cu130\",\n      \"torchaudio\": \"2.10.0+cu130\",\n      \"numpy\": \"2.4.4\",\n      \"transformers\": \"5.8.0\",\n      \"diffusers\": \"0.38.0\",\n      \"comfyui_frontend_package\": \"1.45.20\"\n    },\n    \"git\": {\n      \"rev\": \"bb131be9\",\n      \"branch\": \"HEAD\"\n    },\n    \"comfyui_manager_version\": \"3.41\"\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "I see — the ComfyUI MCP server is currently targeting a **remote** RunPod instance (`https://l0xfaimbq622gy-3000.proxy.runpod.net`), which is why snapshot and bisect tools can't work (they need filesystem access to toggle nodes). However, you DO have a local ComfyUI install at `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`.\n\nLet me set the default workspace to point to the local install and try again:",
+      "refusal": null,
+      "reasoning": "The issue is that the MCP server is targeting a **remote** ComfyUI instance (RunPod proxy), but the local workspace path is set to a Windows ComfyUI install. The bisect and snapshot tools need either:\n1. A local `COMFYUI_PATH` environment variable set (for filesystem operations)\n2. Or the remote ComfyUI-Manager HTTP API to support these endpoints\n\nThe remote instance doesn't support snapshots or bisect via its Manager API. However, the local workspace IS set. The tools might need the `COMFYUI_PATH` env var specifically. Let me try using the local path as the target, since the workspace is detected locally.\n\nActually, looking more carefully - the API target is the remote RunPod, but there IS a local ComfyUI install at `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`. The tools need either the remote Manager to support these endpoints, or COMFYUI_PATH to be set for filesystem operations.\n\nSince this is a remote server, the Manager HTTP API doesn't expose these endpoints. Let me explain this clearly to the user and show them the full workflow that WOULD work if it were local.\n\nActually, let me try setting the default workspace and see if that helps, since there IS a local install detected.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_ec59688d151642e593d39691",
+          "function": {
+            "name": "set_default_workspace",
+            "arguments": "{\"path\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The issue is that the MCP server is targeting a **remote** ComfyUI instance (RunPod proxy), but the local workspace path is set to a Windows ComfyUI install. The bisect and snapshot tools need either:\n1. A local `COMFYUI_PATH` environment variable set (for filesystem operations)\n2. Or the remote ComfyUI-Manager HTTP API to support these endpoints\n\nThe remote instance doesn't support snapshots or bisect via its Manager API. However, the local workspace IS set. The tools might need the `COMFYUI_PATH` env var specifically. Let me try using the local path as the target, since the workspace is detected locally.\n\nActually, looking more carefully - the API target is the remote RunPod, but there IS a local ComfyUI install at `C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`. The tools need either the remote Manager to support these endpoints, or COMFYUI_PATH to be set for filesystem operations.\n\nSince this is a remote server, the Manager HTTP API doesn't expose these endpoints. Let me explain this clearly to the user and show them the full workflow that WOULD work if it were local.\n\nActually, let me try setting the default workspace and see if that helps, since there IS a local install detected.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ec59688d151642e593d39691",
+      "content": "{\n  \"saved\": true,\n  \"default_workspace\": \"C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\",\n  \"config_path\": \"C:\\\\Users\\\\Artokun\\\\.config\\\\comfyui-mcp\\\\workspace.json\",\n  \"exists\": true\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Good, the workspace is saved. Now let me try the snapshot and bisect tools again — they may now be able to access the local filesystem:",
+      "refusal": null,
+      "reasoning": "The workspace path is saved, but the tools still operate against the currently connected remote server. The tools check for COMFYUI_PATH env var or the Manager HTTP API. Since we're in remote mode, the filesystem-based tools won't work.\n\nLet me be honest with the user about the limitations and demonstrate the full workflow conceptually, explaining what each step would do.\n\nActually, wait - let me just try the snapshot and bisect again. Maybe the tools now use the local workspace.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_82334a3516f549c7a67eef16",
+          "function": {
+            "name": "save_node_snapshot",
+            "arguments": "{\"name\": \"pre-bisect-backup\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The workspace path is saved, but the tools still operate against the currently connected remote server. The tools check for COMFYUI_PATH env var or the Manager HTTP API. Since we're in remote mode, the filesystem-based tools won't work.\n\nLet me be honest with the user about the limitations and demonstrate the full workflow conceptually, explaining what each step would do.\n\nActually, wait - let me just try the snapshot and bisect again. Maybe the tools now use the local workspace.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_82334a3516f549c7a67eef16",
+      "content": "{\"error\":\"NODE_SNAPSHOT_ERROR\",\"message\":\"Saving a named snapshot requires a local ComfyUI install path, which is unavailable in remote (--comfyui-url) mode. Omit the name to let ComfyUI-Manager assign a timestamped snapshot instead.\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Unfortunately, the **snapshot** and **bisect** tools require either:\n1. A **local** ComfyUI instance running (with filesystem access to toggle node folders), or  \n2. A **ComfyUI-Manager HTTP API** that exposes the `/snapshot/*` and `/node/*` toggle endpoints.\n\nYour current setup connects to a **remote RunPod server** via `--comfyui-url`, and neither condition is met:\n- The remote Manager build doesn't expose the snapshot/bisect HTTP endpoints.\n- Filesystem-based toggling isn't possible from the local machine.\n\n### What would be needed to run this workflow:\n| Step | Tool | Requirement |\n|------|------|-------------|\n| **Save snapshot** | `save_node_snapshot` | Local ComfyUI with ComfyUI-Manager snapshot support |\n| **Start bisect** | `bisect_start` | Local filesystem or Manager HTTP toggle API |\n| **bisect_good / bisect_bad** | Iterative narrowing | Same as above |\n| **Reset** | `bisect_reset` | Same as above |\n| **Restore snapshot** | `restore_node_snapshot` | ComfyUI-Manager snapshot support |\n\n### To use these tools, you would need to either:\n1. **Run ComfyUI locally** — set `COMFYUI_PATH` to your local install (`C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI`) and connect the MCP server to your local ComfyUI instance instead of the remote RunPod one.\n2. **Update ComfyUI-Manager** on the remote server to a build that supports the snapshot HTTP endpoints.\n\nWould you like me to help you configure the MCP server to point to your local ComfyUI install, or is there another diagnostic approach you'd like to try for identifying the problematic custom node (e.g., checking the ComfyUI logs for errors)?",
+      "refusal": null,
+      "reasoning": "The snapshot and bisect tools require a local ComfyUI install (with COMFYUI_PATH set or running locally), but the server is connected to a remote RunPod instance. These tools can't work in remote mode because they need filesystem access to toggle node directories.\n\nLet me explain this limitation to the user clearly.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The snapshot and bisect tools require a local ComfyUI install (with COMFYUI_PATH set or running locally), but the server is connected to a remote RunPod instance. These tools can't work in remote mode because they need filesystem access to toggle node directories.\n\nLet me explain this limitation to the user clearly.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

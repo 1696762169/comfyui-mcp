@@ -1,0 +1,89 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "new-workflow-no-clear",
+  "verdict": "PASS",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the ComfyUI agent in a sidebar panel, driving the user's live ComfyUI graph and server. Answer in normal Markdown.\n\nYou have exactly six tools:\n- list_tools / describe_tool / call_tool — the headless ComfyUI server (~200 capabilities: generate images/video/audio, models, custom nodes, queue, diagnostics). Flow: list_tools {\"search\": ...} → describe_tool {\"name\": ...} → call_tool {\"name\": ..., \"args\": {...}}.\n- panel_list_tools / panel_describe_tool / panel_call_tool — the user's LIVE canvas (read the graph, add/wire nodes, set widgets, run, screenshots, show media). Same flow.\n\nRules:\n- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.\n- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.\n- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.\n- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits."
+    },
+    {
+      "role": "user",
+      "content": "Start a new workflow for me."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_b64dd9e3611944b6ad870c00",
+          "function": {
+            "name": "panel_list_tools",
+            "arguments": "{\"search\": \"workflow\"}"
+          }
+        },
+        {
+          "id": "call_ff9f1d74523544b193dcf20e",
+          "function": {
+            "name": "list_tools",
+            "arguments": "{\"search\": \"workflow\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_list_tools",
+      "tool_call_id": "call_b64dd9e3611944b6ad870c00",
+      "content": "Live-canvas panel tools — 21 of 65. Next: panel_describe_tool {\"name\": ...} then panel_call_tool.\n- panel_get_graph: Read the workflow the user is CURRENTLY VIEWING on their canvas (root graph or an opened subgraph — 'viewing' says which): node ids, types, titles, widget valu…\n- panel_graph_outline: Read a COMPACT, dependency-ordered TEXT MAP of the workflow the user is viewing — the FASTEST way to UNDERSTAND a graph (especially a big loaded pack/template)…\n- panel_find_nodes: SEARCH the workflow the user is CURRENTLY VIEWING for nodes matching filters — the right way to PINPOINT a node (a specific loader, sampler, save, switch) in a…\n- panel_clear: Remove EVERY node from the user's open graph — only for an explicit 'clear/reset the canvas'.\n- panel_strip_workflow: Strip a workflow to a clean, flat, RESOLVED graph — Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes all collapsed into real connections…\n- panel_slice_workflow: Slice ONE pipeline out of a toggle-template workflow (built with rgthree 'Fast Groups Bypasser/Muter' — one graph holding many pipelines, only one active at a…\n- panel_load_workflow: Load a full ComfyUI workflow onto the live canvas in one shot (replaces the current graph).\n- panel_run: Queue the workflow the user has OPEN — exactly like them pressing Queue Prompt (current widget values, the live graph they can see).\n- panel_get_content_mode: Query the persistent adult-content (NSFW) consent state for this user.\n- panel_save_workflow: Save the user's open workflow PROGRAMMATICALLY — no Save/Rename dialog ever pops.\n- panel_list_workflows: List the user's OPEN workflow tabs and which one is active (path, filename, modified, persisted).\n- panel_new_workflow: Open a brand-new BLANK workflow in a NEW TAB.\n- panel_open_workflow: Open / switch to a workflow by path or filename (from panel_list_workflows).\n- panel_rename_workflow: Rename a workflow (the active one, or the one matching `path`).\n- panel_close_workflow: Close a workflow tab (the active one, or the one matching `path`).\n- panel_copy_nodes: Copy nodes from the user's open graph to the clipboard.\n- panel_paste_nodes: Paste the clipboard (from a prior panel_copy_nodes) onto the user's CURRENTLY OPEN graph — including a graph in a DIFFERENT workflow, which is how you merge/co…\n- panel_save_subgraph: Save a SUBGRAPH node to the user's reusable blueprint LIBRARY (publish), so it can be dropped into any workflow later.\n- panel_add_subgraph: Add a saved subgraph blueprint (from panel_list_subgraphs) onto the user's open graph by name (or full 'SubgraphBlueprint.<name>' type).\n- panel_set_node_mode: Set a node's EXECUTION MODE on the user's open graph — active, bypass, or mute — and return { node_id, mode, previous_mode }.\n- panel_screenshot: Render the workflow the user is currently viewing (root graph, or the open subgraph) to a PNG and return it as an IMAGE so you can SEE the layout."
+    },
+    {
+      "role": "tool",
+      "tool_name": "list_tools",
+      "tool_call_id": "call_ff9f1d74523544b193dcf20e",
+      "content": "comfyui-mcp tool catalog — 55 of 113 tools (filtered). Workflow: pick a tool → describe_tool {\"name\": ...} for its parameters → call_tool {\"name\": ..., \"args\": {...}}.\n## workflows (11)\n- enqueue_workflow: Submit a ComfyUI workflow for execution and return immediately with the prompt_id and queue position.\n- rerun_generation: Re-run the workflow behind a previous generation.\n- get_system_stats: Get system information from the connected ComfyUI server: GPU device(s), total/free VRAM, ComfyUI/Python/PyTorch versions, and OS details.\n- get_queue: Get the current ComfyUI execution queue: the job running now plus all pending jobs, each with its prompt_id and position.\n- get_queued_workflow: Return the full workflow payload for one PENDING queue item by prompt_id.\n- move_queued_job: Move a PENDING ComfyUI queue item to the front or back by removing it and re-enqueuing its saved workflow payload.\n- edit_queued_job: Edit a PENDING ComfyUI queue item by removing it and re-enqueuing an updated workflow.\n- get_job_status: Check the status of ONE ComfyUI job by its prompt_id (the id returned by enqueue_workflow).\n- run_workflow_url: Read (and optionally execute) a shared ComfyUI workflow from a URL.\n- extract_workflow_dependencies: Analyze a ComfyUI workflow (API JSON) and determine which custom node packs it requires.\n- install_workflow_dependencies: Resolve and install the custom node packs a ComfyUI workflow requires via ComfyUI-Manager.\n\n## workflow-authoring (17)\n- visualize_workflow: Convert a ComfyUI workflow JSON into a Mermaid flowchart diagram.\n- mermaid_to_workflow: Convert a Mermaid flowchart diagram back into a ComfyUI workflow JSON.\n- visualize_workflow_hierarchical: Visualize a large ComfyUI workflow as a hierarchical diagram.\n- create_workflow: Create a ready-to-run ComfyUI API-format workflow from a built-in template (txt2img, img2img, upscale, inpaint, controlnet, ip_adapter, ace_step_15, stable_aud…\n- modify_workflow: Apply modification operations to an existing ComfyUI workflow.\n- get_node_info: Query a running ComfyUI server's /object_info endpoint for installed node type definitions (inputs, outputs, category, description).\n- validate_workflow: Validate a ComfyUI workflow without executing it.\n- list_workflows: List the filenames of workflows saved in the connected ComfyUI server's user library (the same workflows visible in the ComfyUI web UI).\n- get_workflow: Load a saved workflow and return its raw JSON.\n- strip_workflow: Strip a workflow to a clean, flat API graph — resolving Get/Set buses, Reroutes, subgraph definitions, and bypassed/muted nodes into real connections (the 'de-…\n- slice_workflow: Slice ONE pipeline out of a toggle-template workflow — the kind built with rgthree 'Fast Groups Bypasser/Muter' where one graph holds many pipelines and only o…\n- save_workflow: Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI.\n- analyze_workflow: Load a saved workflow and return a structured analysis — sections, node settings, connections, and data flow.\n- workflow_to_dsl: Convert a ComfyUI API-format workflow into a compact, human/LLM-readable DSL — easier to read and edit than raw JSON, and round-trips losslessly back via dsl_t…\n- dsl_to_workflow: Convert the compact workflow DSL (see workflow_to_dsl) back into executable ComfyUI API-format JSON.\n- lock_workflow: Capture a provenance lock for a saved workflow so it can be exactly reproduced later.\n- verify_workflow_lock: Compare a saved workflow's lock file against the current state of the local install and report drift.\n\n## custom-nodes (1)\n- scaffold_custom_node: Generate a new ComfyUI custom-node pack from a template into <COMFYUI_PATH>/custom_nodes/<name>/.\n\n## skills-config (8)\n- generate_node_skill: Generate a Claude skill (SKILL.md) documenting a ComfyUI custom node pack: its nodes, inputs/outputs, and example workflows.\n- get_defaults: Return the merged view of generation defaults with per-source attribution.\n- list_skills: List the bundled ComfyUI model-family + workflow skills shipped with comfyui-mcp (name + description for each).\n- read_skill: Return the full body of a bundled skill's SKILL.md by name (discover names with list_skills).\n- list_packs: List the bundled installer packs under packs/ — one-command setups for a model family: custom nodes + model weights (manifest.yaml) PLUS a ready workflow.json…\n- list_workflow_templates: List the OFFICIAL ComfyUI workflow templates available on the connected ComfyUI (the comfyui-workflow-templates package + any custom-node-provided templates),…\n- read_pack_workflow: Return a bundled pack's ready workflow.json graph by pack name (discover names + which packs have a workflow with list_packs).\n- check_workflow_runtime: Determine whether a workflow runs on the user's OWN GPU (LOCAL — free) or uses hosted API NODES (PAID api credits).\n\n## diagnostics (2)\n- get_history: Get execution history for a ComfyUI prompt.\n- report_issue: Build a ready-to-open GitHub issue link for a bug/problem you hit (ComfyUI, a workflow, a model, custom nodes, or comfyui-mcp itself).\n\n## server (1)\n- configure_manager: Configure ComfyUI-Manager settings, mirroring `comfy-cli manager` subcommands.\n\n## images-assets (6)\n- upload_audio: Upload a local audio file (.wav, .mp3, .flac, .ogg, .m4a, .aac) to the connected ComfyUI's input/ directory via the HTTP /upload/image endpoint for use in audi…\n- workflow_from_image: Extract embedded ComfyUI workflow metadata from a PNG file.\n- view_image: Fetch a registered asset's bytes and return them as an inline image so the agent can see the result.\n- list_assets: List recently generated assets from the in-memory registry, newest-first.\n- get_asset_metadata: Get full provenance for a registered asset including the workflow snapshot that produced it.\n- regenerate: Re-enqueue the workflow that produced an existing asset, optionally applying parameter overrides.\n\n## generation (9)\n- suggest_settings: Recommend concrete, proven sampler/scheduler/steps/CFG (and denoise/shift/LoRA) settings derived from THIS MCP server's local generation-history database (popu…\n- generation_stats: Show statistics from this MCP server's local generation-history database (populated as you run workflows; not from ComfyUI itself): total generations, count of…\n- generate_image: Generate an image from a text prompt — the high-level entry point.\n- generate_audio: Generate audio from a text prompt — supports ACE Step 1.5 and Stable Audio 3 model families.\n- generate_video: Generate a short video from a text prompt (text-to-video), or animate a start image (image-to-video when `image` is given) — the high-level entry point.\n- remove_background: Remove an image's background, returning a transparent (RGBA) cutout — the high-level entry point.\n- upscale_image: Upscale an image with an ESRGAN super-resolution model — the high-level entry point.\n- generate_with_ip_adapter: Generate an image guided by a reference image's style/subject via IP-Adapter, plus a text prompt.\n- generate_with_api_node: Build a minimal single-node workflow that runs a chosen API/partner node with the provided inputs and enqueue it.\n\nThis is a FILTERED view (58 tools hidden). If nothing here fits the task, call list_tools again with a broader search or no filter."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_7b206a5c52e34ada85d4f83d",
+          "function": {
+            "name": "panel_describe_tool",
+            "arguments": "{\"name\": \"panel_new_workflow\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_describe_tool",
+      "tool_call_id": "call_7b206a5c52e34ada85d4f83d",
+      "content": "# panel_new_workflow\n\nOpen a brand-new BLANK workflow in a NEW TAB. Use this whenever the user wants a 'new workflow' / 'fresh canvas' / 'start over for a new project'. This does NOT touch their current workflow — it opens a separate tab. NEVER use panel_clear for a new workflow (panel_clear wipes the CURRENT graph and is only for 'clear/reset this canvas').\n\nParameters (JSON Schema):\n{\n \"type\": \"object\",\n \"properties\": {},\n \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n\nRun it with: panel_call_tool {\"name\": \"panel_new_workflow\", \"args\": {...}}"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_22cf252f6935478fa78411c7",
+          "function": {
+            "name": "panel_call_tool",
+            "arguments": "{\"name\": \"panel_new_workflow\", \"args\": \"{}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_name": "panel_call_tool",
+      "tool_call_id": "call_22cf252f6935478fa78411c7",
+      "content": "{\n  \"created\": true,\n  \"active\": \"Untitled (new tab)\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Your new blank workflow is ready! 🎨\n\nA fresh **\"Untitled\"** tab has been opened on your canvas. You can now:\n\n- **Ask me to build a workflow** — just describe what you want to generate (e.g., \"a txt2img workflow with SDXL,\" \"an img2img with ControlNet,\" \"a video generation pipeline\")\n- **Use templates** — I can load a ready-made template (txt2img, img2img, upscale, inpaint, ControlNet, IP-Adapter, audio, video, and more)\n- **Add nodes manually** — tell me which nodes to place and wire up\n\nWhat would you like to create?"
+    }
+  ]
+}

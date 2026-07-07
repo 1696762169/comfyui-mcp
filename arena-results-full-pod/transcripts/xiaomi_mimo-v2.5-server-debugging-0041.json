@@ -1,0 +1,117 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "server-debugging-0041",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "My workflow with a custom node for style transfer is stuck in the processing queue; it's been 45 minutes with no progress, and the server might be low on VRAM. How can I check the queue status, free up resources, and resume generation?"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me gather all the diagnostics in parallel first.",
+      "refusal": null,
+      "reasoning": "Let me gather the current state: queue status, system stats (VRAM), and recent logs for errors.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_b328a377395c4512ba7d06ad",
+          "function": {
+            "name": "get_queue",
+            "arguments": "{\"include_workflows\": true}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_e7d78439a13f4beea2569a51",
+          "function": {
+            "name": "get_system_stats",
+            "arguments": "{}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_9fae8183c1df46f2b142e5e3",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"max_lines\": 80, \"keyword\": \"error\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me gather the current state: queue status, system stats (VRAM), and recent logs for errors.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b328a377395c4512ba7d06ad",
+      "content": "{\n  \"running\": 0,\n  \"pending\": 0,\n  \"running_jobs\": [],\n  \"pending_jobs\": []\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e7d78439a13f4beea2569a51",
+      "content": "{\n  \"system\": {\n    \"os\": \"linux\",\n    \"ram_total\": 270071574528,\n    \"ram_free\": 213767962624,\n    \"comfyui_version\": \"0.27.0\",\n    \"required_frontend_version\": \"1.45.20\",\n    \"installed_templates_version\": \"0.11.1\",\n    \"required_templates_version\": \"0.11.1\",\n    \"comfy_package_versions\": [\n      {\n        \"name\": \"comfyui-frontend-package\",\n        \"installed\": \"1.45.20\",\n        \"required\": \"1.45.20\"\n      },\n      {\n        \"name\": \"comfyui-workflow-templates\",\n        \"installed\": \"0.11.1\",\n        \"required\": \"0.11.1\"\n      },\n      {\n        \"name\": \"comfyui-embedded-docs\",\n        \"installed\": \"0.5.6\",\n        \"required\": \"0.5.6\"\n      },\n      {\n        \"name\": \"comfy-kitchen\",\n        \"installed\": \"0.2.16\",\n        \"required\": \"0.2.16\"\n      },\n      {\n        \"name\": \"comfy-aimdo\",\n        \"installed\": \"0.4.10\",\n        \"required\": \"0.4.10\"\n      }\n    ],\n    \"python_version\": \"3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]\",\n    \"pytorch_version\": \"2.9.1+cu130\",\n    \"embedded_python\": false,\n    \"deploy_environment\": \"local-git\",\n    \"argv\": [\n      \"main.py\",\n      \"--listen\",\n      \"0.0.0.0\",\n      \"--port\",\n      \"3001\",\n      \"--enable-manager\",\n      \"--enable-cors-header\",\n      \"--use-sage-attention\",\n      \"--enable-triton-backend\",\n      \"--user-directory\",\n      \"/workspace/user\",\n      \"--input-directory\",\n      \"/workspace/input\",\n      \"--output-directory\",\n      \"/workspace/output\",\n      \"--extra-model-paths-config\",\n      \"/opt/ComfyUI/extra_model_paths.yaml\"\n    ]\n  },\n  \"devices\": [\n    {\n      \"name\": \"cuda:0 NVIDIA GeForce RTX 3090 : cudaMallocAsync\",\n      \"type\": \"cuda\",\n      \"index\": 0,\n      \"vram_total\": 25296044032,\n      \"vram_free\": 22766037502,\n      \"torch_vram_total\": 33554432,\n      \"torch_vram_free\": 23407102\n    }\n  ]\n}"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9fae8183c1df46f2b142e5e3",
+      "content": "2026-07-04T19:28:06.871122 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.871826 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.877636 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.878344 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.880715 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.881413 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.883770 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.884488 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.963196 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.963901 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.966138 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.966836 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.970635 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.971310 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.977112 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.977840 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.980322 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.981020 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.983395 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:06.984077 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.045927 - \r 83%|████████▎ | 25/30 [00:02<00:00, 10.03it/s]2026-07-04T19:28:07.062830 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.063540 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.065788 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.066505 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.070273 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.070955 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.076765 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.077469 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.079936 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.080632 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.082983 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.083675 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.162747 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.163469 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.165759 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.166460 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.170215 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.170930 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.176731 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.177429 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.179783 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.180473 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.182825 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.183514 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.245962 - \r 90%|█████████ | 27/30 [00:02<00:00, 10.00it/s]2026-07-04T19:28:07.262782 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.263507 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.265718 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.266424 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.270141 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.270839 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.276650 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.277360 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.279691 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.280393 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.282739 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.283451 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.362538 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.363238 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.365508 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.366195 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.369993 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.370690 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.376601 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.377292 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.379672 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.380381 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.382738 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.383454 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.445407 - \r 97%|█████████▋| 29/30 [00:02<00:00, 10.03it/s]2026-07-04T19:28:07.462238 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.462964 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.465179 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.465886 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.469644 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.470335 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.476170 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.476896 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.479241 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.479952 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.482304 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n2026-07-04T19:28:07.483009 - [ERROR] Error running sage attention: Unsupported head_dim: 160, using pytorch attention instead."
+    },
+    {
+      "role": "assistant",
+      "content": "Here's the full diagnostic picture:\n\n---\n\n## 📊 Current Status\n\n### Queue\nThe queue is **empty** — no jobs are running or pending. Whatever was stuck has already either completed or been cleared at some point.\n\n### GPU / VRAM\n| Metric | Value |\n|---|---|\n| GPU | NVIDIA RTX 3090 (24 GB) |\n| VRAM Free | **22.8 GB / 25.3 GB** — plenty of headroom |\n| System RAM | ~200 GB free |\n\n**VRAM is not the issue** — you have ~90% of GPU memory available.\n\n### Errors in Logs\nThe only errors are repeated **Sage Attention fallback** warnings:\n```\nError running sage attention: Unsupported head_dim: 160, using pytorch attention instead.\n```\nThis is **non-fatal** — ComfyUI is falling back to standard PyTorch attention because your model's head dimension (160) isn't supported by the SageAttention kernel. It still runs, just slightly slower. This explains why generation was slower than expected but shouldn't cause a 45-minute stall.\n\n---\n\n## 🛠️ Recommended Next Steps\n\n**1. Free up any residual cached models (clean slate):**",
+      "refusal": null,
+      "reasoning": "The queue is actually empty now — no running or pending jobs. The errors are all \"sage attention\" fallback warnings, not fatal. VRAM is fine (22.7 GB free of 25.3 GB). Let me clear VRAM and then help them re-run.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2263cdf63c62430ca8ec3bd8",
+          "function": {
+            "name": "clear_vram",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The queue is actually empty now — no running or pending jobs. The errors are all \"sage attention\" fallback warnings, not fatal. VRAM is fine (22.7 GB free of 25.3 GB). Let me clear VRAM and then help them re-run.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2263cdf63c62430ca8ec3bd8",
+      "content": "VRAM cleared successfully (models unloaded, memory freed).\n\nCurrent VRAM: 23760/24124 MB free | Torch: 23/32 MB free"
+    },
+    {
+      "role": "assistant",
+      "content": "VRAM is now fully cleared. Here's a summary of what happened and how to resume:\n\n---\n\n## 🔍 Root Cause Analysis\n\n1. **The job is no longer stuck** — the queue is empty. It likely either completed or was cleared manually/automatically at some point.\n2. **Sage Attention incompatibility** — Your model uses `head_dim=160`, which SageAttention doesn't support. ComfyUI falls back to PyTorch attention each time, generating dozens of warning log lines per step. This doesn't break anything but **does slow down each step** (you're paying the overhead of trying Sage, failing, and falling back on every attention layer).\n3. **VRAM is healthy** — You have ~23 GB free on your RTX 3090, so memory pressure wasn't the culprit.\n\n## ✅ To Resume Generation\n\nRe-enqueue your style-transfer workflow normally. Since the queue is clear, it will run immediately. \n\n**To speed things up**, consider one of these options:\n- **Disable Sage Attention**: Launch ComfyUI without `--use-sage-attention` to eliminate the fallback overhead\n- **Or ignore it**: The fallback works fine, it just logs loudly — the actual generation isn't meaningfully slower\n\nWould you like me to:\n- **Re-run a specific workflow** from your saved library? (I can list them if needed)\n- **Check a specific prompt_id** from a previous run to see its output?\n- **Help debug the style-transfer custom node** if you suspect it has its own issues?",
+      "refusal": null,
+      "reasoning": "Good, VRAM is now fully cleared. The user should now re-run their workflow. Let me give them the full picture.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Good, VRAM is now fully cleared. The user should now re-run their workflow. Let me give them the full picture.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

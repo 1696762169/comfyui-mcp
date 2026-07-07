@@ -1,0 +1,267 @@
+{
+  "model": "xiaomi/mimo-v2.5",
+  "task": "workflows-debugging-0005",
+  "verdict": "UNVERIFIED-OK",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ComfyUI expert agent. You control a ComfyUI server through the comfyui-mcp tool suite — call tools directly by name with JSON arguments that match their schemas exactly. Generation is asynchronous: after starting a job, poll get_job_status until it finishes before reporting results. Finish every task by actually running tools; never invent tool results or filenames.\n\nExpert operating notes: prefer the single high-level tool when one covers the task (generate_image over hand-building a graph); compose graphs yourself only when no template fits. Validate exact user-specified parameters (sizes, steps, checkpoints) make it into the executed graph. For multi-stage pipelines, feed a previous output forward with stage_output_as_input — never guess file paths. When a call fails, read the error, explain it briefly, and recover with a corrected call. Always report concrete identifiers (prompt_id, filenames) from tool results, never invented ones."
+    },
+    {
+      "role": "user",
+      "content": "I tried generating a 512x768 image with 30 steps using 'FluxDev.safetensors', but it failed right away. Investigate the workflow for missing nodes or incorrect settings, correct the model name to a valid one, and re-run it with the same parameters."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll investigate the failure by checking recent logs and listing available checkpoints to find the right model name. Let me gather info in parallel.",
+      "refusal": null,
+      "reasoning": "The user wants me to investigate a failed workflow. Let me start by checking the recent history/logs to understand what happened, and also list available checkpoints to find the correct model name.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_2a70e5a839db4e5e8f19f1c3",
+          "function": {
+            "name": "get_logs",
+            "arguments": "{\"keyword\": \"error\", \"max_lines\": 30}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 1,
+          "id": "call_40957140b5bf41a5849fd457",
+          "function": {
+            "name": "list_local_models",
+            "arguments": "{\"model_type\": \"checkpoints\"}"
+          }
+        },
+        {
+          "type": "function",
+          "index": 2,
+          "id": "call_b995641711c0498e977db252",
+          "function": {
+            "name": "get_history",
+            "arguments": "{}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The user wants me to investigate a failed workflow. Let me start by checking the recent history/logs to understand what happened, and also list available checkpoints to find the correct model name.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2a70e5a839db4e5e8f19f1c3",
+      "content": "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\Artokun\\\\ComfyUI-Installs\\\\ComfyUI\\\\ComfyUI\\\\custom_nodes\\\\comfyui-does-not-exist-99999\\\\__init__.py'\n2026-07-04T11:56:35.886475 - Error loading C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\custom_nodes\\ComfyUI-RMBG\\py\\AILab_SegmentV2.py: No module named 'groundingdino'2026-07-04T11:56:35.886511 - \n2026-07-04T11:56:35.909543 - Error loading C:\\Users\\Artokun\\ComfyUI-Installs\\ComfyUI\\ComfyUI\\custom_nodes\\ComfyUI-RMBG\\py\\AILab_SegmentV2.py: No module named 'groundingdino'2026-07-04T11:56:35.909578 - "
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_40957140b5bf41a5849fd457",
+      "content": "## checkpoints (3)\n- ltx-2.3-22b-dev.safetensors\n- sam3.1_multiplex_fp16.safetensors\n- v1-5-pruned-emaonly-fp16.safetensors\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b995641711c0498e977db252",
+      "content": "No execution history available."
+    },
+    {
+      "role": "assistant",
+      "content": "I found the problem. There are two issues:\n\n1. **No execution history** — the workflow failed before completing, likely because the model file doesn't exist.\n2. **`FluxDev.safetensors` is not installed** — your available checkpoints are:\n   - `ltx-2.3-22b-dev.safetensors` (video model)\n   - `sam3.1_multiplex_fp16.safetensors` (segmentation model)\n   - `v1-5-pruned-emaonly-fp16.safetensors` (SD 1.5 — the only general-purpose image generator)\n\nThe closest valid model for a standard txt2img run is **`v1-5-pruned-emaonly-fp16.safetensors`** (Stable Diffusion 1.5). Let me build and run the workflow with your parameters: 512×768, 30 steps.",
+      "refusal": null,
+      "reasoning": "The issue is clear:\n1. The user tried to use `FluxDev.safetensors` but that file doesn't exist on the server\n2. Available checkpoints are: `ltx-2.3-22b-dev.safetensors`, `sam3.1_multiplex_fp16.safetensors`, `v1-5-pruned-emaonly-fp16.safetensors`\n3. No history available, so I can't see the exact workflow that failed\n\nNone of these are Flux Dev. The closest SD/SDXL model would be `v1-5-pruned-emaonly-fp16.safetensors` (SD 1.5). But the user specifically wants to use FluxDev. Let me check if there's a way to get it, or I should use what's available.\n\nActually, the user said \"correct the model name to a valid one\" — meaning they want me to find a valid checkpoint from the available ones. The closest to a general-purpose text-to-image model here is `v1-5-pruned-emaonly-fp16.safetensors` (SD 1.5). But the user was trying to use FluxDev...\n\nLet me try a different approach. I could search HuggingFace for FluxDev and download it. But that might be too large. Let me just use one of the available checkpoints.\n\nActually, re-reading: \"correct the model name to a valid one, and re-run it with the same parameters.\" - The user wants me to use a valid checkpoint from what's available. Since they want 512x768 with 30 steps, `v1-5-pruned-emaonly-fp16.safetensors` is the most appropriate (standard txt2img model).\n\nLet me create and run the workflow with that checkpoint.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_5c4bac0c0bbf4c1880369b81",
+          "function": {
+            "name": "create_workflow",
+            "arguments": "{\"template\": \"txt2img\", \"params\": {\"checkpoint\": \"v1-5-pruned-emaonly-fp16.safetensors\", \"width\": 512, \"height\": 768, \"steps\": 30}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The issue is clear:\n1. The user tried to use `FluxDev.safetensors` but that file doesn't exist on the server\n2. Available checkpoints are: `ltx-2.3-22b-dev.safetensors`, `sam3.1_multiplex_fp16.safetensors`, `v1-5-pruned-emaonly-fp16.safetensors`\n3. No history available, so I can't see the exact workflow that failed\n\nNone of these are Flux Dev. The closest SD/SDXL model would be `v1-5-pruned-emaonly-fp16.safetensors` (SD 1.5). But the user specifically wants to use FluxDev. Let me check if there's a way to get it, or I should use what's available.\n\nActually, the user said \"correct the model name to a valid one\" — meaning they want me to find a valid checkpoint from the available ones. The closest to a general-purpose text-to-image model here is `v1-5-pruned-emaonly-fp16.safetensors` (SD 1.5). But the user was trying to use FluxDev...\n\nLet me try a different approach. I could search HuggingFace for FluxDev and download it. But that might be too large. Let me just use one of the available checkpoints.\n\nActually, re-reading: \"correct the model name to a valid one, and re-run it with the same parameters.\" - The user wants me to use a valid checkpoint from what's available. Since they want 512x768 with 30 steps, `v1-5-pruned-emaonly-fp16.safetensors` is the most appropriate (standard txt2img model).\n\nLet me create and run the workflow with that checkpoint.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5c4bac0c0bbf4c1880369b81",
+      "content": "{\n  \"1\": {\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"inputs\": {\n      \"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"\n    }\n  },\n  \"2\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"1\",\n        1\n      ]\n    },\n    \"_meta\": {\n      \"title\": \"Positive Prompt\"\n    }\n  },\n  \"3\": {\n    \"class_type\": \"CLIPTextEncode\",\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"1\",\n        1\n      ]\n    },\n    \"_meta\": {\n      \"title\": \"Negative Prompt\"\n    }\n  },\n  \"4\": {\n    \"class_type\": \"EmptyLatentImage\",\n    \"inputs\": {\n      \"width\": 512,\n      \"height\": 768,\n      \"batch_size\": 1\n    }\n  },\n  \"5\": {\n    \"class_type\": \"KSampler\",\n    \"inputs\": {\n      \"model\": [\n        \"1\",\n        0\n      ],\n      \"positive\": [\n        \"2\",\n        0\n      ],\n      \"negative\": [\n        \"3\",\n        0\n      ],\n      \"latent_image\": [\n        \"4\",\n        0\n      ],\n      \"seed\": 21497982116218,\n      \"steps\": 30,\n      \"cfg\": 8,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"normal\",\n      \"denoise\": 1\n    }\n  },\n  \"6\": {\n    \"class_type\": \"VAEDecode\",\n    \"inputs\": {\n      \"samples\": [\n        \"5\",\n        0\n      ],\n      \"vae\": [\n        \"1\",\n        2\n      ]\n    }\n  },\n  \"7\": {\n    \"class_type\": \"SaveImage\",\n    \"inputs\": {\n      \"images\": [\n        \"6\",\n        0\n      ],\n      \"filename_prefix\": \"ComfyUI\"\n    }\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "Good — the workflow is built. Let me validate it and then enqueue it.",
+      "refusal": null,
+      "reasoning": "The workflow looks good. The prompts are empty but that's fine since the user didn't specify one. Let me validate it and then enqueue it.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_4ffdc2d93fc944b487da85aa",
+          "function": {
+            "name": "validate_workflow",
+            "arguments": "{\"workflow\": \"{\\\"1\\\": {\\\"class_type\\\": \\\"CheckpointLoaderSimple\\\", \\\"inputs\\\": {\\\"ckpt_name\\\": \\\"v1-5-pruned-emaonly-fp16.safetensors\\\"}}, \\\"2\\\": {\\\"class_type\\\": \\\"CLIPTextEncode\\\", \\\"inputs\\\": {\\\"text\\\": \\\"\\\", \\\"clip\\\": [\\\"1\\\", 1]}, \\\"_meta\\\": {\\\"title\\\": \\\"Positive Prompt\\\"}}, \\\"3\\\": {\\\"class_type\\\": \\\"CLIPTextEncode\\\", \\\"inputs\\\": {\\\"text\\\": \\\"\\\", \\\"clip\\\": [\\\"1\\\", 1]}, \\\"_meta\\\": {\\\"title\\\": \\\"Negative Prompt\\\"}}, \\\"4\\\": {\\\"class_type\\\": \\\"EmptyLatentImage\\\", \\\"inputs\\\": {\\\"width\\\": 512, \\\"height\\\": 768, \\\"batch_size\\\": 1}}, \\\"5\\\": {\\\"class_type\\\": \\\"KSampler\\\", \\\"inputs\\\": {\\\"model\\\": [\\\"1\\\", 0], \\\"positive\\\": [\\\"2\\\", 0], \\\"negative\\\": [\\\"3\\\", 0], \\\"latent_image\\\": [\\\"4\\\", 0], \\\"seed\\\": 21497982116218, \\\"steps\\\": 30, \\\"cfg\\\": 8, \\\"sampler_name\\\": \\\"euler\\\", \\\"scheduler\\\": \\\"normal\\\", \\\"denoise\\\": 1}}, \\\"6\\\": {\\\"class_type\\\": \\\"VAEDecode\\\", \\\"inputs\\\": {\\\"samples\\\": [\\\"5\\\", 0], \\\"vae\\\": [\\\"1\\\", 2]}}, \\\"7\\\": {\\\"class_type\\\": \\\"SaveImage\\\", \\\"inputs\\\": {\\\"images\\\": [\\\"6\\\", 0], \\\"filename_prefix\\\": \\\"ComfyUI\\\"}}}\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The workflow looks good. The prompts are empty but that's fine since the user didn't specify one. Let me validate it and then enqueue it.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_4ffdc2d93fc944b487da85aa",
+      "content": "## Workflow is valid\n\nNo issues found. The workflow is ready to execute."
+    },
+    {
+      "role": "assistant",
+      "content": "Validation passed. Now let me enqueue it.",
+      "refusal": null,
+      "reasoning": "Workflow is valid. Let me enqueue it now.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_6acbe3d5fc5a421593a966d7",
+          "function": {
+            "name": "enqueue_workflow",
+            "arguments": "{\"workflow\": {\"1\": {\"class_type\": \"CheckpointLoaderSimple\", \"inputs\": {\"ckpt_name\": \"v1-5-pruned-emaonly-fp16.safetensors\"}}, \"2\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"\", \"clip\": [\"1\", 1]}, \"_meta\": {\"title\": \"Positive Prompt\"}}, \"3\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"\", \"clip\": [\"1\", 1]}, \"_meta\": {\"title\": \"Negative Prompt\"}}, \"4\": {\"class_type\": \"EmptyLatentImage\", \"inputs\": {\"width\": 512, \"height\": 768, \"batch_size\": 1}}, \"5\": {\"class_type\": \"KSampler\", \"inputs\": {\"model\": [\"1\", 0], \"positive\": [\"2\", 0], \"negative\": [\"3\", 0], \"latent_image\": [\"4\", 0], \"seed\": 21497982116218, \"steps\": 30, \"cfg\": 8, \"sampler_name\": \"euler\", \"scheduler\": \"normal\", \"denoise\": 1}}, \"6\": {\"class_type\": \"VAEDecode\", \"inputs\": {\"samples\": [\"5\", 0], \"vae\": [\"1\", 2]}}, \"7\": {\"class_type\": \"SaveImage\", \"inputs\": {\"images\": [\"6\", 0], \"filename_prefix\": \"ComfyUI\"}}}}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Workflow is valid. Let me enqueue it now.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_6acbe3d5fc5a421593a966d7",
+      "content": "{\n  \"status\": \"enqueued\",\n  \"prompt_id\": \"fc610a01-ec43-4935-a620-12762c4b1aa3\"\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "The job is enqueued. Let me poll until it finishes.",
+      "refusal": null,
+      "reasoning": "Good, the job is enqueued. Let me poll for completion.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_e5e818ec38334f39ab2613ca",
+          "function": {
+            "name": "get_job_status",
+            "arguments": "{\"prompt_id\": \"fc610a01-ec43-4935-a620-12762c4b1aa3\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Good, the job is enqueued. Let me poll for completion.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_e5e818ec38334f39ab2613ca",
+      "content": "{\n  \"running\": false,\n  \"pending\": false,\n  \"done\": true,\n  \"status_str\": \"success\",\n  \"execution_stats\": {\n    \"total_duration_ms\": 2879,\n    \"nodes\": {}\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "It completed successfully in ~2.9 seconds. Let me grab the output.",
+      "refusal": null,
+      "reasoning": "The job completed successfully. Let me get the output image details.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_5d43bb99aec84b45b0a55f44",
+          "function": {
+            "name": "get_history",
+            "arguments": "{\"prompt_id\": \"fc610a01-ec43-4935-a620-12762c4b1aa3\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The job completed successfully. Let me get the output image details.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_5d43bb99aec84b45b0a55f44",
+      "content": "## Execution: fc610a01-ec43-4935-a620-12762c4b1aa3\n**Status**: success | Completed: true\n**Duration**: 2.88s\n\n### Outputs (1 nodes)\n- Node 7: images → **ComfyUI_01160_.png**"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "reasoning": "Let me fetch the image to show the user.",
+      "tool_calls": [
+        {
+          "type": "function",
+          "index": 0,
+          "id": "call_ec1ff452c600434cbe3bd8a3",
+          "function": {
+            "name": "get_image",
+            "arguments": "{\"filename\": \"ComfyUI_01160_.png\"}"
+          }
+        }
+      ],
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "Let me fetch the image to show the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ec1ff452c600434cbe3bd8a3",
+      "content": "Saved to: C:\\Users\\Artokun\\code\\comfyui-mcp\\ComfyUI_01160_.png"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's what I found and fixed:\n\n---\n\n### 🔍 Root Cause\nYour original workflow used **`FluxDev.safetensors`** which **does not exist** on this server. The error would have been a missing checkpoint file. Your installed checkpoints are:\n\n| Checkpoint | Purpose |\n|---|---|\n| `v1-5-pruned-emaonly-fp16.safetensors` | **Text-to-image** (SD 1.5) ✅ |\n| `ltx-2.3-22b-dev.safetensors` | Video generation |\n| `sam3.1_multiplex_fp16.safetensors` | Segmentation |\n\n### ✅ Fix Applied\nReplaced `FluxDev.safetensors` → **`v1-5-pruned-emaonly-fp16.safetensors`** (the only general-purpose image model installed) and re-ran with your exact parameters.\n\n### 📋 Executed Workflow\n| Parameter | Value |\n|---|---|\n| Checkpoint | `v1-5-pruned-emaonly-fp16.safetensors` |\n| Resolution | 512 × 768 |\n| Steps | 30 |\n| Sampler | euler / normal |\n| CFG | 8 |\n| **Prompt** | *(empty — you can re-run with a text prompt via `regenerate`)* |\n\n### 🖼️ Result\n- **`ComfyUI_01160_.png`** — completed in **2.88s**\n\n> **Note:** The positive prompt was empty since none was specified. If you'd like to add a prompt and re-run, just let me know!",
+      "refusal": null,
+      "reasoning": "The image was generated. Let me present the results to the user.",
+      "reasoning_details": [
+        {
+          "type": "reasoning.text",
+          "text": "The image was generated. Let me present the results to the user.",
+          "format": "unknown",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}
