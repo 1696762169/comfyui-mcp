@@ -50,6 +50,7 @@ import { startPanelMcpHttpServer, type PanelMcpHttpServer } from "./panel-mcp-ht
 import type { AgentBackend } from "./agent-backend.js";
 import { readComfyuiCrashLog, formatCrashNote } from "../services/crash-log.js";
 import { QueueMonitor, type StallReport } from "../services/queue-monitor.js";
+import { unloadAllOllama, warmOllama, resolveOllamaHost } from "../services/ollama-vram.js";
 import { getAgentSettings, setAgentSettings } from "../services/panel-settings.js";
 import {
   gatherEnvCapabilities,
@@ -1214,6 +1215,55 @@ export async function runPanelOrchestrator(): Promise<void> {
   // spawned after a ComfyUI restart/reconnect.
   liveManager = manager;
 
+  // ── Local-agent VRAM pause during generation ────────────────────────────
+  // On a single-GPU box the local Ollama chat model and ComfyUI fight for VRAM:
+  // a resident model can OOM a render, and a chat sent mid-render reloads the
+  // model on top of the running generation. So while a render is in flight we
+  // (a) unload the local model to free its VRAM, and (b) HOLD any chat the user
+  // sends and answer it once the render finishes (warming the model back). Only
+  // for the LOCAL ollama dialect (hosted openai endpoints don't touch local
+  // VRAM); default on, opt out with COMFYUI_MCP_OLLAMA_PAUSE_ON_GEN=0.
+  const pauseLocalDuringGen = process.env.COMFYUI_MCP_OLLAMA_PAUSE_ON_GEN !== "0";
+  const anyLocalOllama = (): boolean =>
+    ollamaApi === "ollama" &&
+    (defaultBackend === "ollama" || [...tabBackends.values()].includes("ollama"));
+  // agentKey -> messages held while a render runs (flushed on render end).
+  const heldDuringGen = new Map<string, Array<{ text: string; opts: Record<string, unknown> }>>();
+  let genPauseActive = false;
+  if (pauseLocalDuringGen) {
+    QueueMonitor.setTransitionHandlers({
+      onRunStart: () => {
+        if (!anyLocalOllama()) return;
+        genPauseActive = true;
+        // Free the local model's VRAM for the render (best-effort, fire-and-forget).
+        void unloadAllOllama(resolveOllamaHost());
+      },
+      onRunEnd: () => {
+        if (!genPauseActive) return;
+        genPauseActive = false;
+        const hadHeld = [...heldDuringGen.values()].some((a) => a.length > 0);
+        // If nothing was queued, proactively warm the model so the next chat is
+        // instant ("ready to chat"). If messages ARE queued, sending them below
+        // loads the model itself — no separate warm needed.
+        if (anyLocalOllama() && !hadHeld) void warmOllama(resolveOllamaHost(), ollamaModel);
+        for (const [key, msgs] of heldDuringGen) {
+          const tabId = panelTabOf(key);
+          if (msgs.length > 0) {
+            bridge.push(
+              { type: "say", text: "✅ Render finished — the local agent is back. Answering your queued message now." },
+              tabId,
+            );
+          }
+          for (const m of msgs) {
+            bridge.push({ type: "turn", state: "working" }, tabId);
+            manager.send(key, m.text, m.opts);
+          }
+        }
+        heldDuringGen.clear();
+      },
+    });
+  }
+
   // Retarget the live ComfyUI from the panel's `hello.comfyui_url` (the URL the
   // browser was SERVED FROM — window.location). This is what lets a bare
   // `--panel-orchestrator` (booted on the localhost default) auto-point at whatever
@@ -1896,11 +1946,37 @@ export async function runPanelOrchestrator(): Promise<void> {
         ? ((event as { context?: string }).context as string).trim()
         : "";
     if (replay) outText = `${replay}\n\n${outText}`;
-    manager.send(agentKeyFor(event.tab_id), outText, {
+    const sendOpts = {
       title: event.title,
       images: (event as { images?: Array<{ filename: string; subfolder?: string; type?: string }> }).images,
       mid: userMid,
-    });
+    };
+    // Local-agent VRAM pause: if this tab runs the local Ollama model AND a
+    // render is in flight, DON'T run the turn now — that would reload the model
+    // on top of the generation (VRAM contention / OOM). Hold it and answer when
+    // the render finishes (onRunEnd flushes the queue + warms the model).
+    if (
+      pauseLocalDuringGen &&
+      ollamaApi === "ollama" &&
+      backendForTab(event.tab_id) === "ollama" &&
+      QueueMonitor.isBusy()
+    ) {
+      const key = agentKeyFor(event.tab_id);
+      const arr = heldDuringGen.get(key) ?? [];
+      arr.push({ text: outText, opts: sendOpts });
+      heldDuringGen.set(key, arr);
+      genPauseActive = true; // ensure the end transition flushes even if start was missed
+      bridge.push(
+        {
+          type: "say",
+          text: "⏸ A render is running, so I've kept the GPU free for it and queued your message. I'll answer the moment it finishes.",
+        },
+        event.tab_id,
+      );
+      bridge.push({ type: "turn", state: "idle" }, event.tab_id); // clear the working spinner
+      return;
+    }
+    manager.send(agentKeyFor(event.tab_id), outText, sendOpts);
   };
 
   // ---- Download-progress watcher ----

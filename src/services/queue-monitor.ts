@@ -66,6 +66,13 @@ class QueueMonitorImpl {
   private url: string | null = null;
   private stopped = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  // Generation start/end transition hooks (for the Ollama VRAM pause). Fired on
+  // the idle→running edge and the running→idle edge, best-effort (a throwing
+  // handler must never break the monitor). `busy` is our own edge-tracking flag,
+  // distinct from runningPromptId (which flips null between backlogged prompts).
+  private busy = false;
+  private onRunStart: (() => void) | null = null;
+  private onRunEnd: (() => void) | null = null;
   private state: MonitorState = {
     connected: false,
     runningPromptId: null,
@@ -82,6 +89,43 @@ class QueueMonitorImpl {
     this.url = comfyuiUrl;
     this.stopped = false;
     this.connect();
+  }
+
+  /** Register generation-transition handlers (idempotent overwrite). Called by
+   *  the orchestrator to unload/warm the local Ollama model around renders. */
+  setTransitionHandlers(h: { onRunStart?: () => void; onRunEnd?: () => void }): void {
+    this.onRunStart = h.onRunStart ?? null;
+    this.onRunEnd = h.onRunEnd ?? null;
+  }
+
+  private emitStart(): void {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      this.onRunStart?.();
+    } catch (err) {
+      logger.debug(`[queue-monitor] onRunStart threw: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private emitEndIfIdle(): void {
+    // Only truly idle when nothing is running AND the queue is drained — between
+    // backlogged prompts runningPromptId briefly clears but queueRemaining stays
+    // positive, and we must NOT warm the model just to unload it again.
+    if (!this.busy) return;
+    if (this.state.runningPromptId !== null) return;
+    if (this.state.queueRemaining > 0) return;
+    this.busy = false;
+    try {
+      this.onRunEnd?.();
+    } catch (err) {
+      logger.debug(`[queue-monitor] onRunEnd threw: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Is a generation currently in flight (edge-tracked)? */
+  isBusy(): boolean {
+    return this.busy;
   }
 
   stop(): void {
@@ -171,7 +215,12 @@ class QueueMonitorImpl {
         const status = data.status as Record<string, unknown> | undefined;
         const execInfo = status?.exec_info as Record<string, unknown> | undefined;
         const qr = execInfo?.queue_remaining;
-        if (typeof qr === "number") this.state.queueRemaining = qr;
+        if (typeof qr === "number") {
+          this.state.queueRemaining = qr;
+          // A status frame arriving with an empty queue after a run is the
+          // authoritative "fully idle" signal — flush a pending end transition.
+          if (qr === 0) this.emitEndIfIdle();
+        }
         break;
       }
       case "execution_start": {
@@ -180,6 +229,7 @@ class QueueMonitorImpl {
         this.state.progressValue = null;
         this.state.progressMax = null;
         this.touchActivity();
+        this.emitStart();
         break;
       }
       case "executing": {
@@ -187,6 +237,7 @@ class QueueMonitorImpl {
         if (node === null || node === undefined) {
           // ComfyUI sends node:null at the end of a prompt's execution.
           this.clearRunning();
+          this.emitEndIfIdle();
         } else {
           const n = String(node);
           if (n !== this.state.currentNode) this.touchActivity(); // a new node = real progress
@@ -210,6 +261,7 @@ class QueueMonitorImpl {
       case "execution_error":
       case "execution_interrupted": {
         this.clearRunning();
+        this.emitEndIfIdle();
         break;
       }
       default:
