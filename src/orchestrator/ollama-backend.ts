@@ -13,6 +13,8 @@
 //   panel_list_tools / panel_describe_tool / panel_call_tool — synthesized
 //     here over the orchestrator's loopback panel HTTP MCP (live-graph tools)
 import { randomUUID } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { logger } from "../utils/logger.js";
 import type {
   AgentBackend,
@@ -54,7 +56,14 @@ export interface OllamaBackendDeps {
   mcpServers?: Record<string, GeminiMcpServerSpec>;
   /** Panel system prompt (persona), prepended to the system message. */
   systemAppend?: string;
-  /** Context window tokens for /api/chat options.num_ctx (default 16384). */
+  /** Context window tokens for /api/chat options.num_ctx. Default is
+   *  MODEL-AWARE: for our fine-tune (artokun/gemma4-comfyui-mcp:*) num_ctx is
+   *  OMITTED so the tag's baked Modelfile window (65536) governs — request
+   *  options override Modelfile params, and a blanket 16384 here silently
+   *  clamped the fine-tune and truncated conversations mid-flight. Stock
+   *  models keep 16384 (their tags bake no window and Ollama's own default is
+   *  4096). Env COMFYUI_MCP_OLLAMA_NUM_CTX overrides everything — the
+   *  architecture allows up to 128K (e2b/e4b) / 256K (12b), VRAM permitting. */
   numCtx?: number;
   /** Test seam: replaces the MCP client construction from mcpServers specs. */
   connectToolClients?: () => Promise<{ comfyui?: McpToolClient; panel?: McpToolClient }>;
@@ -105,14 +114,18 @@ function toOpenAiMessages(messages: ChatMessage[]): Array<Record<string, unknown
   });
 }
 
-// The LLM Arena's best performer (scripts/llm-arena.mjs): 9/10, cleanest runs.
-const DEFAULT_MODEL = "gemma4:e4b";
+// Our FINE-TUNED gemma4 — QLoRA-trained on 1055 server-verified comfyui-mcp
+// trajectories over the full 178-tool surface (hf.co/artokun/gemma4-comfyui-mcp),
+// so it knows this exact tool suite natively. Supersedes stock gemma4:e4b (the
+// previous arena best, 9/10). Ladder: :e2b ~2 GB VRAM at q4 / :e4b ~3.5 GB
+// (default) / :12b ~8 GB — `ollama pull artokun/gemma4-comfyui-mcp:<size>`.
+const DEFAULT_MODEL = "artokun/gemma4-comfyui-mcp:e4b";
 const MAX_TOOL_ROUNDS = 32;
 
 /**
  * The Ollama system prompt REPLACES the frontier panel prompt: that one is
  * thousands of tokens and instructs the agent to call dozens of tools BY NAME
- * (panel_get_graph, list_packs, …) that don't exist on this backend's 6-tool
+ * (panel_query_graph, list_packs, …) that don't exist on this backend's 6-tool
  * router — a small model obeys it, hits "unknown tool", and gives up. This one
  * is short, router-shaped, and (deliberately, for local models) does NOT carry
  * the NSFW consent-gate flow — only the absolute hard limits.
@@ -127,9 +140,31 @@ const OLLAMA_SYSTEM_PROMPT = [
   "Rules:",
   "- Catalog entries are tool NAMES, not data. Finish every task by actually running tools; never invent results.",
   "- Describe a tool before its first call so you use the right parameters. If a call errors, read the error — it includes the expected schema — fix the args and retry.",
+  "- To read the user's graph, ALWAYS start with panel_graph_outline (a compact text map) via panel_call_tool. For specifics use panel_query_graph — filter by types/where ('cfg>7'), traverse upstream_of/downstream_of, or read ONE node's exact detail with {ids:[id], fields:'detail'}. Its output is token-bounded, so it can never flood your context.",
   "- To see or show any generated image/video, run the panel_show_media tool via panel_call_tool.",
   "- Workflows with API nodes cost the user PAID credits; local-GPU workflows are free. Ask before anything that might spend credits.",
 ].join("\n");
+
+/**
+ * Curated OpenRouter models that top the comfyui-mcp LLM Arena on the full tool
+ * surface — surfaced at the TOP of the openai-mode picker so users don't have
+ * to dig them out of OpenRouter's 300+ catalog. ToS-open where noted (these are
+ * also the fine-tune teachers). The label carries context-window and tier hints
+ * the picker shows verbatim; `context1m` marks the 1M-context models that get
+ * the full tool surface + SOTA prompt with room to spare.
+ */
+export interface RecommendedModel {
+  id: string;
+  label: string;
+  context1m?: boolean;
+}
+export const RECOMMENDED_OPENROUTER_MODELS: readonly RecommendedModel[] = [
+  { id: "xiaomi/mimo-v2.5", label: "MiMo v2.5 (1M · SOTA · open)", context1m: true },
+  { id: "minimax/minimax-m3", label: "MiniMax M3 (1M · SOTA · open)", context1m: true },
+  { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5 (SOTA · open)" },
+  { id: "z-ai/glm-5.1", label: "GLM 5.1 (SOTA · open)" },
+  { id: "deepseek/deepseek-v3.2", label: "DeepSeek v3.2 (open)" },
+];
 
 function msgOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -193,6 +228,26 @@ export class OllamaBackend implements AgentBackend {
     return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {};
   }
 
+  /** True for our fine-tuned ladder (artokun/gemma4-comfyui-mcp:*), whose
+   *  Ollama tags bake num_ctx 65536 into the Modelfile. */
+  private isFinetune(): boolean {
+    return this.model.includes("gemma4-comfyui-mcp");
+  }
+
+  /** num_ctx to SEND (0 = omit and let the Modelfile govern). Precedence:
+   *  deps.numCtx (settings) → COMFYUI_MCP_OLLAMA_NUM_CTX env → model-aware
+   *  default (fine-tune: omit → baked 65536; stock: 16384). */
+  private effectiveNumCtx(): number {
+    const envCtx = Number(process.env.COMFYUI_MCP_OLLAMA_NUM_CTX) || 0;
+    return this.deps.numCtx ?? (envCtx > 0 ? envCtx : this.isFinetune() ? 0 : 16384);
+  }
+
+  /** The context window actually in effect (for pressure warnings): the sent
+   *  num_ctx, or the fine-tune's baked 65536 when we omit it. */
+  private contextWindow(): number {
+    return this.effectiveNumCtx() || 65536;
+  }
+
   async prepare(): Promise<void> {
     if (this.disposed) throw new Error("ollama backend is closed.");
     if (this.prepared) return;
@@ -214,7 +269,7 @@ export class OllamaBackend implements AgentBackend {
       throw new Error(
         this.api === "openai"
           ? `The OpenAI-compatible endpoint at ${this.host} is not reachable or rejected the key (${msgOf(err)}).`
-          : `Ollama is not reachable at ${this.host} (${msgOf(err)}). Start it with \`ollama serve\` (install: https://ollama.com/download) and pull a tool-calling model, e.g. \`ollama pull ${this.model}\`.`,
+          : `Ollama is not reachable at ${this.host} (${msgOf(err)}). Start it with \`ollama serve\` (install: https://ollama.com/download), then \`ollama pull ${this.model}\` — our gemma4 fine-tuned on the comfyui-mcp tool suite (free, runs locally; \`:e2b\` fits ~2 GB VRAM, \`:e4b\` ~3.5 GB, \`:12b\` ~8 GB).`,
       );
     }
     await this.connectTools();
@@ -439,6 +494,15 @@ export class OllamaBackend implements AgentBackend {
                 // 65k, which both invites runaways and 402s on low prepaid
                 // balances (the request reserves credits for max_tokens).
                 max_tokens: Number(process.env.COMFYUI_MCP_OLLAMA_MAX_TOKENS) || 8192,
+                // Pin temperature for tool precision — the project's recipe
+                // everywhere else (arena, GGUF validation, the Ollama tags'
+                // Modelfiles all run temp 0). Endpoints with no server-side
+                // default (LM Studio serving a raw GGUF) otherwise sample at
+                // ~0.8, where small models nondeterministically emit an EMPTY
+                // final message after tool results (found live on e2b).
+                temperature: process.env.COMFYUI_MCP_OLLAMA_TEMPERATURE
+                  ? Number(process.env.COMFYUI_MCP_OLLAMA_TEMPERATURE)
+                  : 0,
               }),
               signal,
             })
@@ -450,7 +514,9 @@ export class OllamaBackend implements AgentBackend {
                 messages,
                 tools,
                 stream: true,
-                options: { num_ctx: this.deps.numCtx ?? 16384 },
+                // See OllamaBackendDeps.numCtx: omit for our fine-tune so the
+                // tag's baked 65536 window governs instead of clamping it.
+                options: this.effectiveNumCtx() ? { num_ctx: this.effectiveNumCtx() } : {},
               }),
               signal,
             });
@@ -520,6 +586,16 @@ export class OllamaBackend implements AgentBackend {
             input_tokens: chunk.prompt_eval_count ?? 0,
             output_tokens: chunk.eval_count ?? 0,
           };
+          // Context-pressure telltale: when the prompt fills ≥85% of the
+          // window, the NEXT turn will likely truncate history silently (the
+          // model "forgets" the conversation with no error anywhere). Surface
+          // it in the orchestrator log so the swamp is diagnosable.
+          const win = this.contextWindow();
+          if (usage.input_tokens >= win * 0.85) {
+            logger.warn(
+              `[ollama-backend] context ${usage.input_tokens}/${win} tokens (${Math.round((usage.input_tokens / win) * 100)}%) — history truncation imminent. Raise COMFYUI_MCP_OLLAMA_NUM_CTX (arch supports 128K on :e2b/:e4b, 256K on :12b, VRAM permitting) or start a fresh chat.`,
+            );
+          }
         }
       }
     }
@@ -644,6 +720,14 @@ export class OllamaBackend implements AgentBackend {
     this.history.push({ role: "user", content: turn.text });
 
     let resultEmitted = false;
+    // Loop-breaker: small models (especially stock ones) can wedge into
+    // re-issuing the SAME tool call verbatim for dozens of rounds (field:
+    // 30+ identical list_tools searches hunting a pack name). Track exact
+    // (name, args) repeats per turn: 2nd+ identical call is blocked with a
+    // corrective tool result instead of dispatched; at 4 repeats the turn is
+    // ended outright.
+    const seenCalls = new Map<string, number>();
+    let maxRepeats = 0;
     try {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         // Drain the chat stream manually: yield each delta event as it arrives,
@@ -663,6 +747,10 @@ export class OllamaBackend implements AgentBackend {
         }
 
         if (!toolCalls.length) {
+          // Record the final answer in history too — without this, the NEXT
+          // turn's context is missing the model's own previous replies (and
+          // the transcript dump ends mid-conversation on a tool message).
+          this.history.push({ role: "assistant", content });
           yield { type: "assistant", text: content, id: streamId ?? undefined, usage };
           yield { type: "result", ok: true, usage };
           resultEmitted = true;
@@ -673,8 +761,26 @@ export class OllamaBackend implements AgentBackend {
         for (const [i, tc] of toolCalls.entries()) {
           if (abort.signal.aborted) throw new Error("interrupted");
           const name = tc.function?.name ?? "?";
+          const args = tc.function?.arguments ?? {};
+          const callKey = `${name}:${typeof args === "string" ? args : JSON.stringify(args)}`;
+          const repeats = (seenCalls.get(callKey) ?? 0) + 1;
+          seenCalls.set(callKey, repeats);
+          maxRepeats = Math.max(maxRepeats, repeats);
           yield { type: "tool_call", name, phase: "start", detail: tc.function?.arguments };
-          const { text, isError } = await this.dispatch(name, tc.function?.arguments ?? {});
+          const { text, isError } =
+            repeats >= 2
+              ? {
+                  // Every emitted tool_call still needs a paired tool result
+                  // (the wire format breaks otherwise) — answer the repeat
+                  // with a corrective nudge instead of re-running it.
+                  text:
+                    `REPEAT CALL BLOCKED: you already called ${name} with these exact arguments this turn — the result has not changed. ` +
+                    `Do not call it again. Use the earlier result, or try DIFFERENT arguments or a different tool. ` +
+                    `Model families like krea2 / qwen-image-edit / wan / ltxv are installer PACKS, not tools: call_tool {"name":"list_packs"} to find them, then load one. ` +
+                    `If you are stuck, tell the user what you found and ask how to proceed.`,
+                  isError: true,
+                }
+              : await this.dispatch(name, args);
           opts.onActivity?.();
           yield { type: "tool_call", name, phase: "end", detail: { isError } };
           this.history.push({
@@ -683,6 +789,16 @@ export class OllamaBackend implements AgentBackend {
             tool_call_id: tc.id ?? `call_${i}`,
             content: text.slice(0, 16000),
           });
+        }
+        if (maxRepeats >= 4) {
+          logger.warn(`[ollama-backend] tool loop broken: a call repeated ${maxRepeats}x this turn (${this.model})`);
+          yield {
+            type: "assistant",
+            text: "(stopped: I kept repeating the same tool call without progress. Try rephrasing the request — and if you're on a stock model, switch to `artokun/gemma4-comfyui-mcp:e4b`, which knows this tool suite.)",
+          };
+          yield { type: "result", ok: false, subtype: "tool_loop" };
+          resultEmitted = true;
+          return;
         }
       }
       // Round budget exhausted — commit what we have so the turn gate advances.
@@ -709,6 +825,27 @@ export class OllamaBackend implements AgentBackend {
       }
     } finally {
       if (this.turnAbort === abort) this.turnAbort = null;
+      this.dumpTranscript();
+    }
+  }
+
+  /**
+   * Fine-tune datagen hook: when COMFYUI_MCP_TRANSCRIPT_DIR is set, snapshot
+   * the session's OpenAI-shaped message history after every turn (overwrite —
+   * the last write holds the whole conversation). Off in normal operation;
+   * consumed by scripts/panel-arena.mjs to harvest training trajectories.
+   */
+  private dumpTranscript(): void {
+    const dir = process.env.COMFYUI_MCP_TRANSCRIPT_DIR;
+    if (!dir) return;
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, `${this.sessionId ?? "session"}.json`),
+        JSON.stringify({ model: this.model, messages: this.history }, null, 2),
+      );
+    } catch (err) {
+      logger.warn(`[ollama-backend] transcript dump failed: ${msgOf(err)}`);
     }
   }
 
@@ -731,10 +868,27 @@ export class OllamaBackend implements AgentBackend {
         if (!res.ok) return [{ id: this.model, label: this.model }];
         const data = (await res.json()) as { data?: Array<{ id?: string }> };
         const ids = (data.data ?? []).map((m) => m.id).filter((n): n is string => !!n);
-        // Hosted catalogs can be huge (OpenRouter: 300+). Surface the configured
-        // model first, then a bounded slice — the panel picker isn't a browser.
-        const rest = ids.filter((id) => id !== this.model).slice(0, 40);
-        return [this.model, ...rest].map((id) => ({ id, label: id }));
+        const available = new Set(ids);
+        // Curated arena winners first (only those the endpoint actually serves),
+        // with their context/tier labels; then the configured model; then a
+        // bounded slice of the rest — OpenRouter's 300+ catalog isn't a browser.
+        const recommended = RECOMMENDED_OPENROUTER_MODELS.filter((m) => available.has(m.id));
+        const recIds = new Set(recommended.map((m) => m.id));
+        const rest = ids.filter((id) => id !== this.model && !recIds.has(id)).slice(0, 40);
+        // llama-server reports its single model as the GGUF's FILE PATH —
+        // keep the id verbatim (the server echoes it) but label by basename
+        // so the picker isn't a wall of C:\...\model.gguf.
+        const labelOf = (id: string) => {
+          const cut = Math.max(id.lastIndexOf("/"), id.lastIndexOf("\\"));
+          const base = cut >= 0 ? id.slice(cut + 1) : id;
+          return base !== id && /\.gguf$/i.test(base) ? base : id;
+        };
+        const out: ModelChoice[] = recommended.map((m) => ({ id: m.id, label: m.label }));
+        // Guard: an UNSET configured model ("" — LM Studio/llama.cpp presets
+        // adopt-first-served) must not inject an empty picker entry.
+        if (this.model && !recIds.has(this.model)) out.push({ id: this.model, label: labelOf(this.model) });
+        for (const id of rest) out.push({ id, label: labelOf(id) });
+        return out;
       }
       const res = await fetch(`${this.host}/api/tags`, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return [];

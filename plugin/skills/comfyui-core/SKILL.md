@@ -52,7 +52,7 @@ ComfyUI workflows are JSON objects mapping **string node IDs** to node definitio
 - **API format** (for execution/analysis): `{ "1": { class_type, inputs }, "2": { ... } }` — compact, used by `enqueue_workflow`, `validate_workflow`, `modify_workflow`, etc.
 - **Web UI format** (for saving and frontend editing): `{ "nodes": [...], "links": [...] }` — includes layout positions, sizes, groups, and visual metadata so ComfyUI's canvas can open and edit it
 - Execution tools expect and return **API format**
-- **Saving tools must use Web UI format** so saved workflows remain readable and editable in the ComfyUI frontend
+- **Saving tools must use Web UI format** so saved workflows stay readable and editable in the ComfyUI frontend — an API-format save "exists" in the library but loads blank in the canvas, which strands users (and tempts agents into creating yet another new workflow instead of reopening the old one)
 - `get_workflow` defaults to `format="api"` for analysis/execution; use `format="ui"` when loading a workflow to re-save or edit in the canvas
 - Muted/bypassed nodes are preserved with `_meta.mode: "muted"` — these are inactive but visible for understanding the workflow
 - Get/Set virtual wire nodes are preserved with `_meta.title` and `Constant` key for tracing data flow
@@ -62,7 +62,7 @@ ComfyUI workflows are JSON objects mapping **string node IDs** to node definitio
 - **`analyze_workflow(filename)`** — **use this first** to understand any saved workflow. Returns a structured text summary with sections, node IDs, key settings, virtual wires, and connection graph. No raw JSON — just what you need to reason about the workflow. Supports views: summary (default), overview (mermaid), detail (section mermaid), list, flat.
 - **`list_workflows`** — list all saved workflows in ComfyUI's user library
 - **`get_workflow(filename)`** — load raw workflow JSON. Only use when you need the actual JSON for `enqueue_workflow`, `modify_workflow`, or `save_workflow`. Use `analyze_workflow` instead for understanding. **For `save_workflow`, request `format="ui"`** so the workflow stays editable in the frontend.
-- **`save_workflow(filename, workflow)`** — save a workflow to the user library. **Pass Web UI format (`{ nodes, links }`)** so it can be opened and edited in ComfyUI's canvas. API-format graphs are accepted but will not be editable in the frontend.
+- **`save_workflow(filename, workflow)`** — save a workflow to the user library. **Pass Web UI format (`{ nodes, links }`)** so it can be opened and edited in ComfyUI's canvas; API-format graphs are accepted but the frontend cannot open them.
 
 ## Data Types
 

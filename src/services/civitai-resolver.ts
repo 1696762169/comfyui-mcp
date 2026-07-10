@@ -1,14 +1,15 @@
-import { config, isCivitaiEnabled } from "../config.js";
+import { config } from "../config.js";
 import { ModelError, ValidationError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
+import { civitaiDisabled } from "./model-resolver.js";
 
 const CIVITAI_API_BASE = "https://civitai.com/api/v1";
 
 /** Throws if CivitAI integration is disabled via CIVITAI_ENABLED. */
 function assertCivitaiEnabled(): void {
-  if (!isCivitaiEnabled()) {
+  if (civitaiDisabled()) {
     throw new ModelError(
-      "CivitAI is disabled via CIVITAI_ENABLED. Set it to true to use CivitAI features.",
+      "CivitAI is disabled by config. Set CIVITAI_ENABLED=true to use CivitAI features, or use a HuggingFace URL.",
     );
   }
 }
@@ -62,6 +63,8 @@ function authHeaders(): Record<string, string> {
 }
 
 async function civitaiGet<T>(path: string): Promise<T> {
+  // User-initiated Civitai actions fail FAST with the config explanation when
+  // the kill-switch is set (issue #127) — never a hang against a blocked host.
   assertCivitaiEnabled();
   const url = `${CIVITAI_API_BASE}${path}`;
   logger.debug("CivitAI API request", { url });

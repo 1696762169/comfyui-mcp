@@ -21,8 +21,35 @@ export interface NsfwConsent {
   decidedAt?: string;
 }
 
+/** Non-secret connection config for the Ollama/OpenAI-compatible backend.
+ *  API keys never live here — they stay in env (OPENROUTER_API_KEY etc.). */
+export interface OllamaAgentConfig {
+  /** Default model tag/id (e.g. "gemma4:12b", "xiaomi/mimo-v2.5"). */
+  model?: string;
+  /** "ollama" (local /api/chat) or "openai" (any OpenAI-compatible endpoint). */
+  api?: "ollama" | "openai";
+  /** Endpoint base URL (e.g. https://openrouter.ai/api/v1, incl. /v1). */
+  baseUrl?: string;
+}
+
+export interface AgentSettings {
+  /** User-curated model ids pinned to the top of the panel's model picker. */
+  preferredModels?: string[];
+  ollama?: OllamaAgentConfig;
+  /** LM Studio provider (issue #160) — same shape; api/baseUrl unused today
+   *  (fixed openai dialect + COMFYUI_MCP_LMSTUDIO_HOST) but kept for #162. */
+  lmstudio?: OllamaAgentConfig;
+  /** llama.cpp provider (issue #161) — same shape as lmstudio. */
+  llamacpp?: OllamaAgentConfig;
+  /** Custom OpenAI-compatible endpoint (issue #162): baseUrl + model, both
+   *  user-supplied. The API key stays in the 0600 secrets store
+   *  (COMFYUI_MCP_CUSTOM_API_KEY), never here. */
+  custom?: OllamaAgentConfig;
+}
+
 export interface PanelSettings {
   nsfwConsent?: NsfwConsent;
+  agent?: AgentSettings;
 }
 
 /** Settings file path. Overridable for tests. */
@@ -66,4 +93,40 @@ export function setNsfwConsent(allowed: boolean): NsfwConsent {
   settings.nsfwConsent = { allowed, decidedAt };
   write(settings);
   return settings.nsfwConsent;
+}
+
+/** Persisted agent backend/model preferences ({} when never set). */
+export function getAgentSettings(): AgentSettings {
+  return read().agent ?? {};
+}
+
+/**
+ * Merge a partial update into the persisted agent settings. `preferredModels`
+ * replaces the whole list (the panel sends the full edited list); `ollama`
+ * fields merge per-key so e.g. a model change doesn't clobber the base URL.
+ */
+export function setAgentSettings(patch: AgentSettings): AgentSettings {
+  const settings = read();
+  const prev = settings.agent ?? {};
+  const next: AgentSettings = { ...prev };
+  if (patch.preferredModels !== undefined) {
+    next.preferredModels = [
+      ...new Set(patch.preferredModels.map((m) => m.trim()).filter(Boolean)),
+    ].slice(0, 50);
+  }
+  if (patch.ollama !== undefined) {
+    next.ollama = { ...prev.ollama, ...patch.ollama };
+  }
+  if (patch.lmstudio !== undefined) {
+    next.lmstudio = { ...prev.lmstudio, ...patch.lmstudio };
+  }
+  if (patch.llamacpp !== undefined) {
+    next.llamacpp = { ...prev.llamacpp, ...patch.llamacpp };
+  }
+  if (patch.custom !== undefined) {
+    next.custom = { ...prev.custom, ...patch.custom };
+  }
+  settings.agent = next;
+  write(settings);
+  return next;
 }

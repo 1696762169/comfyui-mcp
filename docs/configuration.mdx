@@ -109,7 +109,10 @@ error. Architecture and `cloud-client` dispatcher originally contributed by
   HuggingFace token for higher search/download rate limits.
 </ParamField>
 <ParamField path="HF_ENDPOINT" type="string" default="https://huggingface.co">
-  Override the HuggingFace Hub base URL for API calls and model downloads, e.g. for regional mirrors like `https://hf-mirror.com`. Matches the `HF_ENDPOINT` convention used by `huggingface_hub`.
+  HuggingFace mirror endpoint for network-restricted regions (e.g.
+  `https://hf-mirror.com`). All `huggingface.co` API and download URLs are
+  rewritten to this host; your `HUGGINGFACE_TOKEN` still rides along for gated
+  repos. The de-facto standard var — the same one `huggingface_hub` honors.
 </ParamField>
 <ParamField path="GITHUB_TOKEN" type="string">
   GitHub token used by skill generation and node-metadata fetches to avoid rate limits.

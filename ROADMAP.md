@@ -120,6 +120,52 @@ stateless-server / Salad-specific bits (replicas, deletion-cost, k8s proxy).
 > License: comfyui-api is MIT (deps MIT/Apache-2.0; ComfyUI itself GPL-3.0). Patterns/code are safe
 > to adapt with attribution. Clone for reference: `~/code/salad-comfyui-api`.
 
+## Theme F — Agentic mobile / remote client (teased, not yet building)
+A purely **agent-driven** way to make things from your phone, backed by an agent that runs on your
+own machine. Most people should never see a node graph — you chat, the agent builds it; the canvas
+still exists under the hood, it just isn't the interface. Full vision:
+[`design/mobile-agent-client.md`](./design/mobile-agent-client.md). Gated on the core (Themes B/E)
+hardening first; this is the "shape it with users before building" track.
+
+- **F1 — Desktop agent host (runs like Ollama).** A quiet always-on daemon that owns the agent loop,
+  talks to local ComfyUI, and uses the user's LLM (local or logged-in Claude/ChatGPT/Gemini). The
+  product surface; the phone is a thin remote into it.
+- **F2 — Secure tunnel out + "Remote control" pairing.** Tailscale/cloudflared-style encrypted
+  tunnel (reuse B1 `startQuickTunnel`) + a **Remote control button in the Agent Panel** that mints a
+  pairing token/QR (Claude `/remote-control`-style). **Token-based, no account required** — stays
+  inside the user's network.
+- **F3 — Two UIs, one spec.** Panel and mobile both generate + consume the *same* workflow spec, so a
+  piece built in one opens cleanly in the other (couch→desk handoff). The spec is the contract.
+- **F4 — Depth on demand (Apps → blocks → dials → graph).** Adopt ComfyUI's **Apps** feature as the
+  shallow end (form over a workflow, nodes hidden); expand a block to all its widgets via the
+  **widget-promotion** path; drop to full manual/agentic node editing. Same spec at every zoom level.
+- **F5 — Subgraphs as blocks + a stocked library.** Ship **base subgraphs** (txt2img/img2img/upscale/
+  video) so a fresh install is useful day one, plus **utility subgraphs** (smart resolution, prompt
+  scaffolding, save+preview tail, model-swap adapters).
+- **F6 — CivitAI, first-class.** Browse/search/copy-prompts + an **Amazon-style cart** (queue N
+  resources, one tap, land on the rig via the aria2 path) + agent self-heal on missing models. Reuse
+  the decoded CivitAI API / login / account-management internals from `~/code/slutter` (Flutter).
+- **F7 — Flutter client (Android + iOS).** One codebase for the block / flow / Lego-snap-port
+  interactions; desktop/web later, which plays nicely with F3.
+- **F8 — Later: RunPod / cloud GPUs.** SSH tunnel + helper scripts for the annoying parts (logging
+  into Claude/Gemini/Codex on the pod, or standing up Ollama there). **Not** in the first release —
+  local-GPU-to-start keeps the surface small.
+
+> Scope: **v1 = local GPU only.** Reference client internals: `~/code/slutter` (CivitAI Video
+> Scroller, Flutter — decoded CivitAI API, OAuth login, account management).
+
+## Theme G — Safety gates / enterprise hardening (deferred until needed)
+Declarative per-category safety gates (workflow-writes, model-deletes, process-control, git-writes,
+…) enforced at a single registration-time choke point, `COMFYUI_MCP_SAFE_MODE` lockdown for
+shared/untrusted deployments, structured `DISABLED_BY_CONFIG` refusals agents can self-correct
+from, and a `capability_audit` tool reporting gate + environment state. Full design already
+specced: [`design/safety-gates.md`](https://github.com/artokun/comfyui-mcp/blob/spec/safety-gates/docs/design/safety-gates.md)
+(spec PR #172, closed unmerged). **Closed as won't-do in issue #168**: comfyui-mcp's deployment
+reality is single-user (own panel, own box/pod), permissive-by-default is correct, and we don't
+build gate systems on spec for a shared/enterprise story that doesn't exist. This theme exists
+purely to keep the design findable if that reality ever changes. Until then, isolated write-risk tools ship with narrow inline env flags (e.g.
+`COMFYUI_MCP_ALLOW_GIT_WRITES`) that Theme G will absorb.
+
 ---
 
 ## "Roadmap to the roadmap" — sequencing
@@ -130,6 +176,7 @@ stateless-server / Salad-specific bits (replicas, deletion-cost, k8s proxy).
 | **1 — prove the loop** | Live in-UI editing works | B3, B4, C3, C5, E5, E6 |
 | **2 — productionize** | Full agent panel + discovery + I/O | B5, B6, D1, E8, E9, E10, E12 |
 | **Hardening — continuous** | Reliability + I/O from comfyui-api | E1, E2, E3, E4, E7, E11 |
+| **3 — mobile / remote (teased)** | Agent-driven phone client on your own rig | F1, F2, F3, F4, F5, F6, F7 (F8 later) |
 
 Phase 0 ships value immediately (skills + node tooling) and de-risks the panel (tunnel + streaming)
 before any frontend work. Phase 1 needs the v2 package closer to publish for the panel UI.

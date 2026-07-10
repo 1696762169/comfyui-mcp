@@ -65,6 +65,9 @@ interface Conn {
   tabId: string;
   title: string;
   connectedAt: string;
+  /** Canvas-less client (mobile/remote pseudo-panel) — advertised in `hello`.
+   *  Lets tools resolve media to inline bytes instead of a browser /view ref. */
+  headless: boolean;
 }
 
 export interface BridgeCommand {
@@ -88,7 +91,24 @@ export class UiBridge {
   private static readonly MAX_MISSED_PONGS = 2;
 
   private wss: WebSocketServer | null = null;
+  /** Extra always-token-gated listeners — the on-demand phone-pairing bind (LAN
+   *  and/or a loopback port a cloudflared tunnel fronts). Their connections route
+   *  through the same tab/rid logic as the primary bridge; the primary loopback
+   *  listener stays token-less so the local browser panel is unaffected. */
+  private readonly extraServers: WebSocketServer[] = [];
   private conns = new Map<string, Conn>(); // tabId -> connection
+  /** Per-tab "mailbox" of undeliverable render deliveries (show_media), buffered
+   *  while a client is OFFLINE and flushed on reconnect — so a finished render is
+   *  never lost when the mobile app is backgrounded/killed mid-render. Keyed by a
+   *  STABLE tab id (the phone persists one). In-memory: survives disconnect ⇄
+   *  reconnect within an orchestrator run, not a full orchestrator restart.
+   *  Bounded per tab + TTL'd. */
+  private readonly mailbox = new Map<string, Array<{ cmd: BridgeCommand; ts: number }>>();
+  private static readonly MAILBOX_MAX = 30;
+  private static readonly MAILBOX_TTL_MS = 24 * 60 * 60 * 1000;
+  /** Tab ids that ever connected as a headless (mobile/remote) client — kept so
+   *  `isHeadless` stays true across a disconnect (see isHeadless). */
+  private readonly headlessSeen = new Set<string>();
   private pending = new Map<string, Pending>();
   private portInUse = false;
   private bindRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -158,23 +178,28 @@ export class UiBridge {
   private startHeartbeat(): void {
     if (this.heartbeatTimer) return;
     this.heartbeatTimer = setInterval(() => {
-      const wss = this.wss;
-      if (!wss) return;
-      for (const sock of wss.clients) {
-        const missed = this.missedPongs.get(sock) ?? 0;
-        if (missed >= UiBridge.MAX_MISSED_PONGS) {
-          try {
-            sock.terminate();
-          } catch {
-            // already gone
+      // Ping the primary listener AND any pairing listeners — a phone on a LAN or
+      // tunnel bind needs the same idle-keepalive the browser panel gets.
+      const servers = [this.wss, ...this.extraServers].filter(
+        (s): s is WebSocketServer => s !== null,
+      );
+      for (const server of servers) {
+        for (const sock of server.clients) {
+          const missed = this.missedPongs.get(sock) ?? 0;
+          if (missed >= UiBridge.MAX_MISSED_PONGS) {
+            try {
+              sock.terminate();
+            } catch {
+              // already gone
+            }
+            continue;
           }
-          continue;
-        }
-        this.missedPongs.set(sock, missed + 1);
-        try {
-          sock.ping();
-        } catch {
-          // socket mid-close — the next tick's terminate/close handler cleans up
+          this.missedPongs.set(sock, missed + 1);
+          try {
+            sock.ping();
+          } catch {
+            // socket mid-close — the next tick's terminate/close handler cleans up
+          }
         }
       }
     }, UiBridge.HEARTBEAT_MS);
@@ -298,6 +323,63 @@ export class UiBridge {
     this.handleConnection(sock);
   }
 
+  /**
+   * Open a SECOND, ALWAYS token-gated listener on `host:port` and route its
+   * connections through the same tab/rid logic as the primary bridge. Used by the
+   * on-demand "pair a phone" flow: a `0.0.0.0` bind so a phone can reach it over
+   * the LAN, and/or a loopback port a cloudflared quick-tunnel fronts. The primary
+   * loopback listener stays token-less, so the local browser panel is untouched.
+   * Resolves once bound; rejects if the port can't be bound. Idempotent-ish: the
+   * caller is responsible for not re-binding the same port.
+   */
+  addListener(host: string, port: number, token: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const wss = new WebSocketServer({
+        port,
+        host,
+        verifyClient: (info, cb) => {
+          let provided = "";
+          try {
+            provided =
+              new URL(info.req.url ?? "/", "http://127.0.0.1").searchParams.get("token") ?? "";
+          } catch {
+            provided = "";
+          }
+          const a = Buffer.from(provided);
+          const b = Buffer.from(token);
+          if (a.length === b.length && timingSafeEqual(a, b)) return cb(true);
+          logger.warn("[ui-bridge] pairing listener rejected a connection with a missing/invalid token");
+          cb(false, 401, "Unauthorized");
+        },
+      });
+      wss.on("connection", (sock) => {
+        this.missedPongs.set(sock, 0);
+        sock.on("pong", () => this.missedPongs.set(sock, 0));
+        this.handleConnection(sock);
+      });
+      wss.on("listening", () => {
+        settled = true;
+        this.extraServers.push(wss);
+        logger.info(`[ui-bridge] pairing listener on ws://${host}:${port} (token-gated)`);
+        resolve();
+      });
+      wss.on("error", (err: NodeJS.ErrnoException) => {
+        if (!settled) {
+          settled = true;
+          try {
+            wss.close();
+          } catch {
+            // nothing bound
+          }
+          reject(err);
+        } else {
+          logger.warn(`[ui-bridge] pairing listener error: ${err.message}`);
+        }
+      });
+    });
+  }
+
   private handleConnection(sock: BridgeSocket): void {
     // The connection is anonymous until its hello frame names a tab id.
     let tabId: string | null = null;
@@ -329,10 +411,14 @@ export class UiBridge {
           tabId,
           title: typeof msg.title === "string" && msg.title ? msg.title : "untitled",
           connectedAt: existing?.connectedAt ?? new Date().toISOString(),
+          headless: (msg as { headless?: unknown }).headless === true,
         });
+        if ((msg as { headless?: unknown }).headless === true) this.headlessSeen.add(tabId);
         logger.info(
           `[ui-bridge] panel tab connected: ${tabId.slice(0, 8)} (“${this.conns.get(tabId)?.title}”) — ${this.conns.size} tab(s) total`,
         );
+        // Deliver anything that finished while this tab was away.
+        this.flushMailbox(tabId);
         this.onPanelMessage?.(msg as PanelEvent);
         return;
       }
@@ -394,6 +480,15 @@ export class UiBridge {
     return this.conns.size > 0;
   }
 
+  /** True when the tab advertised itself as a canvas-less (mobile/remote) client
+   *  in its `hello`. Unknown tabs → false. */
+  isHeadless(tabId: string): boolean {
+    // Sticky: a tab that EVER connected headless stays "headless" even while
+    // offline, so a render finishing during a disconnect is byte-inlined (not a
+    // bytes-less viewRef) and is renderable when the mailbox flushes to the phone.
+    return this.conns.get(tabId)?.headless === true || this.headlessSeen.has(tabId);
+  }
+
   /** All currently connected tabs, most recent hello last. */
   tabs(): PanelTab[] {
     return Array.from(this.conns.values()).map((c) => ({
@@ -449,15 +544,71 @@ export class UiBridge {
     );
   }
 
+  /** Deliveries worth mailboxing when the target is offline (a finished render),
+   *  vs. interactive canvas ops that should just fail. */
+  private static isMailboxable(cmd: BridgeCommand): boolean {
+    return cmd.cmd === "show_media";
+  }
+
+  private storeMailbox(tabId: string, cmd: BridgeCommand): void {
+    const box = this.mailbox.get(tabId) ?? [];
+    box.push({ cmd, ts: Date.now() });
+    while (box.length > UiBridge.MAILBOX_MAX) box.shift();
+    this.mailbox.set(tabId, box);
+    logger.info(
+      `[ui-bridge] mailboxed "${cmd.cmd}" for offline tab ${tabId.slice(0, 8)} (${box.length} queued)`,
+    );
+  }
+
+  /** Deliver any buffered render frames to a tab that just (re)connected, plus a
+   *  `mailbox_flush` summary so the client can notify "N renders finished while
+   *  you were away". Expired items (past TTL) are dropped. */
+  private flushMailbox(tabId: string): void {
+    const box = this.mailbox.get(tabId);
+    if (!box || box.length === 0) return;
+    this.mailbox.delete(tabId);
+    const conn = this.conns.get(tabId);
+    if (!conn) return;
+    const now = Date.now();
+    const fresh = box.filter((m) => now - m.ts <= UiBridge.MAILBOX_TTL_MS);
+    for (const m of fresh) {
+      try {
+        conn.sock.send(JSON.stringify({ rid: randomUUID(), ...m.cmd, mailbox: true }));
+      } catch {
+        // socket raced closed; drop
+      }
+    }
+    if (fresh.length > 0) {
+      try {
+        conn.sock.send(JSON.stringify({ type: "mailbox_flush", count: fresh.length }));
+      } catch {
+        /* best-effort */
+      }
+      logger.info(
+        `[ui-bridge] flushed ${fresh.length} mailboxed frame(s) to reconnected tab ${tabId.slice(0, 8)}`,
+      );
+    }
+  }
+
   send(cmd: BridgeCommand, opts: { tabId?: string; timeoutMs?: number } = {}): Promise<unknown> {
     const timeoutMs = opts.timeoutMs ?? 6000;
     let conn: Conn;
     try {
       conn = this.resolveTarget(opts.tabId);
     } catch (err) {
+      // Offline target: buffer a finished-render delivery for reconnect instead of
+      // failing, so the agent's "here's your image" isn't lost while the phone is away.
+      if (opts.tabId && UiBridge.isMailboxable(cmd)) {
+        this.storeMailbox(opts.tabId, cmd);
+        return Promise.resolve({ ok: true, mailboxed: true });
+      }
       return Promise.reject(err instanceof Error ? err : new Error(String(err)));
     }
     if (conn.sock.readyState !== WebSocket.OPEN) {
+      if (opts.tabId && UiBridge.isMailboxable(cmd)) {
+        this.storeMailbox(opts.tabId, cmd);
+        return Promise.resolve({ ok: true, mailboxed: true });
+      }
       return Promise.reject(new Error(`Panel tab ${conn.tabId.slice(0, 8)} is not open`));
     }
     const rid = randomUUID();
@@ -532,6 +683,13 @@ export class UiBridge {
       }
     }
     this.conns.clear();
+    for (const s of this.extraServers.splice(0)) {
+      try {
+        s.close();
+      } catch {
+        // already gone
+      }
+    }
     await new Promise<void>((resolve) => {
       if (!this.wss) return resolve();
       this.wss.close(() => resolve());

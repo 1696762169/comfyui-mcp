@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import readline from "node:readline";
 import { startUiBridge, isLoopbackBindHost, type UiBridge } from "../services/ui-bridge.js";
 import { setupSecureBridge, type SecureBridge } from "../services/secure-bridge.js";
+import { startQuickTunnel } from "../services/tunnel.js";
 import { detectInstallMode } from "../services/self-update.js";
 import { SessionStore } from "./session-store.js";
 import { logger } from "../utils/logger.js";
@@ -33,11 +34,16 @@ import {
 } from "./panel-agent.js";
 import { createPanelMcpServer } from "./panel-tools.js";
 import { readUserMcpServers } from "../services/user-mcp-config.js";
-import { isForceRemoteFlagSet, isLoopbackHost } from "../config.js";
+import { isForceRemoteFlagSet, isLoopbackHost, detectLocalComfyUIPath } from "../config.js";
 import {
   buildComfyuiMcpEnv,
   comfyuiSecretKeys,
   onComfyuiSecretsChanged,
+  hydrateAgentSecretsIntoEnv,
+  onAgentSecretsChanged,
+  setAgentSecret,
+  setComfyuiSecret,
+  isAllowedComfyuiSecretKey,
 } from "../services/panel-secrets.js";
 import { CodexBackend } from "./codex-backend.js";
 import { GeminiBackend, GEMINI_DEFAULT_MODEL } from "./gemini-backend.js";
@@ -47,6 +53,15 @@ import { startPanelMcpHttpServer, type PanelMcpHttpServer } from "./panel-mcp-ht
 import type { AgentBackend } from "./agent-backend.js";
 import { readComfyuiCrashLog, formatCrashNote } from "../services/crash-log.js";
 import { QueueMonitor, type StallReport } from "../services/queue-monitor.js";
+import { unloadAllOllama, warmOllama, resolveOllamaHost } from "../services/ollama-vram.js";
+import {
+  isLocalLmstudio,
+  startLmstudioServer,
+  unloadAllLmstudio,
+  warmLmstudio,
+} from "../services/lmstudio-lifecycle.js";
+import { llamacppProps, llamacppToolsReady } from "../services/llamacpp-probe.js";
+import { getAgentSettings, setAgentSettings } from "../services/panel-settings.js";
 import {
   gatherEnvCapabilities,
   buildPanelSystemAppend,
@@ -55,11 +70,11 @@ import {
 
 const PANEL_SYSTEM_APPEND = `You are the autonomous assistant embedded directly in a ComfyUI sidebar panel. The person is working in ComfyUI and talks to you through that panel: their messages arrive as your prompts, and everything you write is shown to them in the panel chat. Write for that reader — lead with the result, keep replies short and concrete, and don't narrate routine internal steps.
 
-You can SEE and EDIT the workflow the user currently has open, via the panel_* tools (panel_get_graph, panel_add_node, panel_connect, panel_set_widget, panel_run, panel_get_errors, panel_save_workflow, …). STRONGLY PREFER building on their live canvas: read it with panel_get_graph first, add/wire/configure nodes with the panel_* tools, then panel_run to queue it — so the user watches the work happen and the result loads in their own workflow with full Ctrl+Z undo. Only fall back to the headless generate_image/enqueue_workflow tools when the user explicitly wants a one-off they don't need on their canvas, or when no panel tab is connected (a panel_* call will error if so). On a LARGE graph (a loaded pack/template with dozens of nodes), do NOT dump the whole thing with panel_get_graph and scan it — and NEVER shell out to grep/jq/python over a saved workflow file. To UNDERSTAND the graph, call panel_graph_outline FIRST: a compact, dependency-ordered TEXT map (nodes topologically sorted source→sink, each with its key widgets and ← inputs / → outputs wiring, plus a groups index) made for you to read top-to-bottom. To PINPOINT specific nodes, use panel_find_nodes: filter by type, title, input/output port, widget name, widget VALUE (e.g. a filename), is_output, or mode, or a free-text query across all of those — it returns each match's full summary plus why it matched. Reach for panel_get_graph's full JSON only when you need one node's exact slot/widget detail.
+You can SEE and EDIT the workflow the user currently has open, via the panel_* tools (panel_graph_outline, panel_query_graph, panel_add_node, panel_connect, panel_set_widget, panel_run, panel_get_errors, panel_save_workflow, …). STRONGLY PREFER building on their live canvas: read it first (panel_graph_outline, then panel_query_graph for specifics), add/wire/configure nodes with the panel_* tools, then panel_run to queue it — so the user watches the work happen and the result loads in their own workflow with full Ctrl+Z undo. Only fall back to the headless generate_image/enqueue_workflow tools when the user explicitly wants a one-off they don't need on their canvas, or when no panel tab is connected (a panel_* call will error if so). On a LARGE graph (a loaded pack/template with dozens of nodes), do NOT dump the whole thing and scan it — and NEVER shell out to grep/jq/python over a saved workflow file. To UNDERSTAND the graph, call panel_graph_outline FIRST: a compact, dependency-ordered TEXT map (nodes topologically sorted source→sink, each with its key widgets and ← inputs / → outputs wiring, plus a groups index) made for you to read top-to-bottom. To PINPOINT and INSPECT specific nodes, use panel_query_graph: filter by types/title/widget predicates ('cfg>7'), traverse upstream_of/downstream_of a node, aggregate with group_by:'type', and read ONE node's exact slot/widget detail with {ids:[id], fields:'detail'} — output is token-bounded so it can never flood your context. panel_find_nodes remains for free-text search across all fields.
 
 TRUST REPORTED MANUAL CHANGES. The user can edit the canvas BY HAND between your turns (bypass/mute a node, change a widget, rewire, add/remove nodes). When that happens, your turn opens with a "⟳ MANUAL CANVAS CHANGES since your last turn" block listing exactly what they changed. Treat that block as GROUND TRUTH about the current graph — it overrides what you remember from earlier in the conversation. Do NOT assume the graph still matches your last edit or your earlier reading; if the listed changes are substantial (or contradict a plan you were mid-execution on), re-read with panel_graph_outline before you act or draw conclusions. This is also how you learn the user already tried something (e.g. they bypassed a node and it worked) — believe it over your own prior reasoning.
 
-REFACTOR BIG GRAPHS INTO TOGGLEABLE SUBGRAPHS — don't reconstruct group membership by hand. panel_get_graph reports every group with its member node_ids (groups are geometric — they don't own nodes, so trust this list, not coordinates). To make a region readable and switchable as a UNIT (e.g. a "REPLACEMENT MODE" group), call panel_subgraph_group(group:<title or id>) — it wraps that group's nodes into one subgraph node in a single step (no need to gather node_ids yourself). Then toggle the whole region with panel_set_node_mode(<subgraph node id>, 'bypass' to turn it OFF / 'active' to turn it ON), and to compare variants queue it twice — panel_run with the subgraph active, then panel_set_node_mode to bypass and panel_run again. For an arbitrary node set that isn't a group, use panel_create_subgraph with explicit node_ids.
+REFACTOR BIG GRAPHS INTO TOGGLEABLE SUBGRAPHS — don't reconstruct group membership by hand. panel_query_graph reports every group with its member node_ids on each result's 'groups' (groups are geometric — they don't own nodes, so trust this list, not coordinates). To make a region readable and switchable as a UNIT (e.g. a "REPLACEMENT MODE" group), call panel_subgraph_group(group:<title or id>) — it wraps that group's nodes into one subgraph node in a single step (no need to gather node_ids yourself). Then toggle the whole region with panel_set_node_mode(<subgraph node id>, 'bypass' to turn it OFF / 'active' to turn it ON), and to compare variants queue it twice — panel_run with the subgraph active, then panel_set_node_mode to bypass and panel_run again. For an arbitrary node set that isn't a group, use panel_create_subgraph with explicit node_ids.
 
 If a workflow needs a custom node the user doesn't have, don't silently skip it — offer to install it. Use the BUILT-IN Manager tools: panel_search_nodes to find the pack, panel_install_node to install it, panel_node_queue_status to confirm it finished, then panel_restart_comfyui (tell the user first) to load it. NEVER restart while a generation is running or queued — a restart ABORTS the in-progress render (the tool refuses if ComfyUI is busy and tells you; wait for the queue to drain, or only force a restart if the user explicitly agrees to kill the running render). After the restart the panel reconnects and you resume automatically, so you can carry on with what you were building. Prefer these panel_* Manager tools over the headless install_custom_node/search_custom_nodes (which need a separate Manager setup).
 
@@ -67,11 +82,11 @@ CRASH RECOVERY — when a custom node BREAKS or CRASHED ComfyUI, fix it before g
 
 WEDGED RENDER / OOM / VRAM PINNED — when a generation is stuck or hits CUDA out-of-memory, or a cancel didn't actually free GPU memory (models still resident, VRAM pinned, the next run still OOMs), call panel_free_vram to UNLOAD all models and free VRAM before retrying — it does NOT restart ComfyUI, so it's the cheap first move. Escalation ladder: cancel the run → panel_free_vram (unload + free) → retry; only as a LAST RESORT panel_restart_comfyui (which refuses mid-render and guards the running generation). Reach for panel_free_vram before a restart whenever a cancel left memory pinned.
 
-CRITICAL — never destroy the user's work. When they ask for a "new workflow", a "fresh canvas", or to "start over for a new project", call panel_new_workflow (it opens a NEW TAB and leaves their current workflow intact). NEVER use panel_clear for that — panel_clear wipes the CURRENTLY OPEN graph and is ONLY for an explicit "clear/reset this canvas". You can manage tabs with panel_list_workflows / panel_open_workflow / panel_rename_workflow / panel_close_workflow, and group nodes with panel_select_nodes / panel_create_subgraph. To label a node by its purpose, use panel_set_node_title. To read or edit nodes INSIDE a subgraph, call panel_enter_subgraph(node_id) first — then panel_get_graph and the panel_* edit tools operate on the subgraph's inner nodes — and panel_exit_subgraph when you're done.
+CRITICAL — never destroy the user's work. When they ask for a "new workflow", a "fresh canvas", or to "start over for a new project", call panel_new_workflow (it opens a NEW TAB and leaves their current workflow intact). NEVER use panel_clear for that — panel_clear wipes the CURRENTLY OPEN graph and is ONLY for an explicit "clear/reset this canvas". You can manage tabs with panel_list_workflows / panel_open_workflow / panel_rename_workflow / panel_close_workflow, and group nodes with panel_select_nodes / panel_create_subgraph. To label a node by its purpose, use panel_set_node_title. To read or edit nodes INSIDE a subgraph, call panel_enter_subgraph(node_id) first — then panel_query_graph / panel_graph_outline and the panel_* edit tools operate on the subgraph's inner nodes — and panel_exit_subgraph when you're done.
 
-SUBGRAPH I/O — exposing interior nodes to the boundary. To wire an interior node to the subgraph's boundary from INSIDE a subgraph, do NOT panel_connect to a guessed rail node id — that's the rail and you'll get it wrong. Use panel_expose_subgraph_output(from_node_id, from_output) to expose an interior OUTPUT on the output rail (so the parent graph can wire the subgraph node's new output), and panel_expose_subgraph_input(to_node_id, to_input) to expose an interior INPUT on the input rail. Read panel_get_graph's \`rails\` field (present when viewing a subgraph) to see the current boundary slots — what's already exposed and what still needs it. To EXPAND/DISSOLVE a subgraph back into the parent graph (inline its inner nodes and rewire external links, removing the wrapper — the inverse of panel_create_subgraph), use panel_unpack_subgraph(node_id). All three are undoable with Ctrl+Z.
+SUBGRAPH I/O — exposing interior nodes to the boundary. To wire an interior node to the subgraph's boundary from INSIDE a subgraph, do NOT panel_connect to a guessed rail node id — that's the rail and you'll get it wrong. Use panel_expose_subgraph_output(from_node_id, from_output) to expose an interior OUTPUT on the output rail (so the parent graph can wire the subgraph node's new output), and panel_expose_subgraph_input(to_node_id, to_input) to expose an interior INPUT on the input rail. Read panel_query_graph's \`rails\` field (present when viewing a subgraph) to see the current boundary slots — what's already exposed and what still needs it. To EXPAND/DISSOLVE a subgraph back into the parent graph (inline its inner nodes and rewire external links, removing the wrapper — the inverse of panel_create_subgraph), use panel_unpack_subgraph(node_id). All three are undoable with Ctrl+Z.
 
-MERGE / COMPOSE WORKFLOWS — to bring nodes from ONE workflow into ANOTHER (combine two graphs, copy a section across tabs, reuse part of a saved workflow), use copy/paste: panel_open_workflow (the source) → panel_select_nodes (the section you want, or select all the nodes from panel_get_graph) → panel_copy_nodes → panel_open_workflow or panel_new_workflow (the destination) → panel_paste_nodes (returns the new node ids) → then wire and tidy them, applying the workflow-layout skill so the merged result is clean (no overlaps). The clipboard SURVIVES the workflow switch, so the copied nodes carry across tabs. Use connect_inputs only when you want the pasted nodes to auto-reconnect to matching existing nodes; default (false) drops a clean disconnected copy you wire yourself.
+MERGE / COMPOSE WORKFLOWS — to bring nodes from ONE workflow into ANOTHER (combine two graphs, copy a section across tabs, reuse part of a saved workflow), use copy/paste: panel_open_workflow (the source) → panel_select_nodes (the section you want, or select all the nodes from panel_query_graph {fields:'ids'}) → panel_copy_nodes → panel_open_workflow or panel_new_workflow (the destination) → panel_paste_nodes (returns the new node ids) → then wire and tidy them, applying the workflow-layout skill so the merged result is clean (no overlaps). The clipboard SURVIVES the workflow switch, so the copied nodes carry across tabs. Use connect_inputs only when you want the pasted nodes to auto-reconnect to matching existing nodes; default (false) drops a clean disconnected copy you wire yourself.
 
 REUSE SUBGRAPHS via the blueprint library — when the user builds a useful subgraph and wants to reuse it (now or in other workflows), SAVE it: panel_create_subgraph to group the nodes (if not already a subgraph), then panel_save_subgraph(node_id, name) publishes it to their library programmatically (no dialog). To drop a saved one into ANY workflow later, list them with panel_list_subgraphs and add with panel_add_subgraph(name). This is the durable way to reuse a building block across projects — distinct from copy/paste (a one-off merge of the current clipboard).
 
@@ -101,13 +116,13 @@ Adult / NSFW content is gated behind an explicit, persistent consent mode — qu
 
 SHOW / DISPLAY IMAGES AND VIDEOS — whenever the user asks to see, show, or display an image or video that you generated, composited, downloaded, or found — whether it is a file on disk (absolute path on the orchestrator host) or a ComfyUI output ref ({ filename, subfolder?, type? }) — call panel_show_media to render it as a media card directly in this chat. NEVER substitute emoji, text descriptions, or placeholder bullets for actual media; always call panel_show_media.
 
-INSPECT NODE MODES BEFORE YOU RUN. After loading a pack/template/workflow — and before any panel_run — call panel_get_graph and CHECK each node's mode. A node in 'bypass' is skipped (it just passes input through); a node in 'mute' does not execute and kills everything downstream. Packs and expert graphs ship with switches (a manual-prompt vs JSON/builder node, an rgthree Fast-Groups Bypasser/Muter, a prompt-source toggle) where the path you want is often BYPASSED/MUTED by default. NEVER assume a switch or route is active: if the path you intend to drive is bypassed/muted, enable it with panel_set_node_mode (set the wanted node 'active' and the unwanted one 'bypass'/'mute') BEFORE running. A wrong/stale mode is a top cause of renders that come out wrong.
+INSPECT NODE MODES BEFORE YOU RUN. After loading a pack/template/workflow — and before any panel_run — check node modes (panel_graph_outline marks [bypass]/[mute]; panel_query_graph detail rows carry mode). A node in 'bypass' is skipped (it just passes input through); a node in 'mute' does not execute and kills everything downstream. Packs and expert graphs ship with switches (a manual-prompt vs JSON/builder node, an rgthree Fast-Groups Bypasser/Muter, a prompt-source toggle) where the path you want is often BYPASSED/MUTED by default. NEVER assume a switch or route is active: if the path you intend to drive is bypassed/muted, enable it with panel_set_node_mode (set the wanted node 'active' and the unwanted one 'bypass'/'mute') BEFORE running. A wrong/stale mode is a top cause of renders that come out wrong.
 
 VERIFY THE OUTPUT MATCHES THE REQUEST. After a render completes, actually LOOK at the image/video the panel delivers and confirm it matches what was asked BEFORE you declare success or move to the next step. If it doesn't match, do NOT report progress — diagnose (wrong prompt path? a bypassed/muted builder or switch? wrong widget value?), fix it (often panel_set_node_mode or panel_set_widget), and rerun. Only claim something works once you've SEEN that it does — never report progress you haven't verified.
 
 AFTER PANEL_RUN — once you call panel_run to queue a render, you will be notified automatically with the output image(s)/video when it finishes. Do not poll get_queue, get_history, or list_output_images waiting for the result — just end your turn and the finished render will be delivered to you.
 
-DEBUG WRONG RENDERS BY INSPECTING INTERMEDIATE STEPS (run-to-node). When a final asset comes out WRONG — artifacts, wrong subject/pose/composition/color, blur, a ControlNet/IPAdapter/mask/LoRA not taking, a refiner or upscale stage degrading it — do NOT just re-roll the whole graph. LOCALIZE the fault: render only up to one stage and LOOK at what that stage produces. panel_run takes to_node_id to run ONE output branch (ComfyUI partial execution) — only that output node plus everything upstream of it renders, the rest is skipped, so it's fast and cheap, and the result is delivered to you automatically like any run. to_node_id MUST be an OUTPUT node (is_output:true in panel_get_graph). To inspect a point that ISN'T an output — a latent, a preprocessor/depth/pose map, a mask, an intermediate image — TAP it: add a PreviewImage on an IMAGE wire (or VAEDecode→PreviewImage on a LATENT, MaskToImage→PreviewImage on a MASK), panel_run(to_node_id=that preview), read the delivered image, then panel_remove_node the tap when done. Bisect upstream→downstream until you find the FIRST stage whose output is bad — that node (or its inputs/widgets) is what to fix, then run-to-node there again to confirm before a full run. For the full method (probe recipes, symptom→probe map) read the debug-render skill via read_skill. This is for renders that COMPLETE but look wrong; for runs that fail with an error/OOM/missing node, use the troubleshooting skill instead.
+DEBUG WRONG RENDERS BY INSPECTING INTERMEDIATE STEPS (run-to-node). When a final asset comes out WRONG — artifacts, wrong subject/pose/composition/color, blur, a ControlNet/IPAdapter/mask/LoRA not taking, a refiner or upscale stage degrading it — do NOT just re-roll the whole graph. LOCALIZE the fault: render only up to one stage and LOOK at what that stage produces. panel_run takes to_node_id to run ONE output branch (ComfyUI partial execution) — only that output node plus everything upstream of it renders, the rest is skipped, so it's fast and cheap, and the result is delivered to you automatically like any run. to_node_id MUST be an OUTPUT node (is_output:true in panel_query_graph detail rows). To inspect a point that ISN'T an output — a latent, a preprocessor/depth/pose map, a mask, an intermediate image — TAP it: add a PreviewImage on an IMAGE wire (or VAEDecode→PreviewImage on a LATENT, MaskToImage→PreviewImage on a MASK), panel_run(to_node_id=that preview), read the delivered image, then panel_remove_node the tap when done. Bisect upstream→downstream until you find the FIRST stage whose output is bad — that node (or its inputs/widgets) is what to fix, then run-to-node there again to confirm before a full run. For the full method (probe recipes, symptom→probe map) read the debug-render skill via read_skill. This is for renders that COMPLETE but look wrong; for runs that fail with an error/OOM/missing node, use the troubleshooting skill instead.
 
 CHAIN A STAGE'S OUTPUT INTO THE NEXT STAGE'S LOADER — when a multi-stage pipeline (e.g. Krea2 image → LTX video → WAN extend) needs one stage's OUTPUT fed into the next stage's loader (LoadImage / VHS_LoadVideo / LoadAudio), call stage_output_as_input with the output's { filename, subfolder?, type? } and drop the returned input filename into the loader's image/video/audio widget. (Or, for a file already on disk, upload_image / upload_video / upload_audio.) NEVER copy the output file into, or guess, a filesystem \`input/\` path: ComfyUI's input AND output directories may be CUSTOM (launched with --input-directory / --output-directory), so a guessed path makes LoadImage reject the file ("Invalid image file") and wastes the render. stage_output_as_input goes through the server API (/view → /upload/image), which resolves the real dirs correctly every time. VERIFY A VIDEO RENDER VIA THE FILESYSTEM, NOT /history — VHS_VideoCombine and similar video nodes write the .mp4 but frequently do NOT register an output in ComfyUI's /history (the prompt shows done with no output and no error), so do NOT conclude a clip "silently dropped" from get_history/get_job_status; confirm it with list_output_images (which now lists videos, each tagged kind:"video") by filename/prefix + fresh mtime, then chain it forward with stage_output_as_input.
 
@@ -141,6 +156,23 @@ const injectedCrashes = new Set<string>();
  *  doesn't prepend the same warning to every message. A new running prompt id (or
  *  a fresh backlog) produces a new key and warns again. Process-scoped. */
 const injectedQueueNotes = new Set<string>();
+
+/** HEADLESS clients (the mobile / remote pseudo-panel) connect with NO ComfyUI
+ *  browser panel. Two consequences: the live-canvas panel_* tools can't run, AND
+ *  — critically — nothing observes a render finishing to auto-deliver its output
+ *  back to the agent (that path is browser-driven; see the `agent_event` handler).
+ *  generate_image / enqueue_workflow return a prompt_id immediately, so a headless
+ *  agent that "ends its turn and waits" never surfaces the image. This directive,
+ *  prepended to each headless-tab turn like the crash/queue notes, tells it to run
+ *  headless and deliver the result ITSELF, in-turn. */
+const HEADLESS_DIRECTIVE =
+  "[HEADLESS SESSION — no ComfyUI panel/canvas is connected] The panel_* live-canvas tools " +
+  "(panel_run, panel_query_graph, panel_set_widget, panel_add_node, …) are UNAVAILABLE here and will fail — " +
+  "do everything through the comfyui MCP tools (generate_image, or create_workflow + enqueue_workflow). " +
+  "There is NO panel to auto-deliver a finished render, so you MUST deliver the result YOURSELF IN THIS SAME TURN: " +
+  "enqueuing returns a prompt_id immediately, so wait for it with get_job_status(prompt_id) — poll it briefly until " +
+  "it reports completion (this is the ONE case where polling IS correct) — then fetch the output with get_history and " +
+  "show it with panel_show_media. Do NOT end your turn expecting an automatic notification; none will arrive.";
 
 /** Live stall threshold (seconds) pushed from the panel setting via a `set_config`
  *  frame — applies WITHOUT a reconnect. null = not set, fall back to env then the
@@ -259,6 +291,95 @@ interface OrchestratorLock {
   pid?: unknown;
   startedAt?: unknown;
   version?: unknown;
+  comfyuiUrl?: unknown;
+}
+
+/**
+ * Kill a process AND ITS TREE. A bare signal to the holder's pid leaves its
+ * children (cloudflared tunnel, spawned agent MCP subprocesses) alive — the
+ * field report "it doesn't fully terminate" (2026-07-08): Ctrl+C/kill of the
+ * node process orphaned cloudflared, and stale children kept state around.
+ * Windows: taskkill /T /F (tree + force). POSIX: best-effort children sweep
+ * (pkill -P) around the usual TERM → KILL escalation.
+ */
+function killProcessTreeCrossPlatform(pid: number, mode: "term" | "kill"): void {
+  if (process.platform === "win32") {
+    // No graceful tree-signal exists on Windows; /T /F is the reliable path.
+    execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" });
+    return;
+  }
+  const sig = mode === "term" ? "SIGTERM" : "SIGKILL";
+  try {
+    execFileSync("pkill", [`-${sig.replace("SIG", "")}`, "-P", String(pid)], { stdio: "ignore" });
+  } catch {
+    // no children / pkill absent — the direct signal below still applies
+  }
+  process.kill(pid, sig);
+}
+
+/** Copy-paste "free this port" commands — LAST RESORT only (non-interactive
+ *  shells where we cannot prompt, or a kill that failed): the interactive path
+ *  resolves the owner from the port and kills it itself after consent. */
+function portKillHint(port: number): string {
+  const ps = `Get-NetTCPConnection -LocalPort ${port} -State Listen | % { taskkill /PID $_.OwningProcess /T /F }`;
+  const sh = `lsof -ti tcp:${port} -s tcp:listen | xargs -r kill -9`;
+  return process.platform === "win32"
+    ? `To free the port manually:\n  PowerShell:  ${ps}\n  bash/zsh:    ${sh}`
+    : `To free the port manually:\n  bash/zsh:    ${sh}\n  PowerShell:  ${ps}`;
+}
+
+/** Resolve which pid is LISTENING on a local TCP port (null if none/unknown). */
+function pidListeningOnPort(port: number): number | null {
+  try {
+    if (process.platform === "win32") {
+      const out = execFileSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8" });
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.match(/TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/i);
+        if (m && Number(m[1]) === port) return Number(m[2]);
+      }
+      return null;
+    }
+    const out = execFileSync("lsof", ["-ti", `tcp:${port}`, "-s", "tcp:LISTEN"], {
+      encoding: "utf8",
+    });
+    const pid = Number(out.trim().split(/\s+/)[0]);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort executable name for a pid ("unknown" when unreadable). */
+function processNameOf(pid: number): string {
+  try {
+    if (process.platform === "win32") {
+      const out = execFileSync("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], {
+        encoding: "utf8",
+      });
+      return /^"([^"]+)"/m.exec(out)?.[1] ?? "unknown";
+    }
+    return (
+      execFileSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" }).trim() ||
+      "unknown"
+    );
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Can the target ComfyUI answer /system_stats within timeoutMs? */
+async function probeComfyUi(url: string, timeoutMs = 3000): Promise<boolean> {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(new URL("system_stats", url.endsWith("/") ? url : `${url}/`), {
+      signal: ctl.signal,
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 function readOrchestratorLock(lockPath: string): OrchestratorLock | null {
@@ -305,49 +426,94 @@ async function tryReclaimBridgePort(
 ): Promise<boolean> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
   const lock = readOrchestratorLock(lockPath);
-  const pid = typeof lock?.pid === "number" ? lock.pid : NaN;
-  if (!Number.isInteger(pid) || pid <= 0 || !pidExists(pid)) return false;
+  const lockPid =
+    typeof lock?.pid === "number" && Number.isInteger(lock.pid) && lock.pid > 0 && pidExists(lock.pid)
+      ? lock.pid
+      : null;
+  // The lockfile can be stale/missing while SOMETHING still owns the port (a
+  // crashed session's orphaned child, an unrelated app). Resolve the actual
+  // listener from the port so a single consent can clear EVERYTHING.
+  const portPid = pidListeningOnPort(port);
+  const pid = lockPid ?? portPid;
+  if (!pid) return false;
 
-  const myVersion = detectInstallMode().currentVersion ?? "unknown";
-  const heldVersion = typeof lock?.version === "string" ? lock.version : "unknown";
-  const startedAt = typeof lock?.startedAt === "string" ? lock.startedAt : null;
-  const holderNote =
-    heldVersion !== "unknown" && myVersion !== "unknown" && heldVersion !== myVersion
-      ? `an older comfyui-mcp v${heldVersion} (this is v${myVersion})`
-      : `another comfyui-mcp v${heldVersion} session`;
+  const myUrl = process.env.COMFYUI_URL || "http://127.0.0.1:8188";
+  let holderNote: string;
+  let detailNote = "";
+  if (lockPid) {
+    const myVersion = detectInstallMode().currentVersion ?? "unknown";
+    const heldVersion = typeof lock?.version === "string" ? lock.version : "unknown";
+    const startedAt = typeof lock?.startedAt === "string" ? lock.startedAt : null;
+    holderNote =
+      heldVersion !== "unknown" && myVersion !== "unknown" && heldVersion !== myVersion
+        ? `an older comfyui-mcp v${heldVersion} (this is v${myVersion})`
+        : `another comfyui-mcp v${heldVersion} session`;
+    // Show WHICH ComfyUI each side is driving — the classic tangle is a stale
+    // session recalled from shell history still "driving" a terminated pod
+    // while the user tries to connect to the live one; without the URLs both
+    // sessions look identical and the takeover choice is a coin flip.
+    const heldUrl = typeof lock?.comfyuiUrl === "string" ? lock.comfyuiUrl : null;
+    if (startedAt) detailNote += `, started ${startedAt}`;
+    if (heldUrl) {
+      const alive = await probeComfyUi(heldUrl);
+      detailNote += `, driving ${heldUrl}${alive ? "" : " (NOT RESPONDING — likely a terminated pod / stale session)"}`;
+    }
+  } else {
+    holderNote = `an unidentified process ("${processNameOf(pid)}" — no comfyui-mcp lockfile; likely an orphaned session or another app)`;
+  }
   logger.warn(
-    `[panel-orchestrator] port ${port} is already held by ${holderNote} — pid ${pid}` +
-      `${startedAt ? `, started ${startedAt}` : ""}.`,
+    `[panel-orchestrator] port ${port} is already held by ${holderNote} — pid ${pid}${detailNote}.`,
   );
   const ok = await promptYesNo(
-    `Stop pid ${pid} and take over this port with the current version? [y/N] `,
+    `Stop it (and its whole process tree) and take over port ${port} for ${myUrl}? [y/N] `,
   );
-  if (!ok) return false;
-
-  logger.info(`[panel-orchestrator] stopping pid ${pid} to reclaim port ${port}…`);
-  try {
-    process.kill(pid, "SIGTERM");
-  } catch (err) {
-    logger.warn(
-      `[panel-orchestrator] couldn't signal pid ${pid}: ${err instanceof Error ? err.message : String(err)}`,
-    );
+  if (!ok) {
+    logger.info(`[panel-orchestrator] leaving pid ${pid} alone.\n${portKillHint(port)}`);
     return false;
   }
-  // Give it a moment to release the port; escalate to SIGKILL if it's still
-  // hanging around, then retry the bind once (bridge.start() runs its own
-  // EADDRINUSE backoff, covering the OS's brief port-release lag).
+
+  // One Y = full authority to clear the port: kill the lockfile's holder AND
+  // whatever is actually listening (they can differ when the lockfile is
+  // stale), whole trees, escalating to a hard kill for anything that survives.
+  const targets = [...new Set([lockPid, portPid].filter((p): p is number => p != null))];
+  logger.info(
+    `[panel-orchestrator] stopping pid${targets.length > 1 ? "s" : ""} ${targets.join(", ")} (and their process trees) to reclaim port ${port}…`,
+  );
+  for (const t of targets) {
+    try {
+      killProcessTreeCrossPlatform(t, "term");
+    } catch (err) {
+      logger.warn(
+        `[panel-orchestrator] couldn't stop pid ${t}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  // Give them a moment to release the port; escalate to a hard tree-kill for
+  // survivors, sweep any NEW listener that appeared (a respawned child), then
+  // retry the bind once (bridge.start() runs its own EADDRINUSE backoff,
+  // covering the OS's brief port-release lag).
   const deadline = Date.now() + 5000;
-  while (Date.now() < deadline && pidExists(pid)) {
+  while (Date.now() < deadline && targets.some((t) => pidExists(t))) {
     await new Promise((r) => setTimeout(r, 200));
   }
-  if (pidExists(pid)) {
+  for (const t of targets) {
+    if (!pidExists(t)) continue;
     try {
-      process.kill(pid, "SIGKILL");
+      killProcessTreeCrossPlatform(t, "kill");
     } catch {
       // already gone
     }
-    await new Promise((r) => setTimeout(r, 300));
   }
+  const straggler = pidListeningOnPort(port);
+  if (straggler && !targets.includes(straggler)) {
+    logger.warn(`[panel-orchestrator] a new pid ${straggler} grabbed port ${port} — stopping it too.`);
+    try {
+      killProcessTreeCrossPlatform(straggler, "kill");
+    } catch {
+      // best-effort
+    }
+  }
+  await new Promise((r) => setTimeout(r, 300));
   bridge.start();
   return bridge.whenReady();
 }
@@ -492,6 +658,24 @@ export async function runPanelOrchestrator(): Promise<void> {
   const lockPath = orchLockPath(lockPort);
   const bridge = startUiBridge(lockPort, bridgeToken, bridgeHost);
 
+  // On-demand phone pairing (the panel "Remote control" button). Off by default:
+  // the FIRST pair request lazily binds a SECOND, token-gated listener on all
+  // interfaces (so a phone can reach it), while the primary loopback bridge stays
+  // token-less. LAN mode returns a same-wifi ws:// URL; tunnel mode fronts the same
+  // token-gated listener with a cloudflared wss:// for anywhere access.
+  const pairPort = lockPort + 2; // avoid the panel_* HTTP-MCP port (lockPort + 1)
+  let pairToken: string | null = null;
+  let pairListenerStarted = false;
+  let pairTunnel: { url: string; stop: () => void } | null = null;
+  const ensurePairListener = async (): Promise<string> => {
+    if (!pairToken) pairToken = randomBytes(24).toString("hex");
+    if (!pairListenerStarted) {
+      await bridge.addListener("0.0.0.0", pairPort, pairToken);
+      pairListenerStarted = true;
+    }
+    return pairToken;
+  };
+
   if (lanBridge) {
     // Ready-to-paste connection info: the panel's Settings → Advanced →
     // Bridge URL takes the full URL incl. ?token= verbatim.
@@ -529,7 +713,7 @@ export async function runPanelOrchestrator(): Promise<void> {
   if (!bound) bound = await tryReclaimBridgePort(bridge, lockPort, lockPath);
   if (!bound) {
     logger.error(
-      `[panel-orchestrator] could not bind the panel bridge port — another process owns it. Free that port and restart the orchestrator. Override the port with COMFYUI_MCP_BRIDGE_PORT.`,
+      `[panel-orchestrator] could not bind the panel bridge port — another process owns it. Free that port and restart the orchestrator. Override the port with COMFYUI_MCP_BRIDGE_PORT.\n${portKillHint(lockPort)}`,
     );
     process.exit(1);
   }
@@ -561,6 +745,10 @@ export async function runPanelOrchestrator(): Promise<void> {
         // npm package version — read by a NEXT orchestrator's tryReclaimBridgePort
         // to tell the user whose/which version currently holds the port.
         version: detectInstallMode().currentVersion ?? null,
+        // The ComfyUI this session drives — shown by a NEXT orchestrator's
+        // takeover prompt so a stale session (dead pod URL from shell history)
+        // identifies itself instead of looking like a twin.
+        comfyuiUrl: process.env.COMFYUI_URL || null,
       }),
     );
   } catch (err) {
@@ -577,12 +765,37 @@ export async function runPanelOrchestrator(): Promise<void> {
   // whatever ComfyUI (local or a RunPod proxy) the browser is actually on. No
   // `connect <url>` needed.
   let comfyuiUrl = process.env.COMFYUI_URL ?? "http://127.0.0.1:8188";
+  // Dead-target guard: a `connect` aimed at a TERMINATED pod (an old URL
+  // recalled from shell history) otherwise looks perfectly alive — bridge up,
+  // tunnel up — while its advertise goes to a dead host, so the panel never
+  // receives this session's token and spams "missing/invalid token". Name the
+  // real problem up front. Warn-only and fire-and-forget: the target may
+  // legitimately still be booting, and a panel `hello` can retarget us later.
+  void (async () => {
+    const target = comfyuiUrl;
+    if (await probeComfyUi(target, 6000)) return;
+    logger.warn(
+      `[panel-orchestrator] the target ComfyUI at ${target} is NOT responding. ` +
+        `If it is a pod that is still starting, this resolves itself — but if the pod was ` +
+        `TERMINATED, this is a stale URL (shell history?) and the panel will never be able to ` +
+        `connect to this session (it shows up as 'missing/invalid token' rejections). ` +
+        `Double-check the pod id in the URL and re-run connect with the current one.`,
+    );
+  })();
   // ComfyUI install path — when set AND the target is loopback, the spawned agent's
   // MCP runs in LOCAL mode (download_model / apply_manifest / installer-pack /
   // model-scan tools). A REMOTE target (non-loopback) forces remote-only, so we
   // drop the path. `envComfyuiPath` is the orchestrator's own env value; the live
   // `comfyuiPath` is derived from it + the current target.
+  // env > auto-detected. The detection (Desktop-recorded installs first, then
+  // common directories) is the same one the headless MCP's config uses — the
+  // orchestrator previously read ONLY the env var, so a Desktop user without
+  // COMFYUI_PATH always landed in "local install/pack tools limited" even with
+  // a local install the MCP itself could find.
   const envComfyuiPath = process.env.COMFYUI_PATH;
+  // `||` not `??`: a set-but-empty COMFYUI_PATH= means "unset" (the headless
+  // MCP's config truthy-checks it the same way) — it must not block detection.
+  const localComfyuiPath = envComfyuiPath || detectLocalComfyUIPath();
   const isLoopbackUrl = (u: string): boolean => {
     try {
       return isLoopbackHost(new URL(u).hostname);
@@ -590,7 +803,13 @@ export async function runPanelOrchestrator(): Promise<void> {
       return true;
     }
   };
-  let comfyuiPath = isLoopbackUrl(comfyuiUrl) ? envComfyuiPath : undefined;
+  // --force-remote drops the local path too: a loopback URL that is really a
+  // port-forward to a pod (e.g. RunPod/dstack) must not hand spawned agents a
+  // local install — the spawn env builders prefer COMFYUI_PATH over the
+  // force-remote flag, so a leaked path would silently defeat --force-remote.
+  const localPathForTarget = (url: string): string | undefined =>
+    !isForceRemoteFlagSet() && isLoopbackUrl(url) ? localComfyuiPath : undefined;
+  let comfyuiPath = localPathForTarget(comfyuiUrl);
   // Force the child remote only when opted in (--force-remote) or the target is
   // non-loopback; a default loopback panel user with no COMFYUI_PATH is left to
   // auto-detect its local install (keeps download_model/apply_manifest/scans).
@@ -687,23 +906,105 @@ export async function runPanelOrchestrator(): Promise<void> {
   // COMFYUI_MCP_GEMINI_MODEL (default gemini-2.5-pro). The model is applied at spawn
   // via the CLI `--model` flag (ACP exposes no per-session model setter).
   const geminiModel = process.env.COMFYUI_MCP_GEMINI_MODEL ?? GEMINI_DEFAULT_MODEL;
-  // Ollama (local LLMs, issue #97): the model is a local tag (qwen3:4b, gemma4:e4b)
-  // applied PER REQUEST — switching live is free. Default = the LLM Arena's best
-  // performer (scripts/llm-arena.mjs): gemma4:e4b, 9/10 with the cleanest runs
-  // (first-try tool dispatch, no nudges) and multimodal headroom for vision.
-  const ollamaModel = process.env.COMFYUI_MCP_OLLAMA_MODEL ?? "gemma4:e4b";
+  // Ollama (local LLMs, issue #97): the model is a local tag applied PER
+  // REQUEST — switching live is free. Default = OUR FINE-TUNE,
+  // artokun/gemma4-comfyui-mcp:e4b — gemma4 QLoRA-trained on 1055
+  // server-verified comfyui-mcp trajectories over the full 178-tool surface
+  // (hf.co/artokun/gemma4-comfyui-mcp), so it drives this exact tool suite
+  // natively. Supersedes stock gemma4:e4b (the previous arena best, 9/10).
+  // Ladder by VRAM at q4: :e2b ~2 GB / :e4b ~3.5 GB / :12b ~8 GB.
+  //
+  // Config precedence: env (escape hatch, always wins) → persisted user settings
+  // (~/.comfyui-mcp/panel-settings.json, edited from the panel Settings dialog
+  // via set_config) → built-in default. Mutable (`let`) because set_config can
+  // retarget them live; API keys stay env-only and never touch the settings file.
+  // Copy any panel-stored provider keys (OPENROUTER_API_KEY) into env BEFORE we
+  // read them below, so a key set on a prior run enables its provider on boot.
+  const hydratedSecrets = hydrateAgentSecretsIntoEnv();
+  if (hydratedSecrets.length) {
+    logger.info(`[panel-orchestrator] hydrated agent secrets from store: ${hydratedSecrets.join(", ")}`);
+  }
+  const persistedAgent = getAgentSettings();
+  let ollamaModel =
+    process.env.COMFYUI_MCP_OLLAMA_MODEL ?? persistedAgent.ollama?.model ?? "artokun/gemma4-comfyui-mcp:e4b";
   // The same backend also speaks any OpenAI-compatible endpoint (OpenRouter,
   // DeepSeek, vLLM, LM Studio): COMFYUI_MCP_OLLAMA_API=openai +
   // COMFYUI_MCP_OLLAMA_BASE_URL (incl. /v1) + COMFYUI_MCP_OLLAMA_API_KEY
   // (falls back to OPENROUTER_API_KEY). The chip stays "Ollama (local)".
-  const ollamaApi = process.env.COMFYUI_MCP_OLLAMA_API === "openai" ? ("openai" as const) : ("ollama" as const);
-  const ollamaBaseUrl = process.env.COMFYUI_MCP_OLLAMA_BASE_URL;
+  let ollamaApi: "openai" | "ollama" =
+    (process.env.COMFYUI_MCP_OLLAMA_API
+      ? process.env.COMFYUI_MCP_OLLAMA_API === "openai"
+      : persistedAgent.ollama?.api === "openai")
+      ? "openai"
+      : "ollama";
+  let ollamaBaseUrl = process.env.COMFYUI_MCP_OLLAMA_BASE_URL ?? persistedAgent.ollama?.baseUrl;
   const ollamaApiKey = process.env.COMFYUI_MCP_OLLAMA_API_KEY || process.env.OPENROUTER_API_KEY;
   const ollamaDeps = () => ({
     api: ollamaApi,
     ...(ollamaBaseUrl ? { host: ollamaBaseUrl } : {}),
     ...(ollamaApi === "openai" && ollamaApiKey ? { apiKey: ollamaApiKey } : {}),
   });
+  // OpenRouter is a first-class provider = the Ollama backend hard-wired to
+  // OpenRouter's OpenAI-compatible endpoint, so its picker leads with the
+  // curated arena-winning models (RECOMMENDED_OPENROUTER_MODELS, MiMo/MiniMax
+  // tagged 1M · SOTA). Key comes from OPENROUTER_API_KEY (or the shared ollama
+  // key). Default model = the arena's top open-weight, MiMo v2.5.
+  const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+  let openrouterModel = process.env.COMFYUI_MCP_OPENROUTER_MODEL ?? "xiaomi/mimo-v2.5";
+  // Read the key FRESH each call (not a startup const) so a key the user sets
+  // later via the panel — setAgentSecret hydrates it into env — takes effect on
+  // the next backend build without an orchestrator restart.
+  const openrouterApiKey = () => process.env.OPENROUTER_API_KEY || process.env.COMFYUI_MCP_OLLAMA_API_KEY;
+  const openrouterDeps = () => {
+    const key = openrouterApiKey();
+    return {
+      api: "openai" as const,
+      host: OPENROUTER_BASE_URL,
+      ...(key ? { apiKey: key } : {}),
+    };
+  };
+  // LM Studio (issue #160) = the same openai dialect pinned to LM Studio's
+  // local server. No API key, no login. Default model is EMPTY on purpose —
+  // LM Studio model ids are user-specific, so ensureModels() below fills it
+  // with the first id the server actually offers.
+  const LMSTUDIO_BASE_URL = (
+    process.env.COMFYUI_MCP_LMSTUDIO_HOST ?? "http://127.0.0.1:1234/v1"
+  ).replace(/[/]$/, "");
+  let lmstudioModel =
+    process.env.COMFYUI_MCP_LMSTUDIO_MODEL ?? persistedAgent.lmstudio?.model ?? "";
+  const lmstudioDeps = () => ({ api: "openai" as const, host: LMSTUDIO_BASE_URL });
+  // llama.cpp (issue #161) — llama-server's OpenAI-compatible /v1. No key, no
+  // login, ONE model fixed at launch (-m). Context is a LAUNCH flag (-c), and
+  // tool calling needs --jinja — both probed at connect (services/llamacpp-probe).
+  const LLAMACPP_BASE_URL = (
+    process.env.COMFYUI_MCP_LLAMACPP_HOST ?? "http://127.0.0.1:8080/v1"
+  ).replace(/[/]$/, "");
+  let llamacppModel =
+    process.env.COMFYUI_MCP_LLAMACPP_MODEL ?? persistedAgent.llamacpp?.model ?? "";
+  const llamacppDeps = () => ({ api: "openai" as const, host: LLAMACPP_BASE_URL });
+  // Custom OpenAI-compatible endpoint (issue #162) — the same openai dialect
+  // pointed anywhere the user says: vLLM, DeepSeek, Together, Azure, a box on
+  // the LAN… Base URL + model come from panel Settings (persisted) or env; the
+  // API key from the 0600 secrets store (COMFYUI_MCP_CUSTOM_API_KEY, set via
+  // the panel's masked "Set API key…" — many local endpoints need none). NO
+  // default URL on purpose: unconfigured degrades with an actionable ack
+  // instead of dialing a guess.
+  let customBaseUrl = (
+    process.env.COMFYUI_MCP_CUSTOM_BASE_URL ?? persistedAgent.custom?.baseUrl ?? ""
+  ).replace(/[/]$/, "");
+  let customModel = process.env.COMFYUI_MCP_CUSTOM_MODEL ?? persistedAgent.custom?.model ?? "";
+  // Key read FRESH each call (not a startup const) so a key set later via the
+  // panel — setAgentSecret hydrates it into env — applies on the next backend
+  // build without an orchestrator restart.
+  const customApiKey = () => process.env.COMFYUI_MCP_CUSTOM_API_KEY;
+  const customDeps = () => {
+    const key = customApiKey();
+    return {
+      api: "openai" as const,
+      host: customBaseUrl,
+      ...(key ? { apiKey: key } : {}),
+    };
+  };
   // ── Per-tab backend (single-port multi-provider) ──────────────────────────
   // ONE orchestrator on ONE bridge port serves ALL providers; the panel picks a
   // provider per tab via the `hello`/`set_backend` handshake, instead of the node
@@ -713,10 +1014,11 @@ export async function runPanelOrchestrator(): Promise<void> {
   // provider (the panel replays the transcript to seed it) while a same-provider
   // reconnect RESUMES. `backendId`/`codexModel`/`geminiModel` above are the
   // DEFAULT + per-provider model config; the process is no longer pinned to one.
-  const KNOWN_BACKENDS = new Set(["claude", "codex", "gemini", "ollama"]);
+  const KNOWN_BACKENDS = new Set(["claude", "codex", "gemini", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"]);
   const defaultBackend = KNOWN_BACKENDS.has(backendId) ? backendId : "claude";
   const AGENT_KEY_SEP = "::";
   const tabBackends = new Map<string, string>(); // panel tabId -> selected backend
+  const headlessTabs = new Set<string>(); // tabs with no ComfyUI canvas (mobile/remote) — deliver renders in-turn
   const backendForTab = (panelTabId: string): string =>
     tabBackends.get(panelTabId) ?? defaultBackend;
   const agentKeyFor = (panelTabId: string): string =>
@@ -871,6 +1173,46 @@ export async function runPanelOrchestrator(): Promise<void> {
         ...ollamaDeps(),
       });
     }
+    if (backend === "openrouter") {
+      return new OllamaBackend({
+        cwd: comfyuiPath ?? process.cwd(),
+        model: openrouterModel,
+        systemAppend: panelSystemAppend,
+        comfyuiUrl,
+        mcpServers: makeHttpBackendMcpServers(panelTabId),
+        ...openrouterDeps(),
+      });
+    }
+    if (backend === "lmstudio") {
+      return new OllamaBackend({
+        cwd: comfyuiPath ?? process.cwd(),
+        model: lmstudioModel,
+        systemAppend: panelSystemAppend,
+        comfyuiUrl,
+        mcpServers: makeHttpBackendMcpServers(panelTabId),
+        ...lmstudioDeps(),
+      });
+    }
+    if (backend === "llamacpp") {
+      return new OllamaBackend({
+        cwd: comfyuiPath ?? process.cwd(),
+        model: llamacppModel,
+        systemAppend: panelSystemAppend,
+        comfyuiUrl,
+        mcpServers: makeHttpBackendMcpServers(panelTabId),
+        ...llamacppDeps(),
+      });
+    }
+    if (backend === "custom") {
+      return new OllamaBackend({
+        cwd: comfyuiPath ?? process.cwd(),
+        model: customModel,
+        systemAppend: panelSystemAppend,
+        comfyuiUrl,
+        mcpServers: makeHttpBackendMcpServers(panelTabId),
+        ...customDeps(),
+      });
+    }
     return undefined; // claude → built-in ClaudeBackend
   };
   logger.info(
@@ -892,7 +1234,15 @@ export async function runPanelOrchestrator(): Promise<void> {
           ? new CodexBackend({ cwd: comfyuiPath ?? process.cwd(), model: codexModel })
           : backend === "ollama"
             ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: ollamaModel, ...ollamaDeps() })
-            : new GeminiBackend({ cwd: comfyuiPath ?? process.cwd(), model: geminiModel });
+            : backend === "openrouter"
+              ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: openrouterModel, ...openrouterDeps() })
+              : backend === "lmstudio"
+                ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: lmstudioModel, ...lmstudioDeps() })
+                : backend === "llamacpp"
+                  ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: llamacppModel, ...llamacppDeps() })
+                  : backend === "custom"
+                    ? new OllamaBackend({ cwd: comfyuiPath ?? process.cwd(), model: customModel, ...customDeps() })
+                    : new GeminiBackend({ cwd: comfyuiPath ?? process.cwd(), model: geminiModel });
       probeBackends.set(backend, pb);
     }
     return pb;
@@ -989,6 +1339,64 @@ export async function runPanelOrchestrator(): Promise<void> {
   // spawned after a ComfyUI restart/reconnect.
   liveManager = manager;
 
+  // ── Local-agent VRAM pause during generation ────────────────────────────
+  // On a single-GPU box the local Ollama chat model and ComfyUI fight for VRAM:
+  // a resident model can OOM a render, and a chat sent mid-render reloads the
+  // model on top of the running generation. So while a render is in flight we
+  // (a) unload the local model to free its VRAM, and (b) HOLD any chat the user
+  // sends and answer it once the render finishes (warming the model back). Only
+  // for the LOCAL ollama dialect (hosted openai endpoints don't touch local
+  // VRAM); default on, opt out with COMFYUI_MCP_OLLAMA_PAUSE_ON_GEN=0.
+  const pauseLocalDuringGen = process.env.COMFYUI_MCP_OLLAMA_PAUSE_ON_GEN !== "0";
+  const anyLocalOllama = (): boolean =>
+    ollamaApi === "ollama" &&
+    (defaultBackend === "ollama" || [...tabBackends.values()].includes("ollama"));
+  // LM Studio joins the same VRAM handoff (issue #160 follow-up): local server
+  // only — a remote COMFYUI_MCP_LMSTUDIO_HOST is someone else's VRAM.
+  const anyLocalLmstudio = (): boolean =>
+    isLocalLmstudio(LMSTUDIO_BASE_URL) &&
+    (defaultBackend === "lmstudio" || [...tabBackends.values()].includes("lmstudio"));
+  // agentKey -> messages held while a render runs (flushed on render end).
+  const heldDuringGen = new Map<string, Array<{ text: string; opts: Record<string, unknown> }>>();
+  let genPauseActive = false;
+  if (pauseLocalDuringGen) {
+    QueueMonitor.setTransitionHandlers({
+      onRunStart: () => {
+        const ol = anyLocalOllama();
+        const ls = anyLocalLmstudio();
+        if (!ol && !ls) return;
+        genPauseActive = true;
+        // Free the local model's VRAM for the render (best-effort, fire-and-forget).
+        if (ol) void unloadAllOllama(resolveOllamaHost());
+        if (ls) void unloadAllLmstudio(LMSTUDIO_BASE_URL);
+      },
+      onRunEnd: () => {
+        if (!genPauseActive) return;
+        genPauseActive = false;
+        const hadHeld = [...heldDuringGen.values()].some((a) => a.length > 0);
+        // If nothing was queued, proactively warm the model so the next chat is
+        // instant ("ready to chat"). If messages ARE queued, sending them below
+        // loads the model itself — no separate warm needed.
+        if (anyLocalOllama() && !hadHeld) void warmOllama(resolveOllamaHost(), ollamaModel);
+        if (anyLocalLmstudio() && !hadHeld && lmstudioModel) void warmLmstudio(LMSTUDIO_BASE_URL, lmstudioModel);
+        for (const [key, msgs] of heldDuringGen) {
+          const tabId = panelTabOf(key);
+          if (msgs.length > 0) {
+            bridge.push(
+              { type: "say", text: "✅ Render finished — the local agent is back. Answering your queued message now." },
+              tabId,
+            );
+          }
+          for (const m of msgs) {
+            bridge.push({ type: "turn", state: "working" }, tabId);
+            manager.send(key, m.text, m.opts);
+          }
+        }
+        heldDuringGen.clear();
+      },
+    });
+  }
+
   // Retarget the live ComfyUI from the panel's `hello.comfyui_url` (the URL the
   // browser was SERVED FROM — window.location). This is what lets a bare
   // `--panel-orchestrator` (booted on the localhost default) auto-point at whatever
@@ -1010,7 +1418,7 @@ export async function runPanelOrchestrator(): Promise<void> {
     if (!host || next === comfyuiUrl) return false;
     const prev = comfyuiUrl;
     comfyuiUrl = next;
-    comfyuiPath = isLoopbackUrl(next) ? envComfyuiPath : undefined;
+    comfyuiPath = localPathForTarget(next);
     // Point every provider at the new target: Claude via its rebuilt MCP env, the
     // manager's image-fetch URL, then respawn active agents so the live comfyui MCP
     // subprocess is recreated with the new COMFYUI_URL (no-op if none are running —
@@ -1050,6 +1458,28 @@ export async function runPanelOrchestrator(): Promise<void> {
     logger.info(
       `[panel-orchestrator] tool secret saved → comfyui MCP env updated + agents respawn on idle (keys: ${comfyuiSecretKeys().join(", ") || "none"})`,
     );
+  });
+
+  // An agent-provider secret changed (e.g. the OpenRouter API key set from the
+  // panel). Hydrate it into env, drop the cached openrouter probe/model list so
+  // the next probe uses the new key, and re-push readiness + models to every
+  // live tab so the OpenRouter provider flips to "ready" and lists its models
+  // without a reconnect.
+  const unsubscribeAgentSecrets = onAgentSecretsChanged(() => {
+    hydrateAgentSecretsIntoEnv();
+    // A key change can affect either keyed endpoint provider — drop both
+    // caches so the next probe carries the fresh credentials.
+    for (const b of ["openrouter", "custom"]) {
+      modelsByBackend.delete(b);
+      const pb = probeBackends.get(b);
+      if (pb?.close) void pb.close().catch(() => {});
+      probeBackends.delete(b);
+    }
+    for (const tabId of tabBackends.keys()) {
+      pushReadiness(tabId);
+      pushModels(tabId);
+    }
+    logger.info("[panel-orchestrator] provider key saved → readiness + models refreshed");
   });
 
   // Debounce the connect ack: the panel re-sends `hello` on reconnect and on
@@ -1093,7 +1523,51 @@ export async function runPanelOrchestrator(): Promise<void> {
             })
         : fetchSupportedModels(model);
       p = probe.then((list) => {
-        if (!list.length) modelsByBackend.delete(backend); // don't cache a failure
+        if (!list.length) modelsByBackend.delete(backend); // don't cache a failed probe
+        // LM Studio / llama.cpp ship no sane hardcoded default (the model is
+        // whatever the user downloaded/launched) — adopt the server's first
+        // offering when unset. llama-server serves exactly one model, so this
+        // IS the model.
+        if (backend === "lmstudio" && !lmstudioModel && list.length) {
+          lmstudioModel = (list[0] as { value?: string }).value ?? "";
+          if (lmstudioModel) {
+            logger.info(`[panel-orchestrator] lmstudio default model → ${lmstudioModel} (first served)`);
+          }
+        }
+        if (backend === "llamacpp" && !llamacppModel && list.length) {
+          llamacppModel = (list[0] as { value?: string }).value ?? "";
+          if (llamacppModel) {
+            logger.info(`[panel-orchestrator] llamacpp model → ${llamacppModel} (the server's loaded model)`);
+          }
+        }
+        // Custom endpoint: same adoption — many self-hosted servers (vLLM,
+        // llama-server, TGI) serve exactly one model, so the first listed id
+        // is the sane default when the user hasn't named one.
+        if (backend === "custom" && !customModel && list.length) {
+          customModel = (list[0] as { value?: string }).value ?? "";
+          if (customModel) {
+            logger.info(`[panel-orchestrator] custom endpoint model → ${customModel} (first served)`);
+          }
+        }
+        // User-curated preferred models (panel Settings → set_config) pin to the
+        // top of the ollama picker, ahead of the discovered catalog. Read fresh
+        // on every probe; set_config evicts the cache so edits apply live.
+        if (backend === "ollama") {
+          const preferred = getAgentSettings().preferredModels ?? [];
+          if (preferred.length) {
+            const discovered = new Map(list.map((m) => [m.value, m] as const));
+            list = [
+              ...preferred.map(
+                (id) =>
+                  (discovered.get(id) ?? {
+                    value: id,
+                    displayName: `${id} ★`,
+                  }) as unknown as ModelInfo,
+              ),
+              ...list.filter((m) => !preferred.includes(m.value as string)),
+            ];
+          }
+        }
         return list;
       });
       modelsByBackend.set(backend, p);
@@ -1107,6 +1581,10 @@ export async function runPanelOrchestrator(): Promise<void> {
     if (backend === "codex") return codexModel;
     if (backend === "gemini") return geminiModel;
     if (backend === "ollama") return ollamaModel;
+    if (backend === "openrouter") return openrouterModel;
+    if (backend === "lmstudio") return lmstudioModel || undefined;
+    if (backend === "llamacpp") return llamacppModel || undefined;
+    if (backend === "custom") return customModel || undefined;
     return model;
   }
   function pushModels(panelTabId: string): void {
@@ -1163,8 +1641,28 @@ export async function runPanelOrchestrator(): Promise<void> {
   // no CLI). The panel prefers this frame over its GET /backends probe.
   function pushReadiness(tabId: string): void {
     try {
-      const { backends, any_ready } = allBackendReadiness(KNOWN_BACKENDS);
+      const { backends, any_ready } = allBackendReadiness(KNOWN_BACKENDS, {
+        customEndpointConfigured: !!customBaseUrl,
+      });
       bridge.push({ type: "backends", backends, any_ready }, tabId);
+      // llama.cpp reality check (async re-push): the binary is often unzipped
+      // anywhere (not on PATH), so static detection says "not installed" while
+      // a server is HAPPILY ANSWERING. A live endpoint beats a missing binary —
+      // probe it and, when it answers, re-push the frame with llamacpp ready.
+      const lc = backends.find((b) => b.backend === "llamacpp");
+      if (lc && !lc.ready) {
+        void fetch(`${LLAMACPP_BASE_URL.replace(/\/v1$/, "")}/health`, {
+          signal: AbortSignal.timeout(1500),
+        })
+          .then((r) => {
+            if (!r.ok) return;
+            lc.cli = true;
+            lc.auth = true;
+            lc.ready = true;
+            bridge.push({ type: "backends", backends, any_ready: true }, tabId);
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       logger.warn(`[panel-orchestrator] readiness probe failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -1206,6 +1704,10 @@ export async function runPanelOrchestrator(): Promise<void> {
         manager.reset(panelTab + AGENT_KEY_SEP + prev);
       }
       tabBackends.set(panelTab, backend);
+      // A headless client (mobile/remote pseudo-panel, no browser canvas) advertises
+      // itself in the hello frame so its agent gets the in-turn-delivery directive.
+      if ((event as { headless?: unknown }).headless === true) headlessTabs.add(panelTab);
+      else headlessTabs.delete(panelTab);
       const key = panelTab + AGENT_KEY_SEP + backend;
 
       // Reload restore: the panel re-sends the last session id it saw. Honored
@@ -1229,10 +1731,51 @@ export async function runPanelOrchestrator(): Promise<void> {
       const isCx = backend === "codex";
       const isGm = backend === "gemini";
       const isOl = backend === "ollama";
+      const isOr = backend === "openrouter";
+      const isLs = backend === "lmstudio";
+      const isLc = backend === "llamacpp";
+      const isCu = backend === "custom";
       // TRUTHFUL "connected": only claim ready after PROVING the SELECTED backend
       // can run, by probing its model list. If the probe fails — the "connected
       // but dead" wedge — send a degraded ack so the panel shows the real state.
-      void ensureModels(backend)
+      // OpenRouter needs an explicit key check FIRST: its /models endpoint is
+      // PUBLIC, so the probe "succeeds" keyless and the tab would greet ready —
+      // then 401 on the first real message. Degrade up front instead.
+      if (isOr && !openrouterApiKey()) {
+        bridge.push(
+          {
+            type: "say",
+            text:
+              "⚠️ OpenRouter has no API key — the connection would fail on your first message. " +
+              "Set it in Settings → OpenRouter → “Set API key…” (masked, stored by the orchestrator — takes effect immediately, no reconnect needed), " +
+              "or set the OPENROUTER_API_KEY environment variable and restart the orchestrator. Keys: https://openrouter.ai/keys",
+          },
+          panelTab,
+        );
+        bridge.push({ type: "ack", ok: false, kind: "degraded" }, panelTab);
+        logger.warn(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} connected (openrouter) but no API key — degraded ack`);
+        return;
+      }
+      // Custom endpoint with no URL: don't dial a guess — degrade up front
+      // with the exact fix (mirrors the OpenRouter keyless guard above).
+      if (isCu && !customBaseUrl) {
+        bridge.push(
+          {
+            type: "say",
+            text:
+              "⚠️ No endpoint configured — set the base URL in Settings → Custom endpoint (include the /v1, e.g. http://192.168.1.20:8000/v1 for vLLM, or a hosted provider's OpenAI-compatible URL), " +
+              "plus “Set API key…” if the server needs one. Both apply immediately — then Connect again.",
+          },
+          panelTab,
+        );
+        bridge.push({ type: "ack", ok: false, kind: "degraded" }, panelTab);
+        logger.warn(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} connected (custom) but no base URL — degraded ack`);
+        return;
+      }
+      void (isLs && isLocalLmstudio(LMSTUDIO_BASE_URL)
+        ? startLmstudioServer(LMSTUDIO_BASE_URL).then(() => ensureModels(backend))
+        : ensureModels(backend)
+      )
         .then((models) => {
           if (models.length) {
             const agentLabel = isCx
@@ -1241,7 +1784,48 @@ export async function runPanelOrchestrator(): Promise<void> {
                 ? (geminiModel ?? (models[0] as { value?: string }).value ?? "Gemini")
                 : isOl
                   ? (ollamaModel ?? (models[0] as { value?: string }).value ?? "Ollama")
-                  : model;
+                  : isLs
+                    ? (lmstudioModel || ((models[0] as { value?: string }).value ?? "LM Studio"))
+                    : isLc
+                      ? (llamacppModel || ((models[0] as { value?: string }).value ?? "llama.cpp"))
+                      : isCu
+                        ? (customModel || ((models[0] as { value?: string }).value ?? "Custom endpoint"))
+                        : isOr
+                      ? (openrouterModel ?? (models[0] as { value?: string }).value ?? "OpenRouter")
+                      : model;
+            // llama.cpp launch gotchas (issue #161): a reachable server can still
+            // be useless for us — tool calling needs --jinja (rejected requests),
+            // and a launch-time -c under ~16K silently truncates the tool payload.
+            // Probe both and degrade/warn with the exact fix instead of letting
+            // the first real message fail cryptically.
+            if (isLc) {
+              const activeModel = llamacppModel || ((models[0] as { value?: string }).value ?? "");
+              void (async () => {
+                const [tools, props] = await Promise.all([
+                  llamacppToolsReady(LLAMACPP_BASE_URL, activeModel),
+                  llamacppProps(LLAMACPP_BASE_URL),
+                ]);
+                if (tools === "no") {
+                  bridge.push(
+                    {
+                      type: "say",
+                      text:
+                        "⚠️ Your llama-server is running WITHOUT `--jinja`, so tool calling is disabled — every agent action would fail. " +
+                        "Restart it with tool support: `llama-server -m <model>.gguf --jinja -c 16384` (current builds enable jinja by default; older ones need the flag), then Disconnect → Connect.",
+                    },
+                    panelTab,
+                  );
+                } else if (props.nCtx && props.nCtx < 16384) {
+                  bridge.push(
+                    {
+                      type: "say",
+                      text: `ℹ️ Your llama-server context is ${props.nCtx} tokens (launch flag -c). The agent's tool payload wants ≥16384 — below that, long turns silently truncate. Consider restarting with \`-c 16384\` or higher.`,
+                    },
+                    panelTab,
+                  );
+                }
+              })();
+            }
             // Greet only on a FRESH session (a resume/reconnect already has the thread).
             if (!resume) {
               const readyText = isCx
@@ -1250,7 +1834,15 @@ export async function runPanelOrchestrator(): Promise<void> {
                   ? `🟢 comfyui-mcp agent ready — ${agentLabel} on your Google account (Gemini Code Assist). Ask away.`
                   : isOl
                     ? `🟢 comfyui-mcp agent ready — ${agentLabel} running locally via Ollama (no account, no API key). Small local models are slower and simpler than frontier ones — expect fewer frills. Ask away.`
-                    : `🟢 comfyui-mcp agent ready — ${agentLabel} on your Claude subscription. Ask away.`;
+                    : isLs
+                      ? `🟢 comfyui-mcp agent ready — ${agentLabel} running locally via LM Studio (no account, no API key). Small local models are slower and simpler than frontier ones — expect fewer frills. Ask away.`
+                      : isLc
+                        ? `🟢 comfyui-mcp agent ready — ${agentLabel} running locally via llama.cpp (no account, no API key). Small local models are slower and simpler than frontier ones — expect fewer frills. Ask away.`
+                        : isCu
+                          ? `🟢 comfyui-mcp agent ready — ${agentLabel} via your custom endpoint (${customBaseUrl}). Ask away.`
+                          : isOr
+                      ? `🟢 comfyui-mcp agent ready — ${agentLabel} via OpenRouter (hosted API, your OPENROUTER_API_KEY). Ask away.`
+                      : `🟢 comfyui-mcp agent ready — ${agentLabel} on your Claude subscription. Ask away.`;
               bridge.push({ type: "say", text: readyText }, panelTab);
             }
             bridge.push({ type: "ack", ok: true, kind: "ready", agent: agentLabel, backend }, panelTab);
@@ -1261,8 +1853,14 @@ export async function runPanelOrchestrator(): Promise<void> {
               : isGm
                 ? "⚠️ The background agent isn't responding — the Gemini CLI couldn't start. Make sure the Gemini CLI is installed and signed in (run `gemini` once and complete the Google sign-in), then Disconnect → Connect to retry."
                 : isOl
-                  ? "⚠️ The background agent isn't responding — Ollama isn't reachable. Start it with `ollama serve` and pull a tool-calling model (e.g. `ollama pull gemma4:e4b`), then Disconnect → Connect to retry."
-                  : "⚠️ The background agent isn't responding — the Claude Agent SDK couldn't start. Make sure you're signed in (run `claude` once), then Disconnect → Connect to retry.";
+                  ? "⚠️ The background agent isn't responding — Ollama isn't reachable. Start it with `ollama serve` and pull our fine-tuned model (`ollama pull artokun/gemma4-comfyui-mcp:e4b` — gemma4 trained on the comfyui-mcp tool suite — arena-best local model; `:12b` for ~8 GB VRAM), then Disconnect → Connect to retry."
+                  : isLs
+                    ? `⚠️ The background agent isn't responding — LM Studio isn't reachable at ${LMSTUDIO_BASE_URL}. Open LM Studio → Developer → Start Server and load a tool-calling model (our gemma4-comfyui-mcp GGUFs from Hugging Face work great), or set COMFYUI_MCP_LMSTUDIO_HOST if it serves elsewhere — then Disconnect → Connect to retry.`
+                    : isLc
+                      ? `⚠️ The background agent isn't responding — llama-server isn't reachable at ${LLAMACPP_BASE_URL}. Start it with \`llama-server -m <model>.gguf -c 16384\` (our gemma4-comfyui-mcp GGUFs work great; add --jinja on older builds — required there for tool calling), or set COMFYUI_MCP_LLAMACPP_HOST — then Disconnect → Connect to retry.`
+                      : isCu
+                        ? `⚠️ The background agent isn't responding — your custom endpoint isn't answering at ${customBaseUrl}. Check the base URL in Settings → Custom endpoint (it must be OpenAI-compatible and include the /v1) and the API key if the server requires one — then Connect to retry.`
+                        : "⚠️ The background agent isn't responding — the Claude Agent SDK couldn't start. Make sure you're signed in (run `claude` once), then Disconnect → Connect to retry.";
             bridge.push({ type: "say", text: degradedText }, panelTab);
             bridge.push({ type: "ack", ok: false, kind: "degraded" }, panelTab);
             logger.warn(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} connected (${backend}) but model probe empty — degraded ack`);
@@ -1291,15 +1889,32 @@ export async function runPanelOrchestrator(): Promise<void> {
       const prev = tabBackends.get(panelTab) ?? defaultBackend;
       if (prev !== reqBackend) manager.reset(panelTab + AGENT_KEY_SEP + prev);
       tabBackends.set(panelTab, reqBackend);
+      // Leaving a LOCAL provider frees its VRAM (no other tab still on it) —
+      // the point of switching to Claude/hosted is usually reclaiming the GPU.
+      if (prev !== reqBackend) {
+        const stillUsed = (b: string) => [...tabBackends.values()].includes(b) || defaultBackend === b;
+        if (prev === "lmstudio" && !stillUsed("lmstudio") && isLocalLmstudio(LMSTUDIO_BASE_URL)) {
+          void unloadAllLmstudio(LMSTUDIO_BASE_URL);
+        }
+        if (prev === "ollama" && !stillUsed("ollama") && ollamaApi === "ollama") {
+          void unloadAllOllama(resolveOllamaHost());
+        }
+        // Switching TO lmstudio: make sure its server is up (auto-start, no
+        // manual `lms server start`) so the readiness probe finds it alive.
+        if (reqBackend === "lmstudio") void startLmstudioServer(LMSTUDIO_BASE_URL);
+      }
       pushModels(panelTab);
       if (reqBackend === "claude") pushCommands(panelTab);
       bridge.push({ type: "ack", ok: true, kind: "set_backend", backend: reqBackend }, panelTab);
       logger.info(`[panel-orchestrator] tab ${panelTab.slice(0, 8)} switched backend ${prev} → ${reqBackend}`);
       return;
     }
-    // Live panel config (currently just the render-stall threshold). Applied
-    // immediately, no reconnect — the next turn's watchdog check uses the new
-    // value. Sent by the panel on connect and whenever the setting changes.
+    // Live panel config: render-stall threshold, plus the user's agent-model
+    // preferences (preferred_models list + ollama endpoint config), persisted to
+    // ~/.comfyui-mcp/panel-settings.json. Sent by the panel on connect and
+    // whenever a setting changes. Model-list changes apply live (cache evicted,
+    // fresh `models` frame pushed); an endpoint change retargets NEW sessions —
+    // live ollama sessions keep their connection until restarted.
     if (event.type === "set_config" && event.tab_id) {
       if ("stall_seconds" in event) {
         setLiveStallSeconds((event as { stall_seconds?: unknown }).stall_seconds);
@@ -1307,7 +1922,179 @@ export async function runPanelOrchestrator(): Promise<void> {
           `[panel-orchestrator] live stall threshold → ${liveStallSeconds ?? "default"}s`,
         );
       }
+      const cfg = event as { preferred_models?: unknown; ollama?: unknown };
+      let ollamaChanged = false;
+      if (Array.isArray(cfg.preferred_models)) {
+        const ids = cfg.preferred_models.filter((m): m is string => typeof m === "string");
+        setAgentSettings({ preferredModels: ids });
+        ollamaChanged = true;
+        logger.info(`[panel-orchestrator] preferred models → [${ids.join(", ")}]`);
+      }
+      if (cfg.ollama && typeof cfg.ollama === "object") {
+        const o = cfg.ollama as { model?: unknown; api?: unknown; base_url?: unknown };
+        const patch: { model?: string; api?: "ollama" | "openai"; baseUrl?: string } = {};
+        if (typeof o.model === "string" && o.model.trim()) {
+          patch.model = o.model.trim();
+          if (!process.env.COMFYUI_MCP_OLLAMA_MODEL) ollamaModel = patch.model;
+        }
+        if (o.api === "openai" || o.api === "ollama") {
+          patch.api = o.api;
+          if (!process.env.COMFYUI_MCP_OLLAMA_API) ollamaApi = o.api;
+        }
+        if (typeof o.base_url === "string") {
+          patch.baseUrl = o.base_url.trim();
+          if (!process.env.COMFYUI_MCP_OLLAMA_BASE_URL) ollamaBaseUrl = patch.baseUrl || undefined;
+        }
+        if (Object.keys(patch).length) {
+          setAgentSettings({ ollama: patch });
+          ollamaChanged = true;
+          // Endpoint may have moved — drop the cached probe backend so the next
+          // readiness/model probe hits the NEW host/api with fresh deps.
+          const pb = probeBackends.get("ollama");
+          if (pb?.close) void pb.close().catch(() => {});
+          probeBackends.delete("ollama");
+          logger.info(
+            `[panel-orchestrator] ollama config → model=${ollamaModel} api=${ollamaApi} host=${ollamaBaseUrl ?? "(default)"}`,
+          );
+        }
+      }
+      const lccfg = (event as { llamacpp?: unknown }).llamacpp;
+      if (lccfg && typeof lccfg === "object") {
+        const o = lccfg as { model?: unknown };
+        if (typeof o.model === "string" && o.model.trim()) {
+          const m = o.model.trim();
+          if (!process.env.COMFYUI_MCP_LLAMACPP_MODEL) llamacppModel = m;
+          setAgentSettings({ llamacpp: { model: m } });
+          modelsByBackend.delete("llamacpp");
+          logger.info(`[panel-orchestrator] llamacpp config → model=${llamacppModel}`);
+        }
+      }
+      const lcfg = (event as { lmstudio?: unknown }).lmstudio;
+      if (lcfg && typeof lcfg === "object") {
+        const o = lcfg as { model?: unknown };
+        if (typeof o.model === "string" && o.model.trim()) {
+          const m = o.model.trim();
+          if (!process.env.COMFYUI_MCP_LMSTUDIO_MODEL) lmstudioModel = m;
+          setAgentSettings({ lmstudio: { model: m } });
+          const pb = probeBackends.get("lmstudio");
+          if (pb?.close) void pb.close().catch(() => {});
+          probeBackends.delete("lmstudio");
+          modelsByBackend.delete("lmstudio");
+          logger.info(`[panel-orchestrator] lmstudio config → model=${lmstudioModel}`);
+        }
+      }
+      // Custom endpoint (issue #162): base_url + model, both user-supplied.
+      // base_url accepts "" (clears the endpoint → provider flips unready);
+      // either change evicts the probe/model caches so the next connect dials
+      // the new target, and re-pushes readiness so the picker flips live.
+      const cucfg = (event as { custom?: unknown }).custom;
+      if (cucfg && typeof cucfg === "object") {
+        const o = cucfg as { model?: unknown; base_url?: unknown };
+        const patch: { model?: string; baseUrl?: string } = {};
+        if (typeof o.model === "string" && o.model.trim()) {
+          patch.model = o.model.trim();
+          if (!process.env.COMFYUI_MCP_CUSTOM_MODEL) customModel = patch.model;
+        }
+        if (typeof o.base_url === "string") {
+          patch.baseUrl = o.base_url.trim().replace(/[/]$/, "");
+          if (!process.env.COMFYUI_MCP_CUSTOM_BASE_URL) customBaseUrl = patch.baseUrl;
+        }
+        if (Object.keys(patch).length) {
+          setAgentSettings({ custom: patch });
+          const pb = probeBackends.get("custom");
+          if (pb?.close) void pb.close().catch(() => {});
+          probeBackends.delete("custom");
+          modelsByBackend.delete("custom");
+          pushReadiness(event.tab_id);
+          logger.info(
+            `[panel-orchestrator] custom endpoint config → model=${customModel || "(first served)"} host=${customBaseUrl || "(unset)"}`,
+          );
+        }
+      }
+      if (ollamaChanged) {
+        modelsByBackend.delete("ollama");
+        pushModels(event.tab_id);
+      }
       bridge.push({ type: "ack", ok: true, kind: "config" }, event.tab_id);
+      return;
+    }
+
+    // Panel-initiated secret (Settings › "Set API key/token…") — NO agent, no
+    // chat: the panel paints its own masked input and ships the value here
+    // directly, over the same loopback/token-gated bridge the agent-initiated
+    // request_secret reply already rides. Routed by allowlist: PROVIDER keys
+    // (OPENROUTER_API_KEY, COMFYUI_MCP_CUSTOM_API_KEY) → setAgentSecret, which
+    // persists 0600 and hydrates process.env immediately so the refreshed
+    // readiness frame flips the provider picker live; comfyui TOOL tokens
+    // (CivitAI/HuggingFace) → setComfyuiSecret, whose change event already
+    // re-injects the MCP child env + respawns on idle — so EVERY token button
+    // works agent-free with just the bridge connected (no chicken-and-egg).
+    if (event.type === "set_secret" && event.tab_id) {
+      const rawKey = (event as { key?: unknown }).key;
+      const rawValue = (event as { value?: unknown }).value;
+      const key = typeof rawKey === "string" ? rawKey : "";
+      const value = typeof rawValue === "string" ? rawValue : "";
+      let error: string | undefined;
+      try {
+        if (!value.trim()) throw new Error("No token entered — nothing was saved.");
+        if (isAllowedComfyuiSecretKey(key)) setComfyuiSecret(key, value.trim());
+        else setAgentSecret(key, value.trim());
+        logger.info(`[panel-orchestrator] secret set from panel Settings: ${key} (redacted)`);
+      } catch (err) {
+        error = err instanceof Error ? err.message : String(err);
+      }
+      bridge.push(
+        { type: "secret_saved", key, ok: !error, ...(error ? { error } : {}) },
+        event.tab_id,
+      );
+      if (!error) pushReadiness(event.tab_id);
+      return;
+    }
+
+    // Phone pairing: mint a phone-reachable bridge URL for the panel's QR modal.
+    // `lan` → ws://<lan-ip>:<pairPort>/?token= (same wifi); `tunnel` → a cloudflared
+    // wss://…/?token= (anywhere). Both hit the on-demand token-gated pairing
+    // listener; async (tunnel startup can fail), so reply via a typed frame.
+    if (event.type === "pair" && event.tab_id) {
+      const mode = (event as { mode?: unknown }).mode === "tunnel" ? "tunnel" : "lan";
+      const tabId = event.tab_id;
+      void (async () => {
+        const token = await ensurePairListener();
+        let url: string;
+        if (mode === "tunnel") {
+          if (!pairTunnel) {
+            const t = await startQuickTunnel(pairPort, "127.0.0.1");
+            pairTunnel = { url: t.url, stop: t.stop };
+            process.once("exit", () => {
+              try {
+                pairTunnel?.stop();
+              } catch {
+                /* best-effort */
+              }
+            });
+          }
+          const u = new URL(pairTunnel.url);
+          u.protocol = "wss:";
+          u.search = "";
+          u.searchParams.set("token", token);
+          url = u.toString();
+        } else {
+          const ip = firstLanIPv4();
+          if (!ip) {
+            throw new Error(
+              "No LAN network found — connect this machine to wifi/ethernet, or use the Internet (tunnel) option.",
+            );
+          }
+          url = `ws://${ip}:${pairPort}/?token=${token}`;
+        }
+        logger.info(`[panel-orchestrator] pairing URL minted (${mode})`);
+        bridge.push({ type: "pair_url", mode, url }, tabId);
+      })().catch((err) => {
+        bridge.push(
+          { type: "pair_error", mode, error: err instanceof Error ? err.message : String(err) },
+          tabId,
+        );
+      });
       return;
     }
 
@@ -1333,6 +2120,12 @@ export async function runPanelOrchestrator(): Promise<void> {
             logger.warn(`[panel-orchestrator] ignoring unknown model "${nextModel}" — keeping current`);
             nextModel = undefined;
           }
+        }
+        // LM Studio model switch: unload everything EXCEPT the incoming model —
+        // the outgoing one would otherwise sit in VRAM next to the JIT-loaded
+        // replacement until its TTL expires.
+        if (nextModel && backendForTab(tabId) === "lmstudio" && isLocalLmstudio(LMSTUDIO_BASE_URL)) {
+          void unloadAllLmstudio(LMSTUDIO_BASE_URL, nextModel);
         }
         const applied = await manager.setOptions(agentKeyFor(tabId), { model: nextModel, effort: nextEffort });
         bridge.push(
@@ -1529,6 +2322,14 @@ export async function runPanelOrchestrator(): Promise<void> {
         `[panel-orchestrator] queue-note check failed (ignored): ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+    // HEADLESS delivery: a mobile/remote tab has no browser panel to auto-deliver a
+    // finished render, so remind its agent — every turn, since it must hold for the
+    // whole session — to run headless and show the output itself in-turn. The note is
+    // short and always-correct, so (unlike the once-per-episode crash/queue notes) it
+    // is injected on every headless turn.
+    if (headlessTabs.has(event.tab_id)) {
+      outText = `${HEADLESS_DIRECTIVE}\n\n${outText}`;
+    }
     // Transcript replay (single-port provider switch): the panel sends the prior
     // conversation as `context` on the FIRST message to a freshly-switched
     // provider, so the new backend has the thread (minus internal session data —
@@ -1539,11 +2340,35 @@ export async function runPanelOrchestrator(): Promise<void> {
         ? ((event as { context?: string }).context as string).trim()
         : "";
     if (replay) outText = `${replay}\n\n${outText}`;
-    manager.send(agentKeyFor(event.tab_id), outText, {
+    const sendOpts = {
       title: event.title,
       images: (event as { images?: Array<{ filename: string; subfolder?: string; type?: string }> }).images,
       mid: userMid,
-    });
+    };
+    // Local-agent VRAM pause: if this tab runs the local Ollama model AND a
+    // render is in flight, DON'T run the turn now — that would reload the model
+    // on top of the generation (VRAM contention / OOM). Hold it and answer when
+    // the render finishes (onRunEnd flushes the queue + warms the model).
+    const tabIsLocalVram =
+      (ollamaApi === "ollama" && backendForTab(event.tab_id) === "ollama") ||
+      (backendForTab(event.tab_id) === "lmstudio" && isLocalLmstudio(LMSTUDIO_BASE_URL));
+    if (pauseLocalDuringGen && tabIsLocalVram && QueueMonitor.isBusy()) {
+      const key = agentKeyFor(event.tab_id);
+      const arr = heldDuringGen.get(key) ?? [];
+      arr.push({ text: outText, opts: sendOpts });
+      heldDuringGen.set(key, arr);
+      genPauseActive = true; // ensure the end transition flushes even if start was missed
+      bridge.push(
+        {
+          type: "say",
+          text: "⏸ A render is running, so I've kept the GPU free for it and queued your message. I'll answer the moment it finishes.",
+        },
+        event.tab_id,
+      );
+      bridge.push({ type: "turn", state: "idle" }, event.tab_id); // clear the working spinner
+      return;
+    }
+    manager.send(agentKeyFor(event.tab_id), outText, sendOpts);
   };
 
   // ---- Download-progress watcher ----
@@ -1602,8 +2427,39 @@ export async function runPanelOrchestrator(): Promise<void> {
   const downloadTimer = setInterval(pollDownloads, 700);
   downloadTimer.unref?.();
 
+  // Keep the pod's stored bridge URL fresh so a ComfyUI RESTART self-heals fast.
+  // The panel's advertised wss:// URL/token lives in the pod ComfyUI process's
+  // MEMORY (the panel __init__'s advertise store). A restart — which the agent
+  // does after every custom-node install — WIPES it: the browser reloads,
+  // fetches an empty /bridge_url, falls back to the token-less
+  // ws://127.0.0.1:9180, and is rejected ("missing/invalid token"). It can't
+  // send a hello to trigger the on-hello re-advertise (line ~1452) BECAUSE it
+  // never gets a valid connection — a deadlock that only broke when something
+  // eventually nudged it, stranding the agent mid-task for minutes. Re-POSTing
+  // the advertise on a cheap idempotent timer repopulates the pod's store within
+  // one interval of any reboot (from any cause: the agent's restart, a Manager
+  // UI restart, a crash), so the browser's reclaim poll reconnects promptly.
+  // Only meaningful for a remote https target with a secure bridge.
+  let readvertiseTimer: ReturnType<typeof setInterval> | null = null;
+  if (secureBridge && isRemoteHttpsUrl(comfyuiUrl)) {
+    readvertiseTimer = setInterval(() => {
+      if (secureBridge && isRemoteHttpsUrl(comfyuiUrl)) void secureBridge.advertise(comfyuiUrl);
+    }, 5000);
+    readvertiseTimer.unref?.();
+  }
+
+  // The no-path suffix must not read as an error when it is BY DESIGN: for a
+  // remote target a local path is the wrong filesystem and is deliberately
+  // dropped — installs/downloads run host-side via ComfyUI-Manager (remote
+  // parity), so the agent is NOT install-limited there. Only a LOOPBACK target
+  // with no resolvable install is a real (and now rare, post-auto-detect) gap.
+  const pathNote = comfyuiPath
+    ? `, path=${comfyuiPath}`
+    : isLoopbackUrl(comfyuiUrl)
+      ? " — no local ComfyUI install found (COMFYUI_PATH unset, auto-detect came up empty); node/model installs still run via ComfyUI-Manager"
+      : " — remote target: installs/downloads run ON the ComfyUI host via its Manager (a local path would be the wrong filesystem; only local-FS tools like verify_custom_node are unavailable)";
   logger.info(
-    `[panel-orchestrator] ready — bridge on ws://127.0.0.1:${bridgePort}; an agent spawns per ComfyUI tab on its first message (model=${model}, comfyui=${comfyuiUrl}${comfyuiPath ? `, path=${comfyuiPath}` : " — no COMFYUI_PATH, local install/pack tools limited"})`,
+    `[panel-orchestrator] ready — bridge on ws://127.0.0.1:${bridgePort}; an agent spawns per ComfyUI tab on its first message (model=${model}, comfyui=${comfyuiUrl}${pathNote})`,
   );
 
   let shuttingDown = false;
@@ -1612,8 +2468,10 @@ export async function runPanelOrchestrator(): Promise<void> {
     shuttingDown = true;
     logger.info("[panel-orchestrator] shutting down — stopping agents…");
     clearInterval(downloadTimer);
+    if (readvertiseTimer) clearInterval(readvertiseTimer);
     QueueMonitor.stop();
     unsubscribeSecrets();
+    unsubscribeAgentSecrets();
     await manager.stopAll();
     // Dispose the readiness-probe backends (kills each Codex/Gemini CLI child).
     for (const pb of probeBackends.values()) {

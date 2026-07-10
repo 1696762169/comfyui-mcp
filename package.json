@@ -1,8 +1,8 @@
 {
   "name": "comfyui-mcp",
-  "version": "0.24.5",
+  "version": "0.30.0",
   "mcpName": "io.github.artokun/comfyui-mcp",
-  "description": "Local-first, agent-native control plane for ComfyUI Ã¢â‚¬â€ MCP server + autonomous sidebar agent that drives your live graph in natural language on ANY LLM: Claude/ChatGPT/Gemini on your subscription (no API key), free local models via Ollama (fully offline), or any hosted model via an OpenAI-compatible endpoint (DeepSeek, GLM, MiMo, OpenRouter). Generate images, video & audio, author and run workflows, manage models and custom nodes; a compact tool-router mode keeps even 4B models effective, and a built-in LLM Arena benchmarks them on real ComfyUI tasks. Also a Claude Code plugin with skills, slash commands, and installer packs. Local, LAN, VPS, or Comfy Cloud.",
+  "description": "Local-first, agent-native control plane for ComfyUI â€” MCP server + autonomous sidebar agent that drives your live graph in natural language on ANY LLM: Claude/ChatGPT/Gemini on your subscription (no API key), free local models via Ollama (fully offline), or any hosted model via an OpenAI-compatible endpoint (DeepSeek, GLM, MiMo, OpenRouter). Generate images, video & audio, author and run workflows, manage models and custom nodes; a compact tool-router mode keeps even 4B models effective, and a built-in LLM Arena benchmarks them on real ComfyUI tasks. Also a Claude Code plugin with skills, slash commands, and installer packs. Local, LAN, VPS, or Comfy Cloud.",
   "homepage": "https://comfyui-mcp.artokun.io/docs",
   "type": "module",
   "main": "dist/index.js",
@@ -34,6 +34,7 @@
     "lint": "tsc --noEmit",
     "docs:gen": "cross-env COMFYUI_URL=http://127.0.0.1:8188 tsx scripts/gen-tool-docs.ts",
     "runpod:release": "node scripts/runpod-release.mjs",
+    "runpod:release:major": "node scripts/runpod-release.mjs major",
     "packs:gen": "node scripts/gen-pack-installers.mjs",
     "packs:validate": "node scripts/validate-manifests.mjs",
     "packs:test": "bash scripts/test-packs.sh",
@@ -44,7 +45,9 @@
     "generations:stats": "node scripts/generation-stats.mjs",
     "release": "npm version patch && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",
-    "release:major": "npm version major && git push --follow-tags"
+    "release:major": "npm version major && git push --follow-tags",
+    "changelog": "node scripts/gen-changelog.mjs",
+    "version": "node scripts/gen-changelog.mjs --from-pkg && git add CHANGELOG.md"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

@@ -29,6 +29,8 @@ const CLI_NAMES: Record<string, string[]> = {
   codex: ["codex", "codex.cmd", "codex.exe"],
   gemini: ["gemini", "gemini.cmd", "gemini.exe"],
   ollama: ["ollama", "ollama.exe"],
+  lmstudio: ["lms", "lms.exe"],
+  llamacpp: ["llama-server", "llama-server.exe"],
 };
 
 /** Well-known Ollama install locations probed in addition to PATH (the Windows
@@ -41,6 +43,30 @@ function ollamaInstalled(home: string): boolean {
     return fileExists(localAppData, "Programs", "Ollama", "ollama.exe");
   }
   return fileExists("/usr/local/bin/ollama") || fileExists("/opt/homebrew/bin/ollama");
+}
+
+/** LM Studio install signals: the app drops its `lms` CLI at ~/.lmstudio/bin on
+ *  every platform (best cross-OS marker), plus the per-OS app locations. */
+function lmstudioInstalled(home: string): boolean {
+  if (lmstudioCliPath(home)) return true;
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA || join(home, "AppData", "Local");
+    return fileExists(localAppData, "Programs", "LM Studio", "LM Studio.exe");
+  }
+  if (process.platform === "darwin") return fileExists("/Applications", "LM Studio.app");
+  return fileExists(home, ".lmstudio");
+}
+
+/** Absolute path (or bare name if on PATH) of the `lms` CLI — the supported
+ *  programmatic surface for load/unload/server lifecycle. Used by
+ *  services/lmstudio-lifecycle to shell out even when PATH lacks it (the app
+ *  adds ~/.lmstudio/bin to PATH for NEW shells only). Null when not found. */
+export function lmstudioCliPath(home: string = homedir()): string | null {
+  if (onPath(CLI_NAMES.lmstudio)) return "lms";
+  const binName = process.platform === "win32" ? "lms.exe" : "lms";
+  const inHome = join(home, ".lmstudio", "bin", binName);
+  if (fileExists(inHome)) return inHome;
+  return null;
 }
 
 /** True if any of `names` resolves on the local PATH. */
@@ -76,7 +102,10 @@ function fileExists(...parts: string[]): boolean {
  *   report it usable here rather than false-flagging "CLI not installed".
  * - codex/gemini: the CLI must be on PATH AND a login cached on disk.
  */
-export function backendReadiness(backend: string, opts?: { home?: string }): BackendReadiness {
+export function backendReadiness(
+  backend: string,
+  opts?: { home?: string; customEndpointConfigured?: boolean },
+): BackendReadiness {
   const b = (backend || "").toLowerCase();
   const home = opts?.home ?? homedir();
   if (b === "claude") {
@@ -102,13 +131,47 @@ export function backendReadiness(backend: string, opts?: { home?: string }): Bac
     const cli = ollamaInstalled(home);
     return { backend: "ollama", cli, auth: cli ? true : null, ready: cli };
   }
+  if (b === "lmstudio") {
+    // Same posture as ollama: a local server, no login concept. App/CLI
+    // presence is the readiness signal; a stopped server still surfaces via
+    // the connect ack's model probe (GET /v1/models fails → degraded ack).
+    const cli = lmstudioInstalled(home);
+    return { backend: "lmstudio", cli, auth: cli ? true : null, ready: cli };
+  }
+  if (b === "llamacpp") {
+    // llama.cpp's llama-server: PATH presence is the install signal (no app
+    // dirs — people build it or unzip a release anywhere). A stopped server
+    // surfaces via the connect ack's probe; when the binary isn't findable we
+    // still allow a REACHABLE server to count (checked at connect), so `cli`
+    // false + a live endpoint is fine — mirrors the "installed elsewhere"
+    // reality of this tool.
+    const cli = onPath(CLI_NAMES.llamacpp);
+    return { backend: "llamacpp", cli, auth: cli ? true : null, ready: cli };
+  }
+  if (b === "custom") {
+    // A user-defined OpenAI-compatible endpoint (issue #162) — nothing to
+    // install, no login flow. Readiness = a base URL is configured (panel
+    // Settings or COMFYUI_MCP_CUSTOM_BASE_URL; the caller passes the resolved
+    // truth via opts). A wrong URL or key still surfaces via the connect ack's
+    // model probe (degraded), same as every other endpoint provider.
+    const configured =
+      opts?.customEndpointConfigured ?? !!process.env.COMFYUI_MCP_CUSTOM_BASE_URL;
+    return { backend: "custom", cli: configured, auth: configured ? true : null, ready: configured };
+  }
+  if (b === "openrouter") {
+    // Hosted — no CLI. Readiness = an OpenRouter API key in the orchestrator's
+    // env (OPENROUTER_API_KEY, or the shared COMFYUI_MCP_OLLAMA_API_KEY). A bad
+    // key still surfaces via the connect ack's model probe (degraded).
+    const key = !!(process.env.OPENROUTER_API_KEY || process.env.COMFYUI_MCP_OLLAMA_API_KEY);
+    return { backend: "openrouter", cli: key, auth: key ? true : false, ready: key };
+  }
   return { backend: b, cli: false, auth: false, ready: false };
 }
 
 /** Readiness for every known backend, plus a rolled-up any_ready. */
 export function allBackendReadiness(
   backends: Iterable<string>,
-  opts?: { home?: string },
+  opts?: { home?: string; customEndpointConfigured?: boolean },
 ): {
   backends: BackendReadiness[];
   any_ready: boolean;

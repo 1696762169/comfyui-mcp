@@ -484,6 +484,7 @@ describe("downloadModel — remote mode (Manager install-model dispatch)", () =>
       filename: "model.safetensors",
       type: "checkpoints",
       save_path: "default",
+      trayCategory: "checkpoints",
     });
     // No local-disk work in remote mode.
     expect(fetchMock).not.toHaveBeenCalled();
@@ -507,6 +508,7 @@ describe("downloadModel — remote mode (Manager install-model dispatch)", () =>
       filename: "lora.safetensors",
       type: "lora",
       save_path: "loras/pusa",
+      trayCategory: "loras",
     });
   });
 
@@ -523,6 +525,7 @@ describe("downloadModel — remote mode (Manager install-model dispatch)", () =>
       filename: "solo.safetensors",
       type: "lora",
       save_path: "default",
+      trayCategory: "loras",
     });
   });
 
@@ -540,6 +543,7 @@ describe("downloadModel — remote mode (Manager install-model dispatch)", () =>
       filename: "style.safetensors",
       type: "style_models",
       save_path: "style_models",
+      trayCategory: "style_models",
     });
   });
 

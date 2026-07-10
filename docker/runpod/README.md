@@ -1,4 +1,4 @@
-# comfyui-mcp RunPod image — FAST RESTART (image-immutable software) (DRAFT)
+# comfyui-mcp RunPod image — FAST RESTART (image-immutable software)
 
 A RunPod image that boots **ready to be driven by the
 [comfyui-mcp](https://github.com/artokun/comfyui-mcp) Agent Panel**. Deploy on
@@ -12,10 +12,10 @@ It is optimized for **fast stop/start**. All the software — ComfyUI + its venv
 `input/`, `output/`). A warm restart does **no install, no sync, no seed** — it
 just `mkdir -p` the data dirs and launches ComfyUI (~**30-60s** ComfyUI init).
 
-> **Status: DRAFT for owner review.** Authored to be correct and well-documented,
-> but **not** build-tested (no Docker in the authoring env). A few pins still need
-> confirmation — see [Owner confirmations needed](#owner-confirmations-needed).
-> The owner builds + pushes + tests next.
+> **Testing:** every build ends in an in-Dockerfile integrity gate, and
+> [`test_image.sh`](#test-before-you-push-post-build-gate) runs a full boot
+> suite (fresh volume → redeploy → corruption self-heal) before any push;
+> `deploy-dockerhub.sh` makes that gate mandatory for the official image.
 
 ---
 
@@ -83,6 +83,25 @@ venv still boot fast from the immutable image.
   so its packages are refreshed on boot). Compiled/CUDA-linked deps may rebuild
   rather than unpack. To bake a node so it needs **zero** boot-time work, still add
   it to the `Dockerfile` and rebuild.
+
+### If the panel (or a node) shows up EMPTY — 0-byte files
+
+A **full network volume** is the classic cause: on ENOSPC, `cp`/`git` still
+*create* every file but write 0 bytes into them, so the node's whole file tree
+exists as empty husks — ComfyUI lists the node, but nothing loads. Because the
+volume persists, this used to survive every redeploy.
+
+The entrypoint now defends itself:
+
+* logs the volume's **free space** at boot and prints a loud warning under 500 MB;
+* **skips the ~7 GB spotcheck-model copy** when the volume can't hold it;
+* **verifies the Agent Panel** on the volume every boot and **self-heals** a
+  broken copy (re-clone from GitHub, or restore from the image seed offline);
+* names any other custom node whose `__init__.py` is 0 bytes in the boot log
+  (`WARN: custom nodes with 0-byte __init__.py …`) — reinstall those via Manager.
+
+If you see the ENOSPC warning: free or grow the volume, restart the pod, and the
+panel repairs itself on the next boot.
 
 ---
 
@@ -374,12 +393,60 @@ Create a **Pod template** (or fill these on a one-off GPU pod):
 |-----|---------|---------|
 | `JUPYTER_PASSWORD` | *(unset)* | set to enable JupyterLab on :8888 (base behavior) |
 | `PUBLIC_KEY` | *(RunPod injects)* | SSH public key (base behavior) |
-| `COMFY_SECURITY_LEVEL` | `normal-` | Manager security level (`weak` = most permissive) |
+| `COMFY_SECURITY_LEVEL` | `weak` | Manager security level — `weak` lets the agent install nodes from git URLs (single-user pod); set `normal-` to restore Manager's guardrails |
 | `COMFY_NETWORK_MODE` | `personal_cloud` | must stay `personal_cloud` for remote installs |
+| `COMFY_AUTOUPDATE_MANAGER` | `1` | fast-forward `comfyui_manager` (pip) at boot: `1` = latest stable release, `nightly` = ComfyUI-Manager git main, `0` = keep the baked pin. The venv is ephemeral, so this is the only Manager fix that survives a restart short of a new image. Best-effort (180s cap), never blocks boot. |
 | `COMFY_EXTRA_ARGS` | *(empty)* | extra ComfyUI flags appended verbatim by the entrypoint |
 | `COMFY_HOME` | `/opt/ComfyUI` | baked ComfyUI path (rarely overridden) |
 | `WORKSPACE` | `/workspace` | network-volume mount (rarely overridden) |
 | `PANEL_AUTO_UPDATE` | `1` | fast-forward the Agent Panel to its latest release on every boot (git fetch + reset --hard, before ComfyUI launches) — reaches pods without a new image build. Automatically a no-op on a `PANEL_REF`-pinned build (detached HEAD). Set `0` to disable. |
+| `HF_TOKEN` (or `HUGGINGFACE_TOKEN`) | *(unset)* | HuggingFace token for gated model downloads (exported to ComfyUI + Manager) |
+| `ARIA2_DISABLE` | `0` | set `1` to skip the aria2 download sidecar (Manager then uses its slow built-in downloader) |
+| `ARIA2_RPC_PORT` | `6800` | loopback port for the aria2 RPC daemon |
+| `ARIA2_RPC_SECRET` | *(random per boot)* | RPC secret for the aria2 daemon (auto-generated; set only if you need a fixed one) |
+| `HF_HUB_ENABLE_HF_TRANSFER` | `1` (set at boot) | Rust parallel downloader for `huggingface_hub` fetches. **Set `0` as the FIRST troubleshooting step if an HF download fails** — hf_transfer trades resume robustness/proxy support for speed |
+| `HF_XET_HIGH_PERFORMANCE` | `1` (set at boot) | high-performance mode for Xet-backed HF repos (newer hub versions) |
+
+### Fast model downloads (aria2 sidecar)
+
+ComfyUI-Manager's built-in model downloader is single-stream with tiny chunks
+and collapses to **<1–4 MB/s** against the MooseFS network volume — a 13 GB
+model then takes hours, and because Manager's install queue is serial,
+everything behind it looks wedged ("downloads don't work"). Measured on a live
+pod (2026-07-07): Manager at 792 kB/s while `curl` on the same pod pulled the
+same HuggingFace file at 15–80 MB/s and wrote the volume at 60–300 MB/s.
+
+The image therefore bakes **aria2** and runs a loopback, secret-gated RPC
+daemon at boot (post_start §4.4), hardened per review:
+
+- **Supervised**: aria2c runs under a respawn loop — a crashed daemon would
+  otherwise leave Manager hard-failing with *no* fallback (Manager commits to
+  the aria2 path at import time).
+- **Readiness-probed**: `COMFYUI_MANAGER_ARIA2_SERVER`/`SECRET` are exported
+  only after a real `aria2.getVersion` RPC answers (daemonizing successfully
+  says nothing about the listener). On probe failure the sidecar is torn down
+  and Manager keeps its built-in downloader.
+- **`/models` → `/workspace/models` symlink**: Manager's aria2 path joins
+  *relative* model dirs onto `/models` — without the link an edge case would
+  write models onto the ephemeral container fs and lose them on restart.
+- The RPC secret lives in a `0600` conf file (not the process cmdline) and is
+  length-checked; the live server+secret are written to
+  `/var/lib/comfyui-mcp/aria2-rpc.env` (root-only) so `test_image.sh` and a
+  debugging human can make a real RPC call.
+
+Note Manager's aria2 path (like its built-in one) does not attach `HF_TOKEN`
+to download requests — gated-model fetches need a token-authenticated URL
+either way.
+
+aria2 only covers Manager's install-model route. The **other** fetch path —
+custom nodes (Impact, WAS, …) and ComfyUI internals downloading via
+`huggingface_hub` — is accelerated separately: the image bakes `hf_transfer`
+(HF's Rust parallel downloader) + `hf_xet`, and boot defaults
+`HF_HUB_ENABLE_HF_TRANSFER=1` + `HF_XET_HIGH_PERFORMANCE=1` **only after
+verifying `hf_transfer` imports** (with the flag set and the package missing,
+`huggingface_hub` raises at download time — the integrity gate asserts the
+import for the same reason). Both are plain pod env opt-outs (`=0`); flip
+`HF_HUB_ENABLE_HF_TRANSFER=0` first when debugging a failing HF download.
 
 > **First boot vs warm restart:** both are fast. First boot additionally creates
 > the volume data dirs and copies the spotcheck model (if baked); warm restart
@@ -403,6 +470,54 @@ docker push     <your-registry>/comfyui-mcp-runpod:cu128
 docker build --build-arg BAKE_SPOTCHECK_MODEL=0 \
   -t <your-registry>/comfyui-mcp-runpod:cu128-noseed .
 ```
+
+### Test before you push (post-build gate)
+
+The build itself ends in an **integrity gate** (Dockerfile §9.5) that fails on
+missing/0-byte panel files, a broken venv, or a `post_start.sh` syntax error.
+Before any registry push, run the deeper suite:
+
+```bash
+# static checks + a real 2-boot volume test + the ENOSPC self-heal test:
+./test_image.sh <image-ref>
+
+# static checks only (~seconds):
+./test_image.sh <image-ref> --static
+```
+
+For the official Docker Hub image, release **npm-publish style** — one command
+that versions, builds, gates, publishes, verifies, and pins the template:
+
+```bash
+npm run runpod:release              # minor bump: 1.6 -> 1.7
+npm run runpod:release:major        # major bump: 1.6 -> 2.0
+npm run runpod:release -- 2.3       # explicit tag
+```
+
+The script (`scripts/runpod-release.mjs`): resolves the next version from
+Docker Hub → builds the fat image (extras donor = the previous release, so no
+63 GB pull; panel layer cache-busted to the panel repo's main SHA) → runs the
+full `test_image.sh` suite via `deploy-dockerhub.sh` (**a failure aborts before
+anything is pushed**) → pushes `:<version>` + `:latest` → `verify_image_remote.py`
+checks what the registry actually serves → pins the RunPod template to the new
+version tag via the GraphQL API (`RUNPOD_API_KEY`; `SKIP_TEMPLATE=1` to skip).
+
+The two lower-level pieces also work standalone:
+
+```bash
+docker build -t artokun/comfyui-mcp-runpod:build .
+./deploy-dockerhub.sh 1.7        # gate + push :1.7 + :latest + remote verify
+```
+
+CI does the same for `ghcr.io/...:cu128-lean` (`verify_image_remote.py`
+inspects the pushed manifest + seed layer without pulling the 20 GB image).
+
+> **Pin the RunPod template to the VERSION tag** (`:1.6`), not `:latest`.
+> RunPod hosts cache images per-tag — a template on `:latest` can silently
+> serve a stale build from a host's cache; a fresh version tag can't. The
+> release script does this for you. (Don't use `runpodctl template update`
+> for it — it trips a "public templates cannot have Registry Credentials"
+> API error on public templates; the script's GraphQL path doesn't.)
 
 Override pins as needed:
 
@@ -451,7 +566,7 @@ To shave that:
   (`python -c "import torch;print(torch.__version__, torch.version.cuda)"`) —
   some older `cu1281` tags shipped a cu-default torch.
 
-> **DRAFT — not build-tested.** Build once locally and watch for: (a) the base's
+> **First build on a new base tag?** Watch for: (a) the base's
 > `/start.sh` actually invokes `/post_start.sh` (it does in `runpod/containers`,
 > but confirm for your exact tag); (b) `main.py --help` lists `--user-directory`,
 > `--input-directory`, `--output-directory`, `--extra-model-paths-config`,

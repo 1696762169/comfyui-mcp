@@ -159,6 +159,110 @@ Copilot CLI runs frontier models, so setup defaults to the **full** tool
 surface (pass `--compact` if you're routing Copilot at a smaller model).
 Check it with `/mcp show` inside `copilot`.
 
+## Our fine-tuned local models (free, recommended)
+
+If you want to run the agent **locally for free**, start here. We fine-tuned
+the Gemma 4 family specifically for comfyui-mcp: QLoRA-trained on **1,055
+server-verified tool-use trajectories** synthesized against a live ComfyUI —
+covering the **full 178-tool surface** (113 MCP + 65 panel tools) — so the
+model knows this exact tool suite natively instead of meeting it cold.
+
+```bash
+# 1. Install Ollama (once):  https://ollama.com/download
+# 2. Pull the size that fits your GPU:
+ollama pull artokun/gemma4-comfyui-mcp:e4b     # default — ~3.5 GB VRAM at q4
+ollama pull artokun/gemma4-comfyui-mcp:12b     # ~8 GB VRAM
+ollama pull artokun/gemma4-comfyui-mcp:e2b     # smallest — ~2 GB VRAM (see caveat)
+```
+
+**Measured, not promised** — [LLM Arena](/arena) scores on the real 10-scenario
+ladder (best of 3, every result verified against a live ComfyUI server, RTX 4090):
+
+| Tag | VRAM (q4) | Arena score | vs. stock |
+|---|---|---|---|
+| `:e4b` | ~3.5 GB | **14/20** (13–14) — best local model we've tested | stock gemma4:e4b: 12/20 |
+| `:12b` | ~8 GB | 13/20 (12–13) | stock 12b unbenchmarked |
+| `:e2b` | ~2 GB | 4/20 — **currently regresses** below stock | stock gemma4:e2b: 8/20 |
+
+The honest caveat: the `:e2b` rung picked up a `call_tool`-envelope quirk in
+this training round (it drops the `name` field under pressure) and scores
+below its stock base — a fix is queued for the next fine-tune cycle. Until
+then, `:e4b` is the recommendation even on small GPUs (it's only ~1.5 GB
+more), and `:12b` mostly buys steadiness on long multi-step tasks, not raw
+score.
+
+| Tag | Base | VRAM (q4) | Notes |
+| --- | --- | --- | --- |
+| `:e4b` | Gemma 4 E4B | ~3.5 GB | **The default** — best size/quality balance |
+| `:e2b` | Gemma 4 E2B | ~2 GB | Thinks verbosely — allow generous `max_tokens` (≥512) |
+| `:12b` | Gemma 4 12B | ~8 GB | Strongest rung |
+
+The panel's Ollama backend **defaults to `:e4b`** — pick **Ollama (local)**
+in the backend picker and it just works once the model is pulled. No account,
+no API key, no per-token cost.
+
+**Context window:** the tags ship a **65,536-token** window baked in, and the
+orchestrator defers to it (stock models get 16K). The architecture supports up
+to **128K** (`:e2b`/`:e4b`) and **256K** (`:12b`) — raise it with
+`COMFYUI_MCP_OLLAMA_NUM_CTX=131072` if you have the VRAM (KV cache grows with
+the window). If the agent starts "forgetting" mid-conversation, watch the
+orchestrator log: it warns when a turn fills ≥85% of the window. Weights, LoRA adapters, and the training
+pipeline are open: [`artokun/gemma4-comfyui-mcp`](https://huggingface.co/artokun/gemma4-comfyui-mcp)
+(dataset: [`artokun/comfyui-mcp-trajectories`](https://huggingface.co/datasets/artokun/comfyui-mcp-trajectories)).
+
+## LM Studio
+
+The panel speaks LM Studio natively: pick **LM Studio** in the backend picker
+and the orchestrator drives its local server (`http://127.0.0.1:1234/v1`,
+override with `COMFYUI_MCP_LMSTUDIO_HOST`). Setup is two clicks: install from
+[lmstudio.ai](https://lmstudio.ai), then **Developer → Start Server** with a
+**tool-calling model** loaded. The model picker mirrors whatever the server
+offers; with no default set, the first served model is adopted automatically.
+The orchestrator manages the **full lifecycle** hands-off: it auto-starts the
+server when needed, JIT-loads your model, frees its VRAM while a ComfyUI
+render runs (chat is held and answered when the render finishes), unloads the
+outgoing model on a model switch, and releases everything when you switch to
+a different provider.
+
+Our fine-tuned GGUFs work here too — search `artokun/gemma4-comfyui-mcp` in
+LM Studio's model downloader and grab a `model-q4_k_m.gguf`. Expect the same
+JIT cold-load pause on the first message that Ollama has (30s+ is normal).
+
+## llama.cpp (llama-server)
+
+Running raw `llama.cpp`? Pick **llama.cpp** in the backend picker — the
+orchestrator drives `llama-server`'s OpenAI-compatible endpoint
+(`http://127.0.0.1:8080/v1`, override with `COMFYUI_MCP_LLAMACPP_HOST`):
+
+```bash
+llama-server -m gemma4-comfyui-mcp-e2b.Q4_K_M.gguf -c 16384
+```
+
+Notes from the field: context is a **launch flag** (`-c`) — the agent warns if
+the server runs under 16K (the tool payload needs it). Tool calling is on by
+default in current builds; **older builds need `--jinja`** (the panel detects a
+tools-incapable server at connect and says exactly that). The single loaded
+model is adopted automatically — no picking needed.
+
+## Custom endpoint (any OpenAI-compatible server)
+
+Anything that speaks `/v1/chat/completions` — vLLM, DeepSeek, Together, Azure
+OpenAI, a llama-server on another box, your company's gateway — plugs in as
+the **Custom endpoint** provider:
+
+1. ComfyUI Settings → **Comfy MCP Agent → Custom endpoint** → set the
+   **Endpoint base URL** (include the `/v1`, e.g. `http://192.168.1.20:8000/v1`).
+2. If the server needs a key: **Set API key…** — a masked input; the key is
+   stored `0600` by the orchestrator in `~/.comfyui-mcp`, never in ComfyUI
+   settings or chat.
+3. Pick **Custom endpoint** in the backend picker and Connect.
+
+The model list comes from the server's `/v1/models`; single-model servers are
+adopted automatically, or set a **Default model** id explicitly for endpoints
+that don't list models. Env escape hatches: `COMFYUI_MCP_CUSTOM_BASE_URL`,
+`COMFYUI_MCP_CUSTOM_MODEL`, `COMFYUI_MCP_CUSTOM_API_KEY`. The model must
+support **tool calling**.
+
 ## Ollama & local models — the LLM Arena
 
 Any MCP harness that talks to Ollama (or an OpenAI-compatible endpoint) can
@@ -202,9 +306,11 @@ orchestrator drives your live graph with a local model — no account, no API
 key, fully offline. The model sees the 6-tool router (the 3 compact comfyui
 meta-tools plus `panel_list_tools` / `panel_describe_tool` /
 `panel_call_tool` for the live canvas), so even a 4B model isn't drowned in
-schemas. Default model: `gemma4:e4b` (the Arena's best performer); override
-with `COMFYUI_MCP_OLLAMA_MODEL` or the panel's model picker, which lists
-whatever you've pulled locally. Expect honest trade-offs versus frontier
+schemas. Default model: **`artokun/gemma4-comfyui-mcp:e4b`** — [our gemma4
+fine-tune](#our-fine-tuned-local-models-free-recommended), trained on this
+exact tool suite (supersedes stock `gemma4:e4b`, the previous Arena best);
+override with `COMFYUI_MCP_OLLAMA_MODEL` or the panel's model picker, which
+lists whatever you've pulled locally. Expect honest trade-offs versus frontier
 backends: slower turns (especially the first, while the model loads), no
 vision, no conversation rollback.
 

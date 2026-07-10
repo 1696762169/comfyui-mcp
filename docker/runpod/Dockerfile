@@ -9,19 +9,21 @@
 # just `mkdir -p` the user-data dirs and launches ComfyUI from the baked venv
 # (~30-60s ComfyUI init).
 #
-# The /workspace NETWORK VOLUME holds ONLY USER DATA:
-#     /workspace/user     workflows + ComfyUI settings + Manager config
-#     /workspace/models   all model categories (Manager downloads land here)
-#     /workspace/input    input images
-#     /workspace/output   generated images
-# Nothing else lives on the volume — no venv, no custom_nodes, no caches.
+# The /workspace NETWORK VOLUME holds USER DATA (everything that must persist):
+#     /workspace/user          workflows + ComfyUI settings + Manager config
+#     /workspace/models        all model categories (Manager downloads land here)
+#     /workspace/input         input images
+#     /workspace/output        generated images
+#     /workspace/custom_nodes  ALL custom nodes (symlinked from the image at boot;
+#                              runtime installs SURVIVE restarts — see post_start
+#                              §4.5). The image's baked nodes live in
+#                              custom_nodes_seed and are refreshed onto the volume
+#                              each boot; node PYTHON DEPS are re-installed into
+#                              the (ephemeral) venv from /workspace/.cache/pip.
+# No venv and no other caches live on the volume.
 #
-# TRADEOFF (documented in README): because custom_nodes are baked into the
-# (immutable) image, custom nodes the agent / Manager install at runtime do NOT
-# survive a restart — they live on the container's ephemeral disk. MODELS the
-# agent / Manager download DO persist (they land on /workspace/models via
-# extra_model_paths.yaml `is_default`). To add a node permanently, add it to this
-# Dockerfile and rebuild.
+# MODELS the agent / Manager download persist too (they land on /workspace/models
+# via extra_model_paths.yaml `is_default`).
 #
 # TOPOLOGY (why the image is lean): the panel ORCHESTRATOR (the autonomous agent
 # loop — Claude/Codex Agent SDK, on YOUR subscription) runs on the USER's laptop,
@@ -29,8 +31,10 @@
 # Node.js for the agent, the Agent SDK and any LLM client are deliberately ABSENT.
 # See ./README.md.
 #
-# DRAFT — NOT build-tested (no Docker in the authoring env). The owner builds +
-# pushes + tests. Pins that must be confirmed at build are flagged in README.md.
+# TESTING: a build-time integrity gate (§9.5) fails the build on empty/missing
+# artifacts, and ./test_image.sh runs a deeper post-build suite (including a
+# real boot cycle against a scratch volume) — run it before ANY registry push;
+# ./deploy-dockerhub.sh wires it in front of the Docker Hub push.
 # =============================================================================
 
 # ---- Global ARGs (used in FROM lines; must precede the first FROM) -----------
@@ -146,6 +150,9 @@ ARG COMFY_HOME=/opt/ComfyUI
 # checkpoint from here into /workspace/models/checkpoints on first boot.
 ARG SEED_MODELS=/opt/ComfyUI-seed-models
 # Manager remote-install gate (required for the agent to install models/nodes).
+# NOTE: COMFY_SECURITY_LEVEL's EFFECTIVE default is overridden to "weak" in the
+# late runtime-ENV block (§10) — changing it there doesn't bust the expensive
+# torch/ComfyUI layers the way editing this early block would.
 ARG COMFY_NETWORK_MODE=personal_cloud
 ARG COMFY_SECURITY_LEVEL=normal-
 
@@ -235,13 +242,30 @@ RUN if [ -n "${WHEEL_SAGE}${WHEEL_XFORMERS}" ]; then \
 # Bump PANEL_CACHEBUST (e.g. to the target panel commit SHA) to force a fresh
 # panel clone WITHOUT busting the expensive torch/sage layers above. `git clone
 # --branch` only accepts a ref name (not a raw SHA), so pinning is done here.
-ARG PANEL_CACHEBUST=0
+ARG PANEL_CACHEBUST=923330b
 RUN echo "panel cachebust: ${PANEL_CACHEBUST}" \
  && git clone --depth 1 ${PANEL_REF:+--branch "${PANEL_REF}"} \
       "${PANEL_REPO}" "${COMFY_HOME}/custom_nodes/comfyui-mcp-panel" \
  && if [ -f "${COMFY_HOME}/custom_nodes/comfyui-mcp-panel/requirements.txt" ]; then \
       "${VPIP}" install --no-cache-dir --extra-index-url "${TORCH_INDEX_URL}" \
         -r "${COMFY_HOME}/custom_nodes/comfyui-mcp-panel/requirements.txt"; \
+    fi
+
+# -----------------------------------------------------------------------------
+# 4.1 ComfyUI-Crystools — the resources monitor (VRAM/RAM/CPU/GPU/HDD bars in
+#     the ComfyUI topbar). Tiny, and exactly what you want visible on a RENTED
+#     GPU: VRAM pressure at a glance without asking the agent. Seeded onto the
+#     volume like every baked node; its Python deps (pynvml etc.) reinstall
+#     into the venv each boot from the persistent pip cache (post_start §4.5c).
+#     Pin CRYSTOOLS_REF to a tag for reproducible images (empty = default branch).
+# -----------------------------------------------------------------------------
+ARG CRYSTOOLS_REPO=https://github.com/crystian/ComfyUI-Crystools.git
+ARG CRYSTOOLS_REF=
+RUN git clone --depth 1 ${CRYSTOOLS_REF:+--branch "${CRYSTOOLS_REF}"} \
+      "${CRYSTOOLS_REPO}" "${COMFY_HOME}/custom_nodes/ComfyUI-Crystools" \
+ && if [ -f "${COMFY_HOME}/custom_nodes/ComfyUI-Crystools/requirements.txt" ]; then \
+      "${VPIP}" install --no-cache-dir --extra-index-url "${TORCH_INDEX_URL}" \
+        -r "${COMFY_HOME}/custom_nodes/ComfyUI-Crystools/requirements.txt"; \
     fi
 
 # -----------------------------------------------------------------------------
@@ -295,8 +319,80 @@ RUN chmod +x /post_start.sh
 # Placed LATE so it doesn't bust the expensive torch/ComfyUI layer cache. The
 # entrypoint runs it rooted at /workspace (browse/upload/download/delete), fronted
 # by nginx on :8083. Best-effort install.
-RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/filebrowser/master/get.sh | bash \
+# PINNED release binary, NOT the project's get.sh installer — upstream deleted
+# that script (404 as of 2026-07; image 1.5 silently shipped without File
+# Browser because of it, #131). A pinned asset URL can't vanish out from under
+# a rebuild the same way.
+ARG FILEBROWSER_VERSION=v2.63.18
+RUN curl -fsSL "https://github.com/filebrowser/filebrowser/releases/download/${FILEBROWSER_VERSION}/linux-amd64-filebrowser.tar.gz" \
+      | tar -xz -C /usr/local/bin filebrowser \
+ && chmod +x /usr/local/bin/filebrowser \
  || echo "WARN: filebrowser install failed — it will be skipped at boot"
+
+# -----------------------------------------------------------------------------
+# aria2 model-download sidecar — REQUIRED, not best-effort. ComfyUI-Manager's
+# built-in model downloader (manager_downloader.py fallback via torchvision) is
+# single-stream with tiny chunks and collapses to <1-4 MB/s against the pod's
+# MooseFS network volume — a 13 GB model then takes HOURS and the serial Manager
+# queue wedges everything behind it, which users experience as "downloads don't
+# work" (field report 2026-07-07: 792 kB/s while curl on the same pod pulled the
+# SAME HuggingFace file at 15-80 MB/s). Manager natively switches to an aria2
+# RPC daemon when COMFYUI_MANAGER_ARIA2_SERVER is set: multi-connection,
+# big-block writes, full pipe speed. post_start.sh §4.4 starts the daemon and
+# exports the env. aria2p must be importable in the VENV — Manager does
+# `import aria2p` at module import whenever the env var is set, so a missing
+# package would crash Manager at ComfyUI startup (post_start also guards this).
+# Placed LATE so it doesn't bust the torch/ComfyUI layer cache.
+# -----------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends aria2 \
+ && rm -rf /var/lib/apt/lists/* \
+ && "${VPIP}" install --no-cache-dir aria2p
+
+# hf_transfer — Rust parallel downloader for the OTHER model-fetch path: aria2
+# only covers Manager's install-model; many custom nodes (Impact, WAS, …) and
+# ComfyUI internals download via huggingface_hub, which stays single-stream
+# unless HF_HUB_ENABLE_HF_TRANSFER=1. The flag is NOT baked as image ENV:
+# post_start.sh §4.4 defaults it on ONLY after verifying hf_transfer imports
+# (the hub RAISES at download time if the flag is set without the package) and
+# a pod env of 0 opts out. hf_xet accelerates Xet-backed repos the same way
+# (hub uses it automatically when present).
+RUN "${VPIP}" install --no-cache-dir hf_transfer hf_xet
+
+# manager_core shim — the pip-packaged Manager's aria2 download path does a
+# legacy `import manager_core` (a custom_nodes-layout module that does NOT
+# exist in the pip package), so EVERY install crashed with ModuleNotFoundError
+# the moment COMFYUI_MANAGER_ARIA2_SERVER was set (field: image 1.8, 2026-07-08
+# — Manager tasks "drained instantly", nothing landed).
+#
+# comfy_path MUST be "" (empty), NOT the real ComfyUI root. The only consumer,
+# aria2_download_url, does:  if model_dir.startswith(core.comfy_path):
+#                                model_dir = model_dir[len(core.comfy_path):]
+#                            download_dir = model_dir if model_dir.startswith('/')
+#                                           else os.path.join('/models', model_dir)
+# With comfy_path="/opt/ComfyUI" this STRIPS the root off paths UNDER it:
+# cnr_install downloads its CNR_temp_*.zip into <root>/custom_nodes, which gets
+# rewritten to "/custom_nodes" — so aria2 writes the zip to a top-level
+# /custom_nodes while Manager unzips from <root>/custom_nodes → FileNotFoundError
+# → empty node dir (field: image 1.9, 2026-07-08, "packs installed but empty").
+# Model downloads escaped only because /workspace/models isn't under the root.
+# comfy_path="" makes the strip a no-op, so every absolute path passes through
+# verbatim and BOTH model and custom-node-zip installs land correctly.
+# NOTE (upstream): the real comfyui_manager.glob.manager_core has the true
+# root, so even Comfy-Org's own fix for the missing import (issue #3064) would
+# reintroduce THIS bug — the aria2 path's /models-rooted relativization is
+# model-only and mishandles custom_nodes. Flagged on that issue.
+RUN SP="$("${VPY}" -c 'import site; print(site.getsitepackages()[0])')" \
+ && printf '%s\n' \
+      "# comfyui-mcp shim: the pip-packaged comfyui_manager's aria2 download path" \
+      "# does a legacy 'import manager_core'; only comfy_path is consumed, and it" \
+      "# MUST be empty so path stripping is a no-op (see the Dockerfile step)." \
+      "comfy_path = \"\"" > "${SP}/manager_core.py" \
+ && cd "${COMFY_HOME}" \
+ && COMFYUI_MANAGER_ARIA2_SERVER=http://127.0.0.1:1 COMFYUI_MANAGER_ARIA2_SECRET=x \
+      "${VPY}" -c "import manager_core; assert manager_core.comfy_path == ''; from comfyui_manager.common import manager_downloader" \
+ && echo "manager_core shim in place — Manager aria2 install path importable, comfy_path empty"
+# (the cd matters: comfyui_manager's __init__ imports comfy.cli_args, which is
+#  only importable with the ComfyUI root on sys.path — exactly as at runtime.)
 
 # -----------------------------------------------------------------------------
 # custom_nodes PERSISTENCE seed. Move the image's baked custom_nodes (the Agent
@@ -307,6 +403,38 @@ RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/filebrowser/master/
 # Placed LATE so it doesn't bust the torch / spotcheck-model layer cache.
 # -----------------------------------------------------------------------------
 RUN mv "${COMFY_HOME}/custom_nodes" "${COMFY_HOME}/custom_nodes_seed"
+
+# -----------------------------------------------------------------------------
+# 9.5 BUILD-TIME INTEGRITY GATE — fail the BUILD, not the user's pod. Asserts the
+#     load-bearing artifacts actually have CONTENT (a report from the field was a
+#     panel whose whole file tree existed with 0 bytes — a silently-degraded copy
+#     is worse than a red build). test_image.sh re-runs these against the built
+#     image before any registry push; this layer is the last line of defense.
+# -----------------------------------------------------------------------------
+RUN set -e; \
+    for f in "${COMFY_HOME}/custom_nodes_seed/comfyui-mcp-panel/__init__.py" \
+             "${COMFY_HOME}/custom_nodes_seed/ComfyUI-Crystools/__init__.py" \
+             "${COMFY_HOME}/custom_nodes_seed/comfyui-mcp-panel/pyproject.toml" \
+             "${COMFY_HOME}/custom_nodes_seed/comfyui-mcp-panel/web/js/comfyui-mcp-panel.js" \
+             "${COMFY_HOME}/extra_model_paths.yaml" \
+             "${COMFY_HOME}/config.ini.seed" \
+             /post_start.sh; do \
+      [ -s "$f" ] || { echo "INTEGRITY GATE FAILED: $f is missing or 0 bytes"; exit 1; }; \
+    done; \
+    EMPTY="$(find "${COMFY_HOME}/custom_nodes_seed" -type f -size 0 | head -20)"; \
+    [ -z "$EMPTY" ] || { echo "INTEGRITY GATE FAILED: 0-byte files in custom_nodes_seed:"; echo "$EMPTY"; exit 1; }; \
+    bash -n /post_start.sh || { echo "INTEGRITY GATE FAILED: /post_start.sh has syntax errors"; exit 1; }; \
+    "${COMFY_HOME}/venv/bin/python" -c "import torch; import importlib.metadata as m; m.version('comfyui-manager')" \
+      || { echo "INTEGRITY GATE FAILED: venv torch import / comfyui-manager package"; exit 1; }; \
+    command -v aria2c >/dev/null \
+      || { echo "INTEGRITY GATE FAILED: aria2c missing (fast model downloads)"; exit 1; }; \
+    "${COMFY_HOME}/venv/bin/python" -c "import aria2p" \
+      || { echo "INTEGRITY GATE FAILED: aria2p not importable in venv (Manager would crash at startup with COMFYUI_MANAGER_ARIA2_SERVER set)"; exit 1; }; \
+    "${COMFY_HOME}/venv/bin/python" -c "import hf_transfer" \
+      || { echo "INTEGRITY GATE FAILED: hf_transfer not importable in venv (HF_HUB_ENABLE_HF_TRANSFER=1 is baked — huggingface_hub downloads would raise at runtime)"; exit 1; }; \
+    "${COMFY_HOME}/venv/bin/python" -c "import manager_core" \
+      || { echo "INTEGRITY GATE FAILED: manager_core shim missing (Manager's aria2 install-model path would crash with ModuleNotFoundError)"; exit 1; }; \
+    echo "integrity gate passed: panel seed + configs + entrypoint + venv + aria2 + hf_transfer all sane"
 
 # -----------------------------------------------------------------------------
 # 10. Volume hygiene (LAST so it doesn't bust the expensive build-layer cache).
@@ -322,6 +450,20 @@ ENV PIP_CACHE_DIR=/root/.cache/pip \
     UV_CACHE_DIR=/root/.cache/uv \
     VIRTUALENV_OVERRIDE_APP_DATA=/root/.cache/virtualenv \
     XDG_CACHE_HOME=/root/.cache
+
+# Runtime-only env overrides (late on purpose — they never affect build steps,
+# so tweaking them must not bust the torch/ComfyUI layer cache above):
+#   COMFY_SECURITY_LEVEL=weak — at "normal-" Manager silently SKIPS git-URL node
+#     installs (a confusing half-working state on a single-user pod whose whole
+#     premise is agent-driven installs). The early ENV baked "normal-", which
+#     overrode post_start.sh's `:-weak` default and defeated that fix. Set
+#     COMFY_SECURITY_LEVEL=normal- on the pod to restore the guardrails.
+#   PANEL_REPO / PANEL_REF — where post_start.sh §4.5(b.2) re-clones the Agent
+#     Panel from when the copy on the volume is broken (0-byte/missing files);
+#     PANEL_REF keeps a ref-pinned build pinned even through a self-heal.
+ENV COMFY_SECURITY_LEVEL=weak \
+    PANEL_REPO=${PANEL_REPO} \
+    PANEL_REF=${PANEL_REF}
 
 # The runpod/pytorch base bakes a ~1.1GB pip cache at /workspace/.cache. Docker
 # SEEDS a fresh named/network volume from the image's mount-point contents, so

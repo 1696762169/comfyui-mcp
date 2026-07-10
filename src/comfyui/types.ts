@@ -37,7 +37,7 @@ export type ObjectInfo = Record<string, ComfyUINodeDef>;
 export interface WorkflowNode {
   class_type: string;
   inputs: Record<string, unknown>;
-  _meta?: { title?: string };
+  _meta?: { title?: string; mode?: string };
 }
 
 export type WorkflowJSON = Record<string, WorkflowNode>;
@@ -172,6 +172,8 @@ export type UiLink = [number, number, number, number, number, string];
 export interface UiWorkflow {
   nodes: UiNode[];
   links: UiLink[];
+  last_node_id?: number;
+  last_link_id?: number;
   version?: number;
   extra?: Record<string, unknown>;
   config?: Record<string, unknown>;

@@ -29,6 +29,8 @@ function ndjsonStream(chunks: Array<Record<string, unknown>>, hang = false): Rea
 }
 
 let hangNextChat = false;
+let modelsRequests: Array<{ url: string; headers: Record<string, string> }> = [];
+let modelsResponse: string[] | "404" = [];
 
 const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
@@ -40,6 +42,13 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
       JSON.stringify({ models: [{ name: "gemma4:e4b" }, { name: "qwen3:4b" }] }),
       { status: 200 },
     );
+  }
+  if (url.endsWith("/v1/models") || url.endsWith(":1234/models") || url.includes("1234/v1/models")) {
+    // openai-dialect model listing (LM Studio-shaped). Capture headers so tests
+    // can assert no Authorization leaks when no apiKey is configured.
+    modelsRequests.push({ url, headers: { ...((init?.headers as Record<string, string>) ?? {}) } });
+    if (modelsResponse === "404") return new Response("not found", { status: 404 });
+    return new Response(JSON.stringify({ data: modelsResponse.map((id) => ({ id })) }), { status: 200 });
   }
   if (url.endsWith("/api/chat")) {
     const body = JSON.parse(String(init?.body));
@@ -96,6 +105,8 @@ beforeEach(() => {
   chatScript = [];
   chatRequests = [];
   hangNextChat = false;
+  modelsRequests = [];
+  modelsResponse = [];
   hangingStreamController = null;
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockClear();
@@ -125,6 +136,59 @@ describe("OllamaBackend", () => {
     expect(assistant.usage).toEqual({ input_tokens: 10, output_tokens: 5 });
     const results = events.filter((e) => e.type === "result");
     expect(results).toEqual([{ type: "result", ok: true, usage: { input_tokens: 10, output_tokens: 5 } }]);
+  });
+
+  it("num_ctx is model-aware: 16384 for stock, OMITTED for the fine-tune (baked 65536 governs), env override wins", async () => {
+    const { client } = fakeMcpClient(COMFY_META);
+    const oneTurn: Array<Record<string, unknown>> = [{ message: { content: "ok" }, done: true }];
+
+    // Stock model → explicit 16384 (its tag bakes no window; Ollama's own default is 4096).
+    let backend = new OllamaBackend({ model: "gemma4:e4b", connectToolClients: async () => ({ comfyui: client }) });
+    chatScript.push(oneTurn);
+    await collect(backend, turnsOf({ text: "hi" }));
+    expect((chatRequests.at(-1) as { options?: unknown }).options).toEqual({ num_ctx: 16384 });
+
+    // Our fine-tune → num_ctx omitted so the Modelfile's 65536 governs (a
+    // blanket 16384 here silently truncated conversations mid-flight).
+    backend = new OllamaBackend({ model: "artokun/gemma4-comfyui-mcp:e4b", connectToolClients: async () => ({ comfyui: client }) });
+    chatScript.push(oneTurn);
+    await collect(backend, turnsOf({ text: "hi" }));
+    expect((chatRequests.at(-1) as { options?: unknown }).options).toEqual({});
+
+    // COMFYUI_MCP_OLLAMA_NUM_CTX beats everything (e.g. 128K on big VRAM).
+    process.env.COMFYUI_MCP_OLLAMA_NUM_CTX = "131072";
+    try {
+      backend = new OllamaBackend({ model: "artokun/gemma4-comfyui-mcp:e4b", connectToolClients: async () => ({ comfyui: client }) });
+      chatScript.push(oneTurn);
+      await collect(backend, turnsOf({ text: "hi" }));
+      expect((chatRequests.at(-1) as { options?: unknown }).options).toEqual({ num_ctx: 131072 });
+    } finally {
+      delete process.env.COMFYUI_MCP_OLLAMA_NUM_CTX;
+    }
+  });
+
+  it("breaks a tool loop: identical repeat calls are blocked, 4th repeat ends the turn", async () => {
+    const { client, callTool } = fakeMcpClient(COMFY_META);
+    const backend = new OllamaBackend({ model: "gemma4:e4b", connectToolClients: async () => ({ comfyui: client }) });
+    const sameCall = [
+      { message: { content: "", tool_calls: [{ function: { name: "list_tools", arguments: { search: "krea" } } }] }, done: true },
+    ];
+    // The model re-issues the exact same call every round, forever.
+    chatScript.push(sameCall, sameCall, sameCall, sameCall, sameCall, sameCall);
+
+    const events = await collect(backend, turnsOf({ text: "find krea" }));
+    // Dispatched exactly once — repeats got the corrective nudge, not a re-run.
+    expect(callTool).toHaveBeenCalledTimes(1);
+    // Repeat calls receive the nudge as their tool result on the wire.
+    const nudges = chatRequests
+      .flatMap((r) => r.messages)
+      .filter((m) => m.role === "tool" && String(m.content).startsWith("REPEAT CALL BLOCKED"));
+    expect(nudges.length).toBeGreaterThanOrEqual(1);
+    // Turn ends with the loop-breaker, not max_tool_rounds (32 rounds later).
+    expect(events.filter((e) => e.type === "result")).toEqual([
+      { type: "result", ok: false, subtype: "tool_loop" },
+    ]);
+    expect(chatRequests.length).toBeLessThanOrEqual(5);
   });
 
   it("dispatches comfyui meta-tool calls and feeds results back to the next request", async () => {
@@ -260,6 +324,24 @@ describe("OllamaBackend", () => {
       { id: "gemma4:e4b", label: "gemma4:e4b" },
       { id: "qwen3:4b", label: "qwen3:4b" },
     ]);
+  });
+
+  it("lmstudio-shaped openai dialect: listModels lists served ids and sends NO auth header without a key", async () => {
+    const backend = new OllamaBackend({ api: "openai", host: "http://127.0.0.1:1234/v1", model: "qwen2.5-7b" });
+    modelsResponse = ["qwen2.5-7b", "gemma-4-e4b"];
+    const models = await backend.listModels();
+    expect(models.map((m) => m.id)).toContain("qwen2.5-7b");
+    expect(models.map((m) => m.id)).toContain("gemma-4-e4b");
+    expect(modelsRequests).toHaveLength(1);
+    const headerKeys = Object.keys(modelsRequests[0].headers).map((k) => k.toLowerCase());
+    expect(headerKeys).not.toContain("authorization");
+  });
+
+  it("openai dialect: listModels falls back to the configured model when /models 404s", async () => {
+    const backend = new OllamaBackend({ api: "openai", host: "http://127.0.0.1:1234/v1", model: "my-local-model" });
+    modelsResponse = "404";
+    const models = await backend.listModels();
+    expect(models).toEqual([{ id: "my-local-model", label: "my-local-model" }]);
   });
 
   it("isOllamaModel accepts local tags and rejects provider ids", () => {

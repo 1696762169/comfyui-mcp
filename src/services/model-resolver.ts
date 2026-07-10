@@ -5,6 +5,7 @@ import { join, basename, resolve, relative, sep, isAbsolute } from "node:path";
 import { config, getHuggingFaceMirror, isCivitaiEnabled, isRemoteMode } from "../config.js";
 import { getClient } from "../comfyui/client.js";
 import { getExtraModelRoots } from "./extra-paths.js";
+import { getSavedDefaultWorkspaceSync } from "./workspace-env.js";
 import { installModelViaManager } from "./node-management.js";
 import { ModelError, ValidationError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
@@ -113,11 +114,30 @@ export interface LocalModel {
   type: string;
 }
 
+/**
+ * Resolve the local ComfyUI base directory for filesystem operations. Prefers
+ * COMFYUI_PATH / auto-detection (config.comfyuiPath); when that's unset and we're
+ * NOT targeting a remote ComfyUI, falls back to the saved default workspace (set
+ * via set_default_workspace) so local downloads and model lookups work without
+ * COMFYUI_PATH — matching what get_environment / get_workspace already report.
+ * Never falls back to a local workspace in remote mode (that dir isn't the remote
+ * target). Returns undefined when no usable local path exists.
+ */
+function resolveComfyUIBase(): string | undefined {
+  if (config.comfyuiPath) return config.comfyuiPath;
+  if (isRemoteMode()) return undefined;
+  return getSavedDefaultWorkspaceSync();
+}
+
 function getModelsRoot(): string {
-  if (!config.comfyuiPath) {
-    throw new ModelError("COMFYUI_PATH is not configured. Set the COMFYUI_PATH environment variable.");
+  const base = resolveComfyUIBase();
+  if (!base) {
+    throw new ModelError(
+      "No local ComfyUI path configured. Set the COMFYUI_PATH environment variable, " +
+        "or save a default workspace with set_default_workspace.",
+    );
   }
-  return join(config.comfyuiPath, "models");
+  return join(base, "models");
 }
 
 export async function searchHuggingFaceModels(
@@ -263,8 +283,19 @@ function isHuggingFaceUrl(url: string): boolean {
   }
 }
 
+/** Network-restricted regions (issue #127): honor the de-facto HF_ENDPOINT
+ *  mirror var (e.g. https://hf-mirror.com) by rewriting huggingface.co URLs at
+ *  the API/download boundary. Only http(s) endpoints are accepted; anything
+ *  else leaves the URL untouched. Exported so tests can pin the contract. */
+export function applyHfEndpoint(url: string): string {
+  const ep = process.env.HF_ENDPOINT?.trim().replace(/\/+$/, "");
+  if (!ep || !/^https?:\/\//i.test(ep)) return url;
+  return url.replace(/^https?:\/\/huggingface\.co(?=[/?#]|$)/i, ep);
+}
+
 /** Rewrite a huggingface.co URL to use the configured HF_ENDPOINT mirror,
- *  preserving path, query, and fragment. Non-HF URLs are returned unchanged. */
+ *  preserving path, query, and fragment. Non-HF URLs are returned unchanged.
+ *  Uses the parsed config so it stays consistent with the rest of the server. */
 function resolveHuggingFaceUrl(url: string): string {
   if (!isHuggingFaceUrl(url)) return url;
   try {
@@ -278,6 +309,23 @@ function resolveHuggingFaceUrl(url: string): string {
   }
 }
 
+/** Issue #127: CIVITAI_ENABLED=0 disables Civitai access cleanly — tools fail
+ *  fast with a clear message instead of hanging against an unreachable host
+ *  (Civitai is blocked in some regions). Honors the env var directly when it is
+ *  set, otherwise falls back to the parsed config so mocked tests can control the
+ *  toggle via `config.civitaiEnabled`. */
+export function civitaiDisabled(): boolean {
+  const env = process.env.CIVITAI_ENABLED;
+  if (env !== undefined) {
+    const v = env.trim().toLowerCase();
+    return v === "0" || v === "false" || v === "no";
+  }
+  return !isCivitaiEnabled();
+}
+
+export const CIVITAI_DISABLED_MESSAGE =
+  "CivitAI downloads are disabled by config (CIVITAI_ENABLED=0) — common on networks where civitai.com is unreachable. " +
+  "Unset CIVITAI_ENABLED to re-enable, or download the file elsewhere and pass a direct URL to download_model.";
 /**
  * Validate a target subfolder under models/ and resolve it to an absolute dir
  * that is guaranteed to stay INSIDE models/. Accepts a known MODEL_SUBDIRS name
@@ -364,11 +412,12 @@ export interface ResolvedModelFile {
 export async function resolveExistingModelFile(
   relativePath: string,
 ): Promise<ResolvedModelFile> {
-  if (!config.comfyuiPath) {
+  if (!resolveComfyUIBase()) {
     throw new ModelError(
-      "COMFYUI_PATH is not configured. Locating/removing a local model operates on " +
+      "No local ComfyUI path configured. Locating/removing a local model operates on " +
         "the local filesystem and is unavailable when targeting a remote ComfyUI. " +
-        "Set the COMFYUI_PATH environment variable.",
+        "Set the COMFYUI_PATH environment variable, or save a default workspace with " +
+        "set_default_workspace.",
     );
   }
   const raw = (relativePath ?? "").trim();
@@ -531,9 +580,11 @@ async function downloadModelViaManagerRemote(
     filename: resolvedFilename,
     type: managerType,
     save_path: managerSavePath,
+    // Panel tray: watch OUR canonical category for the file to land (#143).
+    trayCategory: modelType,
   });
 
-  return `${normalizedSubfolder}/${resolvedFilename} (installed on the remote ComfyUI via ComfyUI-Manager)${authWarning}`;
+  return `${normalizedSubfolder}/${resolvedFilename} (dispatched to the remote ComfyUI via ComfyUI-Manager — download continues server-side; the file lists under /models when complete)${authWarning}`;
 }
 
 export async function downloadModel(
@@ -547,13 +598,12 @@ export async function downloadModel(
   // through unchanged.
   const resolvedUrl = resolveHuggingFaceUrl(url);
 
-  // If CivitAI is disabled, reject CivitAI URLs early so no network request is
-  // made and no token is attached.
-  if (isCivitaiUrl(resolvedUrl) && !isCivitaiEnabled()) {
-    throw new ModelError(
-      "CivitAI downloads are disabled. Set CIVITAI_ENABLED=true to enable, or use a HuggingFace URL.",
-      { url: redactUrlForLogs(resolvedUrl) },
-    );
+  // Region flags (issue #127): if CivitAI is disabled, reject CivitAI URLs early
+  // so no network request is made and no token is attached.
+  if (isCivitaiUrl(resolvedUrl) && civitaiDisabled()) {
+    throw new ModelError(CIVITAI_DISABLED_MESSAGE, {
+      url: redactUrlForLogs(resolvedUrl),
+    });
   }
 
   // REMOTE mode: the MCP has no local filesystem, so a local-disk download is
@@ -601,6 +651,9 @@ export async function downloadModel(
 
   const request = applyDownloadAuth(resolvedUrl, auth);
   const headers: Record<string, string> = { ...request.headers };
+  // isHuggingFaceUrl checks both huggingface.co and the configured HF_ENDPOINT
+  // mirror, so the token keeps flowing when the URL was rewritten to a mirror
+  // (mirrors proxy gated repos and accept the same Bearer token).
   if (!auth && config.huggingfaceToken && isHuggingFaceUrl(resolvedUrl)) {
     headers["Authorization"] = `Bearer ${config.huggingfaceToken}`;
   } else if (!auth && config.civitaiApiToken && isCivitaiUrl(resolvedUrl)) {
