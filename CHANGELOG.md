@@ -6,6 +6,29 @@ All notable changes to this project are documented here. This project adheres to
 
 ## Unreleased
 
+## [0.29.0] - 2026-07-09
+
+### MCP
+
+#### Added
+- on-demand phone pairing — token-gated LAN/tunnel listener (#180)
+- graph query — filter/traverse/aggregate over big workflows (#169) (#179)
+- inline media bytes in show_media for headless clients (#171)
+- Custom OpenAI-compatible endpoint as a first-class backend (#162) (#170)
+- llama.cpp (llama-server) as a first-class local backend (#161) (#167)
+- graph-health findings in validate_workflow / analyze_workflow — disconnected
+  nodes, missing required inputs, duplicate model loads, orphaned branches,
+  muted/bypassed (#175)
+- node-dev tools: path-jailed read/search/write/patch + per-pack git for
+  custom_nodes; commit/push behind COMFYUI_MCP_ALLOW_GIT_WRITES (#173)
+- get_comfyui_settings / set_comfyui_setting — read/write ComfyUI's own user
+  settings store (#174)
+- calculate — safe batch math evaluator with variables + seeded RNG (#176)
+- panel_auto_layout — one-shot topological canvas auto-arrange (#177, panel #75)
+- panel_connect auto-match by type + full slot diagnostics; dsl_to_workflow
+  advisory wiring warnings (#178, panel #76)
+
+
 ## [0.28.0] - 2026-07-09
 
 ### RunPod image
